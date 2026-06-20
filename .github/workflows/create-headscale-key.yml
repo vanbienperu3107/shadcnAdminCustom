@@ -1,0 +1,52 @@
+name: Create Headscale API Key
+
+# Được kích hoạt bởi derp-backend (POST /api/settings/apikey/generate).
+# SSH vào vpn2 → tạo key → POST về backend webhook → backend lưu vào DB.
+#
+# Cần secrets: SSH_HOST, SSH_USER, SSH_KEY, SSH_PORT, DERP_SESSION_SECRET
+# (DERP_SESSION_SECRET dùng để xác thực webhook, không cần secret mới)
+
+on:
+  workflow_dispatch:
+    inputs:
+      callback_url:
+        description: 'Backend webhook URL nhận key'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  create-key:
+    name: SSH → tạo headscale apikey → webhook về backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH vpn2 — tạo key + gọi webhook
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          WEBHOOK_SECRET: ${{ secrets.DERP_SESSION_SECRET }}
+          CALLBACK_URL: ${{ inputs.callback_url }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          envs: WEBHOOK_SECRET,CALLBACK_URL
+          command_timeout: 2m
+          script: |
+            set -e
+            SUDO=""
+            [ "$(id -u)" -ne 0 ] && SUDO="sudo"
+
+            echo "==> Tạo headscale API key (expiration 8760h)"
+            KEY="$($SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>/dev/null | tr -d '[:space:]')"
+            [ -n "$KEY" ] || (echo "ERR: key rỗng — headscale chưa chạy?"; exit 1)
+            echo "  Key tạo OK (prefix: $(printf '%s' "$KEY" | cut -d'.' -f1))"
+
+            echo "==> POST key về backend webhook: $CALLBACK_URL"
+            curl -fsSL -X POST "$CALLBACK_URL" \
+              -H "Content-Type: application/json" \
+              -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
+              -d "{\"key\":\"$KEY\"}" \
+              --max-time 15
+            echo "  Webhook OK — key đã lưu vào DB"
