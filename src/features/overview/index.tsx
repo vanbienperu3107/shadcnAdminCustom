@@ -1,24 +1,25 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   Activity,
   KeyRound,
+  Loader2,
   Network,
   Radio,
   RefreshCw,
   Server,
   Users,
+  Wand2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Main } from '@/components/layout/main'
 import { derpKeys, fetchHealth, listDerp } from '@/features/derp/data/derp-api'
 import {
+  apiKeyGenerate,
   apiKeyRefresh,
-  apiKeySeed,
   derpNameSet,
   fetchApiKeyStatus,
   fetchHsUsers,
@@ -62,28 +63,57 @@ function fmt(iso: string | null | undefined): string {
   return new Date(iso).toLocaleString('vi-VN', { hour12: false })
 }
 
-function ApiKeyCard({ status }: { status: ApiKeyStatus }) {
+function ApiKeyCard({
+  status,
+  onSetRefetchInterval,
+}: {
+  status: ApiKeyStatus
+  refetchInterval?: number
+  onSetRefetchInterval: (ms: number) => void
+}) {
   const qc = useQueryClient()
-  const [seedInput, setSeedInput] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [genMsg, setGenMsg] = useState('')
+  const [errMsg, setErrMsg] = useState('')
+
+  // Khi đang chờ workflow → poll nhanh 5s; khi key xuất hiện → dừng polling nhanh.
+  // setTimeout để setState được gọi trong callback (không phải synchronously trong effect).
+  useEffect(() => {
+    if (!generating || !status.configured) return
+    const t = setTimeout(() => {
+      setGenerating(false)
+      setGenMsg('Key đã tạo và lưu vào DB thành công!')
+      onSetRefetchInterval(60_000)
+    }, 0)
+    return () => clearTimeout(t)
+  }, [generating, status.configured, onSetRefetchInterval])
+
+  const generateMut = useMutation({
+    mutationFn: apiKeyGenerate,
+    onSuccess: (d) => {
+      setGenMsg(d.message)
+      setErrMsg('')
+      setGenerating(true)
+      onSetRefetchInterval(5_000) // poll nhanh chờ webhook
+    },
+    onError: (e: Error) => {
+      setErrMsg(e.message)
+      setGenerating(false)
+    },
+  })
 
   const refreshMut = useMutation({
     mutationFn: apiKeyRefresh,
     onSuccess: (data) => qc.setQueryData(hsKeys.apiKey, data),
-  })
-  const seedMut = useMutation({
-    mutationFn: (key: string) => apiKeySeed(key),
-    onSuccess: (data) => {
-      qc.setQueryData(hsKeys.apiKey, data)
-      setSeedInput('')
-    },
+    onError: (e: Error) => setErrMsg(e.message),
   })
 
-  const spinning = refreshMut.isPending || seedMut.isPending
-  const errMsg = (refreshMut.error || seedMut.error)?.message ?? status.error
+  const busy = generateMut.isPending || refreshMut.isPending || generating
 
   return (
     <Card>
       <CardContent className='flex flex-col gap-3 p-5'>
+        {/* Header */}
         <div className='flex flex-wrap items-center justify-between gap-2'>
           <div className='flex items-center gap-2'>
             <KeyRound className='size-5 text-muted-foreground' />
@@ -106,20 +136,47 @@ function ApiKeyCard({ status }: { status: ApiKeyStatus }) {
             )}
           </div>
 
-          {status.configured && (
+          <div className='flex gap-2'>
+            {/* Nút tạo key qua GitHub workflow (hiển thị cả khi chưa lẫn đã cấu hình) */}
             <Button
               size='sm'
-              variant='outline'
-              disabled={spinning}
-              onClick={() => refreshMut.mutate()}
+              variant={status.configured ? 'ghost' : 'default'}
+              disabled={busy}
+              onClick={() => {
+                setErrMsg('')
+                setGenMsg('')
+                generateMut.mutate()
+              }}
+              title='Kích hoạt GitHub workflow SSH vào vpn2 tạo key mới'
             >
-              <RefreshCw className={spinning ? 'animate-spin' : ''} />
-              Làm mới ngay
+              {generating ? <Loader2 className='animate-spin' /> : <Wand2 />}
+              {status.configured ? 'Tạo key mới' : 'Tạo Headscale API Key'}
             </Button>
-          )}
+
+            {/* Nút làm mới nhanh (dùng key hiện tại gọi headscale API) — chỉ khi đã có key */}
+            {status.configured && (
+              <Button
+                size='sm'
+                variant='outline'
+                disabled={busy}
+                onClick={() => {
+                  setErrMsg('')
+                  setGenMsg('')
+                  refreshMut.mutate()
+                }}
+                title='Xoay vòng key qua headscale REST API (không cần SSH)'
+              >
+                <RefreshCw
+                  className={refreshMut.isPending ? 'animate-spin' : ''}
+                />
+                Xoay vòng
+              </Button>
+            )}
+          </div>
         </div>
 
-        {status.configured ? (
+        {/* Key metadata */}
+        {status.configured && (
           <div className='grid gap-1 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-4'>
             <span>
               <b className='text-foreground'>Prefix:</b>{' '}
@@ -133,46 +190,45 @@ function ApiKeyCard({ status }: { status: ApiKeyStatus }) {
               {fmt(status.refreshedAt)}
             </span>
             <span>
-              <b className='text-foreground'>Next refresh:</b>{' '}
+              <b className='text-foreground'>Next auto-refresh:</b>{' '}
               {fmt(status.nextRefreshAt)}{' '}
-              <span className='text-muted-foreground'>(tự động 24h)</span>
+              <span className='text-muted-foreground'>(24h)</span>
             </span>
-          </div>
-        ) : (
-          <div className='flex flex-col gap-2'>
-            <p className='text-xs text-muted-foreground'>
-              Nhập API key ban đầu (chỉ cần 1 lần — sau đó tự xoay vòng mỗi
-              24h):
-            </p>
-            <div className='flex gap-2'>
-              <Input
-                className='font-mono text-xs'
-                placeholder='abc123.xxxx…'
-                value={seedInput}
-                onChange={(e) => setSeedInput(e.target.value)}
-                disabled={spinning}
-              />
-              <Button
-                size='sm'
-                disabled={spinning || seedInput.trim().length < 10}
-                onClick={() => seedMut.mutate(seedInput.trim())}
-              >
-                Lưu
-              </Button>
-            </div>
-            <code className='rounded bg-muted px-2 py-1 text-xs'>
-              docker exec headscale headscale apikeys create --expiration 8760h
-            </code>
           </div>
         )}
 
+        {/* Trạng thái workflow đang chạy */}
+        {generating && (
+          <div className='flex items-center gap-2 rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-xs text-blue-600 dark:text-blue-400'>
+            <Loader2 className='size-3 animate-spin' />
+            GitHub workflow đang chạy — SSH vào vpn2 tạo key... (~1 phút)
+          </div>
+        )}
+
+        {/* Thông báo */}
+        {genMsg && !generating && (
+          <p className='text-xs text-emerald-600 dark:text-emerald-400'>
+            {genMsg}
+          </p>
+        )}
         {errMsg && <p className='text-xs text-destructive'>Lỗi: {errMsg}</p>}
+
+        {/* Chưa cấu hình: hướng dẫn */}
+        {!status.configured && !generating && (
+          <p className='text-xs text-muted-foreground'>
+            Bấm <b className='text-foreground'>Tạo Headscale API Key</b> — hệ
+            thống tự SSH vào vpn2, tạo key và lưu vào DB. Từ đó tự xoay vòng mỗi
+            24h, không cần thao tác thêm.
+          </p>
+        )}
       </CardContent>
     </Card>
   )
 }
 
 export function Overview() {
+  const [apiKeyInterval, setApiKeyInterval] = useState(60_000)
+
   const derp = useQuery({ queryKey: derpKeys.all, queryFn: listDerp })
   const health = useQuery({
     queryKey: derpKeys.health,
@@ -188,7 +244,7 @@ export function Overview() {
   const apiKey = useQuery({
     queryKey: hsKeys.apiKey,
     queryFn: fetchApiKeyStatus,
-    refetchInterval: 60_000,
+    refetchInterval: apiKeyInterval,
   })
 
   const regions = derp.data ?? []
@@ -252,8 +308,13 @@ export function Overview() {
         />
       </div>
 
-      {/* API Key management */}
-      {apiKey.data && <ApiKeyCard status={apiKey.data} />}
+      {apiKey.data && (
+        <ApiKeyCard
+          status={apiKey.data}
+          refetchInterval={apiKeyInterval}
+          onSetRefetchInterval={setApiKeyInterval}
+        />
+      )}
     </Main>
   )
 }

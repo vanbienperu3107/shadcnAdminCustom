@@ -100,6 +100,16 @@ export async function apiKeyRefresh(): Promise<ApiKeyStatus> {
   return data
 }
 
+export async function apiKeyGenerate(): Promise<{
+  dispatched: boolean
+  message: string
+}> {
+  const { data } = await api.post<{ dispatched: boolean; message: string }>(
+    '/settings/apikey/generate'
+  )
+  return data
+}
+
 /** Tập tên node hạ tầng DERP (vpn2..vpn6 + collector) suy từ danh sách DERP. */
 export function derpNameSet(
   derp: { hostname: string; code: string }[]
