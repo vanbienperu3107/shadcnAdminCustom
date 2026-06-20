@@ -99,3 +99,9 @@ jobs:
             $SUDO docker ps --filter name=derp-backend --format '  {{.Names}} {{.Status}} net={{.Networks}}'
             sleep 4
             $SUDO docker exec derp-backend wget -qO- http://127.0.0.1:8787/healthz || echo "  healthz chua san sang (xem: docker logs derp-backend)"
+        env:
+          DERP_DATABASE_URL: ${{ secrets.DERP_DATABASE_URL }}
+          DERP_SESSION_SECRET: ${{ secrets.DERP_SESSION_SECRET }}
+          DERP_ALLOWED_EMAILS: ${{ secrets.DERP_ALLOWED_EMAILS }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
