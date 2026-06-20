@@ -29,6 +29,11 @@ const schema = z.object({
   HEADSCALE_API_KEY: z.string().default(''),
   // node-dedup collector (latency/health JSON) — cung mang compose.
   NODEDEDUP_URL: z.string().default('http://node-dedup:8090'),
+  // GitHub Actions (tab Deploy & CI). PAT read actions; repos phẩy ngăn cách.
+  GITHUB_TOKEN: z.string().default(''),
+  GITHUB_REPOS: z
+    .string()
+    .default('vanbienperu3107/shadcnAdminCustom,vanbienperu3107/deployHeadscale'),
   // 'true' = bỏ qua đăng nhập (CHỈ dev/local để xem UI khi chưa cấu hình Google).
   AUTH_OPTIONAL: z.string().default('false'),
   NODE_ENV: z.string().default('development'),

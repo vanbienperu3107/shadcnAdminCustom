@@ -34,6 +34,7 @@ import { Route as AuthenticatedMachinesIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedLatencyIndexRouteImport } from './routes/_authenticated/latency/index'
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
 import { Route as AuthenticatedDerpIndexRouteImport } from './routes/_authenticated/derp/index'
+import { Route as AuthenticatedDeployIndexRouteImport } from './routes/_authenticated/deploy/index'
 import { Route as AuthenticatedChatsIndexRouteImport } from './routes/_authenticated/chats/index'
 import { Route as AuthenticatedAppsIndexRouteImport } from './routes/_authenticated/apps/index'
 import { Route as ClerkAuthenticatedUserManagementRouteImport } from './routes/clerk/_authenticated/user-management'
@@ -174,6 +175,12 @@ const AuthenticatedDerpIndexRoute = AuthenticatedDerpIndexRouteImport.update({
   path: '/derp/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDeployIndexRoute =
+  AuthenticatedDeployIndexRouteImport.update({
+    id: '/deploy/',
+    path: '/deploy/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedChatsIndexRoute = AuthenticatedChatsIndexRouteImport.update({
   id: '/chats/',
   path: '/chats/',
@@ -255,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/clerk/user-management': typeof ClerkAuthenticatedUserManagementRoute
   '/apps/': typeof AuthenticatedAppsIndexRoute
   '/chats/': typeof AuthenticatedChatsIndexRoute
+  '/deploy/': typeof AuthenticatedDeployIndexRoute
   '/derp/': typeof AuthenticatedDerpIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/latency/': typeof AuthenticatedLatencyIndexRoute
@@ -288,6 +296,7 @@ export interface FileRoutesByTo {
   '/clerk/user-management': typeof ClerkAuthenticatedUserManagementRoute
   '/apps': typeof AuthenticatedAppsIndexRoute
   '/chats': typeof AuthenticatedChatsIndexRoute
+  '/deploy': typeof AuthenticatedDeployIndexRoute
   '/derp': typeof AuthenticatedDerpIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
   '/latency': typeof AuthenticatedLatencyIndexRoute
@@ -326,6 +335,7 @@ export interface FileRoutesById {
   '/clerk/_authenticated/user-management': typeof ClerkAuthenticatedUserManagementRoute
   '/_authenticated/apps/': typeof AuthenticatedAppsIndexRoute
   '/_authenticated/chats/': typeof AuthenticatedChatsIndexRoute
+  '/_authenticated/deploy/': typeof AuthenticatedDeployIndexRoute
   '/_authenticated/derp/': typeof AuthenticatedDerpIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/_authenticated/latency/': typeof AuthenticatedLatencyIndexRoute
@@ -362,6 +372,7 @@ export interface FileRouteTypes {
     | '/clerk/user-management'
     | '/apps/'
     | '/chats/'
+    | '/deploy/'
     | '/derp/'
     | '/help-center/'
     | '/latency/'
@@ -395,6 +406,7 @@ export interface FileRouteTypes {
     | '/clerk/user-management'
     | '/apps'
     | '/chats'
+    | '/deploy'
     | '/derp'
     | '/help-center'
     | '/latency'
@@ -432,6 +444,7 @@ export interface FileRouteTypes {
     | '/clerk/_authenticated/user-management'
     | '/_authenticated/apps/'
     | '/_authenticated/chats/'
+    | '/_authenticated/deploy/'
     | '/_authenticated/derp/'
     | '/_authenticated/help-center/'
     | '/_authenticated/latency/'
@@ -635,6 +648,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDerpIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/deploy/': {
+      id: '/_authenticated/deploy/'
+      path: '/deploy'
+      fullPath: '/deploy/'
+      preLoaderRoute: typeof AuthenticatedDeployIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/chats/': {
       id: '/_authenticated/chats/'
       path: '/chats'
@@ -737,6 +757,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
+  AuthenticatedDeployIndexRoute: typeof AuthenticatedDeployIndexRoute
   AuthenticatedDerpIndexRoute: typeof AuthenticatedDerpIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
   AuthenticatedLatencyIndexRoute: typeof AuthenticatedLatencyIndexRoute
@@ -753,6 +774,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
+  AuthenticatedDeployIndexRoute: AuthenticatedDeployIndexRoute,
   AuthenticatedDerpIndexRoute: AuthenticatedDerpIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
   AuthenticatedLatencyIndexRoute: AuthenticatedLatencyIndexRoute,
