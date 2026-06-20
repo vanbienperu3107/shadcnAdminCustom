@@ -27,7 +27,11 @@ import { Route as ClerkauthRouteRouteImport } from './routes/clerk/(auth)/route'
 import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
+import { Route as AuthenticatedTailnetUsersIndexRouteImport } from './routes/_authenticated/tailnet-users/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
+import { Route as AuthenticatedOverviewIndexRouteImport } from './routes/_authenticated/overview/index'
+import { Route as AuthenticatedMachinesIndexRouteImport } from './routes/_authenticated/machines/index'
+import { Route as AuthenticatedLatencyIndexRouteImport } from './routes/_authenticated/latency/index'
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
 import { Route as AuthenticatedDerpIndexRouteImport } from './routes/_authenticated/derp/index'
 import { Route as AuthenticatedChatsIndexRouteImport } from './routes/_authenticated/chats/index'
@@ -129,11 +133,35 @@ const AuthenticatedTasksIndexRoute = AuthenticatedTasksIndexRouteImport.update({
   path: '/tasks/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTailnetUsersIndexRoute =
+  AuthenticatedTailnetUsersIndexRouteImport.update({
+    id: '/tailnet-users/',
+    path: '/tailnet-users/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsIndexRoute =
   AuthenticatedSettingsIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
+const AuthenticatedOverviewIndexRoute =
+  AuthenticatedOverviewIndexRouteImport.update({
+    id: '/overview/',
+    path: '/overview/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMachinesIndexRoute =
+  AuthenticatedMachinesIndexRouteImport.update({
+    id: '/machines/',
+    path: '/machines/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedLatencyIndexRoute =
+  AuthenticatedLatencyIndexRouteImport.update({
+    id: '/latency/',
+    path: '/latency/',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedHelpCenterIndexRoute =
   AuthenticatedHelpCenterIndexRouteImport.update({
@@ -205,7 +233,7 @@ const AuthenticatedErrorsErrorRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
-  '/clerk': typeof ClerkauthRouteRouteWithChildren
+  '/clerk': typeof ClerkAuthenticatedRouteRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/forgot-password': typeof authForgotPasswordRoute
   '/otp': typeof authOtpRoute
@@ -229,12 +257,16 @@ export interface FileRoutesByFullPath {
   '/chats/': typeof AuthenticatedChatsIndexRoute
   '/derp/': typeof AuthenticatedDerpIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
+  '/latency/': typeof AuthenticatedLatencyIndexRoute
+  '/machines/': typeof AuthenticatedMachinesIndexRoute
+  '/overview/': typeof AuthenticatedOverviewIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/tailnet-users/': typeof AuthenticatedTailnetUsersIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
 }
 export interface FileRoutesByTo {
-  '/clerk': typeof ClerkauthRouteRouteWithChildren
+  '/clerk': typeof ClerkAuthenticatedRouteRouteWithChildren
   '/forgot-password': typeof authForgotPasswordRoute
   '/otp': typeof authOtpRoute
   '/sign-in': typeof authSignInRoute
@@ -258,7 +290,11 @@ export interface FileRoutesByTo {
   '/chats': typeof AuthenticatedChatsIndexRoute
   '/derp': typeof AuthenticatedDerpIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
+  '/latency': typeof AuthenticatedLatencyIndexRoute
+  '/machines': typeof AuthenticatedMachinesIndexRoute
+  '/overview': typeof AuthenticatedOverviewIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
+  '/tailnet-users': typeof AuthenticatedTailnetUsersIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
 }
@@ -292,7 +328,11 @@ export interface FileRoutesById {
   '/_authenticated/chats/': typeof AuthenticatedChatsIndexRoute
   '/_authenticated/derp/': typeof AuthenticatedDerpIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
+  '/_authenticated/latency/': typeof AuthenticatedLatencyIndexRoute
+  '/_authenticated/machines/': typeof AuthenticatedMachinesIndexRoute
+  '/_authenticated/overview/': typeof AuthenticatedOverviewIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/_authenticated/tailnet-users/': typeof AuthenticatedTailnetUsersIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
 }
@@ -324,7 +364,11 @@ export interface FileRouteTypes {
     | '/chats/'
     | '/derp/'
     | '/help-center/'
+    | '/latency/'
+    | '/machines/'
+    | '/overview/'
     | '/settings/'
+    | '/tailnet-users/'
     | '/tasks/'
     | '/users/'
   fileRoutesByTo: FileRoutesByTo
@@ -353,7 +397,11 @@ export interface FileRouteTypes {
     | '/chats'
     | '/derp'
     | '/help-center'
+    | '/latency'
+    | '/machines'
+    | '/overview'
     | '/settings'
+    | '/tailnet-users'
     | '/tasks'
     | '/users'
   id:
@@ -386,7 +434,11 @@ export interface FileRouteTypes {
     | '/_authenticated/chats/'
     | '/_authenticated/derp/'
     | '/_authenticated/help-center/'
+    | '/_authenticated/latency/'
+    | '/_authenticated/machines/'
+    | '/_authenticated/overview/'
     | '/_authenticated/settings/'
+    | '/_authenticated/tailnet-users/'
     | '/_authenticated/tasks/'
     | '/_authenticated/users/'
   fileRoutesById: FileRoutesById
@@ -534,12 +586,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTasksIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tailnet-users/': {
+      id: '/_authenticated/tailnet-users/'
+      path: '/tailnet-users'
+      fullPath: '/tailnet-users/'
+      preLoaderRoute: typeof AuthenticatedTailnetUsersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings/': {
       id: '/_authenticated/settings/'
       path: '/'
       fullPath: '/settings/'
       preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
+    '/_authenticated/overview/': {
+      id: '/_authenticated/overview/'
+      path: '/overview'
+      fullPath: '/overview/'
+      preLoaderRoute: typeof AuthenticatedOverviewIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/machines/': {
+      id: '/_authenticated/machines/'
+      path: '/machines'
+      fullPath: '/machines/'
+      preLoaderRoute: typeof AuthenticatedMachinesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/latency/': {
+      id: '/_authenticated/latency/'
+      path: '/latency'
+      fullPath: '/latency/'
+      preLoaderRoute: typeof AuthenticatedLatencyIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/help-center/': {
       id: '/_authenticated/help-center/'
@@ -659,6 +739,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
   AuthenticatedDerpIndexRoute: typeof AuthenticatedDerpIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
+  AuthenticatedLatencyIndexRoute: typeof AuthenticatedLatencyIndexRoute
+  AuthenticatedMachinesIndexRoute: typeof AuthenticatedMachinesIndexRoute
+  AuthenticatedOverviewIndexRoute: typeof AuthenticatedOverviewIndexRoute
+  AuthenticatedTailnetUsersIndexRoute: typeof AuthenticatedTailnetUsersIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
 }
@@ -671,6 +755,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
   AuthenticatedDerpIndexRoute: AuthenticatedDerpIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
+  AuthenticatedLatencyIndexRoute: AuthenticatedLatencyIndexRoute,
+  AuthenticatedMachinesIndexRoute: AuthenticatedMachinesIndexRoute,
+  AuthenticatedOverviewIndexRoute: AuthenticatedOverviewIndexRoute,
+  AuthenticatedTailnetUsersIndexRoute: AuthenticatedTailnetUsersIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
 }

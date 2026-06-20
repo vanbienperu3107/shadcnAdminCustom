@@ -8,6 +8,7 @@ import { seedIfEmpty } from './db/seed.js'
 import { authRoutes } from './routes/auth.js'
 import { derpRoutes } from './routes/derp.js'
 import { derpmapRoutes } from './routes/derpmap.js'
+import { headscaleRoutes } from './routes/headscale.js'
 import { healthRoutes } from './routes/health.js'
 
 async function main() {
@@ -23,6 +24,7 @@ async function main() {
   await app.register(derpmapRoutes)
   await app.register(authRoutes)
   await app.register(derpRoutes)
+  await app.register(headscaleRoutes)
 
   // Phục vụ SPA tĩnh (prod) nếu có CLIENT_DIST — fallback về index.html cho client-routing.
   if (env.CLIENT_DIST && existsSync(env.CLIENT_DIST)) {

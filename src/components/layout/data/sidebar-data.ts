@@ -1,4 +1,4 @@
-import { Network } from 'lucide-react'
+import { Activity, LayoutDashboard, Network, Server, Users } from 'lucide-react'
 import { type SidebarData } from '../types'
 
 export const sidebarData: SidebarData = {
@@ -9,7 +9,7 @@ export const sidebarData: SidebarData = {
   },
   teams: [
     {
-      name: 'Headscale Admin',
+      name: 'Votam admin controller',
       logo: Network,
       plan: 'hangocthanh.io.vn',
     },
@@ -18,11 +18,11 @@ export const sidebarData: SidebarData = {
     {
       title: 'Headscale',
       items: [
-        {
-          title: 'DERP Regions',
-          url: '/derp',
-          icon: Network,
-        },
+        { title: 'Overview', url: '/overview', icon: LayoutDashboard },
+        { title: 'Machines', url: '/machines', icon: Server },
+        { title: 'Users', url: '/tailnet-users', icon: Users },
+        { title: 'Latency', url: '/latency', icon: Activity },
+        { title: 'DERP Regions', url: '/derp', icon: Network },
       ],
     },
   ],
