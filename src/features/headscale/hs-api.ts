@@ -21,6 +21,7 @@ export const hsKeys = {
   users: ['hs', 'users'] as const,
   latency: ['hs', 'latency'] as const,
   ci: ['hs', 'ci'] as const,
+  apiKey: ['settings', 'apikey'] as const,
 }
 
 export type CiRun = {
@@ -71,6 +72,32 @@ export async function fetchLatency(): Promise<{
 export function userName(u: HsMachine['user']): string {
   if (!u) return '—'
   return typeof u === 'string' ? u : (u.name ?? '—')
+}
+
+export type ApiKeyStatus = {
+  configured: boolean
+  prefix: string | null
+  seededAt: string | null
+  refreshedAt: string | null
+  nextRefreshAt: string | null
+  error?: string
+}
+
+export async function fetchApiKeyStatus(): Promise<ApiKeyStatus> {
+  const { data } = await api.get<ApiKeyStatus>('/settings/apikey')
+  return data
+}
+
+export async function apiKeySeed(key: string): Promise<ApiKeyStatus> {
+  const { data } = await api.post<ApiKeyStatus>('/settings/apikey/seed', {
+    key,
+  })
+  return data
+}
+
+export async function apiKeyRefresh(): Promise<ApiKeyStatus> {
+  const { data } = await api.post<ApiKeyStatus>('/settings/apikey/refresh')
+  return data
 }
 
 /** Tập tên node hạ tầng DERP (vpn2..vpn6 + collector) suy từ danh sách DERP. */

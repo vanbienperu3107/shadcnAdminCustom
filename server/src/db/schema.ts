@@ -53,7 +53,17 @@ export const sessions = pgTable('sessions', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 })
 
+/** Bảng đơn dòng (id=1 luôn) lưu Headscale API key hiện hành. */
+export const headscaleApiKey = pgTable('headscale_api_keys', {
+  id: integer('id').primaryKey(), // always 1
+  apiKey: text('api_key').notNull(),
+  prefix: text('prefix'), // phần prefix trước dấu "." dùng để expire key cũ
+  seededAt: timestamp('seeded_at', { withTimezone: true }).notNull().defaultNow(),
+  refreshedAt: timestamp('refreshed_at', { withTimezone: true }),
+})
+
 export type DerpServer = typeof derpServers.$inferSelect
 export type NewDerpServer = typeof derpServers.$inferInsert
 export type User = typeof users.$inferSelect
 export type Session = typeof sessions.$inferSelect
+export type HeadscaleApiKey = typeof headscaleApiKey.$inferSelect
