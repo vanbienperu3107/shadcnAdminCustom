@@ -5,6 +5,7 @@ import { db } from '../db/client.js'
 import { derpServers } from '../db/schema.js'
 import { requireAuth } from '../auth/middleware.js'
 import { nextRegionId } from '../lib/region-id.js'
+import { probeHost } from '../lib/probe.js'
 
 const createSchema = z.object({
   code: z.string().min(1).max(64),
@@ -46,6 +47,29 @@ export async function derpRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/derp/next-region-id', async () => {
     const rows = await db.select({ regionId: derpServers.regionId }).from(derpServers)
     return { regionId: nextRegionId(rows.map((r) => r.regionId)) }
+  })
+
+  // Re-probe HEALTH THẬT: ping HTTPS /derp/probe (hoặc /relay/probe) từng node,
+  // verify TLS như client. Trả về up/down + latency. Probe song song.
+  app.get('/api/derp/health', async () => {
+    // Bỏ qua region embedded (999, vpn2): /derp/probe public bị Caddy route sang
+    // node-dedup nên không probe được derper thật -> UI hiển thị "control" riêng.
+    const rows = await db
+      .select({
+        regionId: derpServers.regionId,
+        hostname: derpServers.hostname,
+        derpPort: derpServers.derpPort,
+      })
+      .from(derpServers)
+      .where(eq(derpServers.embedded, false))
+      .orderBy(asc(derpServers.regionId))
+    const results = await Promise.all(
+      rows.map(async (r) => ({
+        regionId: r.regionId,
+        ...(await probeHost(r.hostname, r.derpPort)),
+      }))
+    )
+    return results
   })
 
   // Thêm mới — region_id tự cấp, không trùng, không là 999
