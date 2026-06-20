@@ -8,6 +8,9 @@ import { playwright } from '@vitest/browser-playwright'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Prod (Docker) đặt VITE_BASE=/app/ để serve dưới vpn2.hangocthanh.io.vn/app.
+  // Dev để '/'.
+  base: process.env.VITE_BASE || '/',
   plugins: [
     tanstackRouter({
       target: 'react',

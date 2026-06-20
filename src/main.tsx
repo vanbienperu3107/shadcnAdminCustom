@@ -72,12 +72,16 @@ const queryClient = new QueryClient({
   }),
 })
 
-// Create a new router instance
+// Create a new router instance.
+// basepath theo Vite base (prod '/app/' -> '/app', dev '/' -> '/') để SPA chạy
+// dưới vpn2.hangocthanh.io.vn/app mà không cần đổi code.
+const routerBasepath = import.meta.env.BASE_URL.replace(/\/$/, '') || '/'
 const router = createRouter({
   routeTree,
   context: { queryClient },
   defaultPreload: 'intent',
   defaultPreloadStaleTime: 0,
+  basepath: routerBasepath,
 })
 
 // Register the router instance for type safety

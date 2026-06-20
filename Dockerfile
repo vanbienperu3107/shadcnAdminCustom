@@ -12,8 +12,10 @@ RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
-# API same-origin trong prod (Caddy/SPA cùng host backend)
-ENV VITE_API_BASE_URL=/api
+# Serve dưới vpn2.hangocthanh.io.vn/app: base + API base đều mang prefix /app
+# (Caddy handle_path /app/* strip prefix -> backend thấy / và /api).
+ENV VITE_BASE=/app/
+ENV VITE_API_BASE_URL=/app/api
 RUN pnpm build
 
 # ---- Backend (TypeScript -> dist) ----
