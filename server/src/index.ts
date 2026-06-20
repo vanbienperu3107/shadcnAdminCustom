@@ -6,6 +6,7 @@ import { env, googleEnabled } from './env.js'
 import { migrate } from './db/migrate.js'
 import { seedIfEmpty } from './db/seed.js'
 import { authRoutes } from './routes/auth.js'
+import { ciRoutes } from './routes/ci.js'
 import { derpRoutes } from './routes/derp.js'
 import { derpmapRoutes } from './routes/derpmap.js'
 import { headscaleRoutes } from './routes/headscale.js'
@@ -25,6 +26,7 @@ async function main() {
   await app.register(authRoutes)
   await app.register(derpRoutes)
   await app.register(headscaleRoutes)
+  await app.register(ciRoutes)
 
   // Phục vụ SPA tĩnh (prod) nếu có CLIENT_DIST — fallback về index.html cho client-routing.
   if (env.CLIENT_DIST && existsSync(env.CLIENT_DIST)) {

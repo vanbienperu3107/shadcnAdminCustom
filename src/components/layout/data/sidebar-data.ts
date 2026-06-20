@@ -1,4 +1,11 @@
-import { Activity, LayoutDashboard, Network, Server, Users } from 'lucide-react'
+import {
+  Activity,
+  LayoutDashboard,
+  Network,
+  Rocket,
+  Server,
+  Users,
+} from 'lucide-react'
 import { type SidebarData } from '../types'
 
 export const sidebarData: SidebarData = {
@@ -23,6 +30,7 @@ export const sidebarData: SidebarData = {
         { title: 'Users', url: '/tailnet-users', icon: Users },
         { title: 'Latency', url: '/latency', icon: Activity },
         { title: 'DERP Regions', url: '/derp', icon: Network },
+        { title: 'Deploy & CI', url: '/deploy', icon: Rocket },
       ],
     },
   ],

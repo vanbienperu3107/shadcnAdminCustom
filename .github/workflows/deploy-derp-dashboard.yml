@@ -60,7 +60,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
-          envs: DERP_DATABASE_URL,DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET
+          envs: DERP_DATABASE_URL,DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,GH_PAT
           script_stop: true
           command_timeout: 10m
           script: |
@@ -74,21 +74,25 @@ jobs:
             NETARG=""
             [ -n "$HSNET" ] && NETARG="--network $HSNET"
 
-            echo "==> HEADSCALE_API_KEY (Machines/Users): dung cache hoac TU TAO tren headscale"
-            HS_KEY_FILE="$HOME/derp-dashboard/.hs_apikey"
-            mkdir -p "$HOME/derp-dashboard"
+            echo "==> HEADSCALE_API_KEY (Machines/Users): cache hoac TU TAO tren headscale (best-effort)"
+            HS_DIR="${HOME:-/root}/derp-dashboard"
+            HS_KEY_FILE="$HS_DIR/.hs_apikey"
+            HS_KEY=""
+            set +e   # block nay KHONG duoc lam sap deploy
+            mkdir -p "$HS_DIR" 2>/dev/null
             if [ -s "$HS_KEY_FILE" ]; then
-              HS_KEY=$(cat "$HS_KEY_FILE")
+              HS_KEY=$(cat "$HS_KEY_FILE" 2>/dev/null)
               echo "  dung key da cache"
             else
               HS_KEY=$($SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>/dev/null | tr -d '[:space:]')
               if [ -n "$HS_KEY" ]; then
-                printf '%s' "$HS_KEY" > "$HS_KEY_FILE"; chmod 600 "$HS_KEY_FILE"
-                echo "  da TAO + luu .hs_apikey (KHONG in key ra log)"
+                printf '%s' "$HS_KEY" > "$HS_KEY_FILE" 2>/dev/null && chmod 600 "$HS_KEY_FILE" 2>/dev/null
+                echo "  da TAO + luu apikey (KHONG in key ra log)"
               else
-                echo "  CANH BAO: khong tao duoc apikey (headscale chay chua?) -> Machines/Users se trong"
+                echo "  CANH BAO: chua tao duoc apikey -> Machines/Users se trong (deploy VAN tiep tuc)"
               fi
             fi
+            set -e
 
             echo "==> Pull image moi"
             $SUDO docker pull "$IMG"
@@ -104,6 +108,7 @@ jobs:
               -e SESSION_SECRET="$DERP_SESSION_SECRET" \
               -e ALLOWED_EMAILS="$DERP_ALLOWED_EMAILS" \
               -e HEADSCALE_API_KEY="$HS_KEY" \
+              -e GITHUB_TOKEN="$GH_PAT" \
               -e AUTH_OPTIONAL=false \
               -e NODE_ENV=production \
               "$IMG"
@@ -122,3 +127,4 @@ jobs:
           DERP_ALLOWED_EMAILS: ${{ secrets.DERP_ALLOWED_EMAILS }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GH_PAT: ${{ secrets.GH_PAT }}

@@ -20,6 +20,27 @@ export const hsKeys = {
   machines: ['hs', 'machines'] as const,
   users: ['hs', 'users'] as const,
   latency: ['hs', 'latency'] as const,
+  ci: ['hs', 'ci'] as const,
+}
+
+export type CiRun = {
+  repo: string
+  name: string
+  status: string
+  conclusion: string | null
+  headBranch: string
+  event: string
+  createdAt: string
+  htmlUrl: string
+}
+
+export async function fetchCi(): Promise<{
+  configured: boolean
+  runs: CiRun[]
+  error?: string
+}> {
+  const { data } = await api.get('/ci')
+  return data
 }
 
 export async function fetchMachines(): Promise<{
