@@ -74,6 +74,22 @@ jobs:
             NETARG=""
             [ -n "$HSNET" ] && NETARG="--network $HSNET"
 
+            echo "==> HEADSCALE_API_KEY (Machines/Users): dung cache hoac TU TAO tren headscale"
+            HS_KEY_FILE="$HOME/derp-dashboard/.hs_apikey"
+            mkdir -p "$HOME/derp-dashboard"
+            if [ -s "$HS_KEY_FILE" ]; then
+              HS_KEY=$(cat "$HS_KEY_FILE")
+              echo "  dung key da cache"
+            else
+              HS_KEY=$($SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>/dev/null | tr -d '[:space:]')
+              if [ -n "$HS_KEY" ]; then
+                printf '%s' "$HS_KEY" > "$HS_KEY_FILE"; chmod 600 "$HS_KEY_FILE"
+                echo "  da TAO + luu .hs_apikey (KHONG in key ra log)"
+              else
+                echo "  CANH BAO: khong tao duoc apikey (headscale chay chua?) -> Machines/Users se trong"
+              fi
+            fi
+
             echo "==> Pull image moi"
             $SUDO docker pull "$IMG"
 
@@ -87,6 +103,7 @@ jobs:
               -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
               -e SESSION_SECRET="$DERP_SESSION_SECRET" \
               -e ALLOWED_EMAILS="$DERP_ALLOWED_EMAILS" \
+              -e HEADSCALE_API_KEY="$HS_KEY" \
               -e AUTH_OPTIONAL=false \
               -e NODE_ENV=production \
               "$IMG"
