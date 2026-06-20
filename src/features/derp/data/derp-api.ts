@@ -4,6 +4,21 @@ import { type DerpFormValues, type DerpServer } from './schema'
 export const derpKeys = {
   all: ['derp'] as const,
   nextRegionId: ['derp', 'next-region-id'] as const,
+  health: ['derp', 'health'] as const,
+}
+
+/** Kết quả probe health THẬT (server probe HTTPS /derp/probe của từng node). */
+export type ProbeResult = {
+  regionId: number
+  up: boolean
+  latencyMs: number | null
+  path: string | null
+  error: string | null
+}
+
+export async function fetchHealth(): Promise<ProbeResult[]> {
+  const { data } = await api.get<ProbeResult[]>('/derp/health')
+  return data
 }
 
 export async function listDerp(): Promise<DerpServer[]> {

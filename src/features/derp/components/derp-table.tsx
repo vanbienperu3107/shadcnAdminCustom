@@ -1,5 +1,17 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { MoreHorizontal, Pause, Pencil, Play, Trash2 } from 'lucide-react'
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from '@tanstack/react-query'
+import {
+  Loader2,
+  MoreHorizontal,
+  Pause,
+  Pencil,
+  Play,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -20,9 +32,57 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { derpKeys, toggleDerp } from '../data/derp-api'
+import {
+  derpKeys,
+  fetchHealth,
+  toggleDerp,
+  type ProbeResult,
+} from '../data/derp-api'
 import { type DerpServer } from '../data/schema'
 import { useDerp } from './derp-provider'
+
+/** Cột health THẬT (probe HTTPS). Khác cột "Trạng thái" (admin state trong DB). */
+function HealthCell({
+  row,
+  health,
+}: {
+  row: DerpServer
+  health: UseQueryResult<ProbeResult[]>
+}) {
+  if (row.embedded) {
+    return <span className='text-xs text-muted-foreground'>control</span>
+  }
+  if (health.isFetching) {
+    return (
+      <span className='inline-flex items-center gap-1 text-xs text-muted-foreground'>
+        <Loader2 className='size-3 animate-spin' /> đang probe…
+      </span>
+    )
+  }
+  const r = health.data?.find((h) => h.regionId === row.regionId)
+  if (!r) return <span className='text-muted-foreground'>—</span>
+  if (r.up) {
+    return (
+      <Badge
+        variant='outline'
+        className='border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+      >
+        <span className='me-1 inline-block size-2 rounded-full bg-emerald-500' />
+        {r.latencyMs}ms
+      </Badge>
+    )
+  }
+  return (
+    <Badge
+      variant='outline'
+      className='border-destructive/40 text-destructive'
+      title={r.error ?? undefined}
+    >
+      <span className='me-1 inline-block size-2 rounded-full bg-destructive' />
+      Chết
+    </Badge>
+  )
+}
 
 function StatusBadge({ row }: { row: DerpServer }) {
   if (row.embedded) {
@@ -89,6 +149,14 @@ export function DerpTable({ data }: { data: DerpServer[] }) {
     onSettled: () => qc.invalidateQueries({ queryKey: derpKeys.all }),
   })
 
+  // Probe health THẬT — tự chạy khi mở trang; nút "Probe lại" sẽ refetch query này.
+  const health = useQuery({
+    queryKey: derpKeys.health,
+    queryFn: fetchHealth,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  })
+
   return (
     <div className='overflow-hidden rounded-md border'>
       <Table>
@@ -99,6 +167,7 @@ export function DerpTable({ data }: { data: DerpServer[] }) {
             <TableHead>IP</TableHead>
             <TableHead>Loại</TableHead>
             <TableHead>Trạng thái</TableHead>
+            <TableHead>Health (live)</TableHead>
             <TableHead className='text-center'>Ưu tiên</TableHead>
             <TableHead className='text-center'>Bật/Tắt</TableHead>
             <TableHead className='text-end'>Hành động</TableHead>
@@ -107,7 +176,7 @@ export function DerpTable({ data }: { data: DerpServer[] }) {
         <TableBody>
           {data.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className='h-24 text-center'>
+              <TableCell colSpan={9} className='h-24 text-center'>
                 Chưa có node DERP nào.
               </TableCell>
             </TableRow>
@@ -134,6 +203,9 @@ export function DerpTable({ data }: { data: DerpServer[] }) {
                 </TableCell>
                 <TableCell>
                   <StatusBadge row={row} />
+                </TableCell>
+                <TableCell>
+                  <HealthCell row={row} health={health} />
                 </TableCell>
                 <TableCell className='text-center font-mono'>
                   {row.priority}
