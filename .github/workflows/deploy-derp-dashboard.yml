@@ -1,0 +1,78 @@
+name: Deploy DERP dashboard
+
+# Deploy RIENG dashboard DERP (service derp-backend) len vpn2 — KHONG dung main,
+# KHONG dung lai toan bo stack headscale.
+#
+# CACH DUNG: push 1 git TAG dang 'deploy-dashboard-*' tro toi commit muon deploy
+# (tren BAT KY nhanh nao, vd re-probe-health):
+#   git tag deploy-dashboard-1 && git push origin deploy-dashboard-1
+# -> build image tu commit do -> push GHCR :latest -> pull + recreate CHI derp-backend.
+#
+# CAN them secrets vao repo nay (sao tu repo deployHeadscale):
+#   SSH_HOST, SSH_USER, SSH_KEY, SSH_PORT (tuy chon), DEPLOY_PATH
+on:
+  push:
+    tags:
+      - 'deploy-dashboard-*'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-derp-dashboard
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: Build branch + deploy derp-backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch đã chọn
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push image (từ branch này)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/derp-backend:latest
+            ghcr.io/${{ github.repository_owner }}/derp-backend:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy CHỈ derp-backend lên vpn2 (SSH)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          envs: DEPLOY_PATH
+          script_stop: true
+          command_timeout: 10m
+          script: |
+            set -e
+            if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; else SUDO=""; fi
+            cd "$DEPLOY_PATH"
+            echo "==> Pull derp-backend:latest moi (vua build tu branch)"
+            $SUDO docker compose pull derp-backend
+            echo "==> Recreate CHI derp-backend (--no-deps: khong dung headscale/caddy...)"
+            $SUDO docker compose up -d --no-deps --force-recreate derp-backend
+            $SUDO docker compose ps derp-backend
+            echo "==> Health check derp-backend"
+            sleep 4
+            $SUDO docker exec derp-backend wget -qO- http://127.0.0.1:8787/healthz || echo "  healthz chua san sang (xem docker logs derp-backend)"
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
