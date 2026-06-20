@@ -60,7 +60,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
-          envs: DERP_DATABASE_URL,DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,GH_PAT
+          envs: DERP_DATABASE_URL,DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,GH_PAT,HEADSCALE_API_KEY
           script_stop: true
           command_timeout: 10m
           script: |
@@ -74,10 +74,9 @@ jobs:
             NETARG=""
             [ -n "$HSNET" ] && NETARG="--network $HSNET"
 
-            echo "==> HEADSCALE_API_KEY (best-effort; KHONG lam sap deploy)"
-            HS_RAW="$($SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>/dev/null || true)"
-            HS_KEY="$(printf '%s' "$HS_RAW" | tr -d '[:space:]' 2>/dev/null || true)"
-            test -n "$HS_KEY" && echo "  apikey tao OK (khong in ra log)" || echo "  apikey trong -> Machines/Users se trong (deploy van tiep tuc)"
+            # API key được quản lý bởi backend (DB + auto-refresh 24h).
+            # HEADSCALE_API_KEY env chỉ dùng để seed lần đầu nếu DB rỗng.
+            # Nếu secret không set, backend đọc từ DB (đã có từ lần trước).
 
             echo "==> Pull image moi"
             $SUDO docker pull "$IMG"
@@ -92,7 +91,7 @@ jobs:
               -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
               -e SESSION_SECRET="$DERP_SESSION_SECRET" \
               -e ALLOWED_EMAILS="$DERP_ALLOWED_EMAILS" \
-              -e HEADSCALE_API_KEY="$HS_KEY" \
+              -e HEADSCALE_API_KEY="$HEADSCALE_API_KEY" \
               -e GITHUB_TOKEN="$GH_PAT" \
               -e AUTH_OPTIONAL=false \
               -e NODE_ENV=production \
@@ -113,3 +112,4 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GH_PAT: ${{ secrets.GH_PAT }}
+          HEADSCALE_API_KEY: ${{ secrets.HEADSCALE_API_KEY }}

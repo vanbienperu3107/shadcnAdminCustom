@@ -55,4 +55,15 @@ export async function migrate(): Promise<void> {
   `)
 
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`)
+
+  // Bảng đơn dòng lưu Headscale API key (auto-refresh 24h).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS headscale_api_keys (
+      id          INTEGER PRIMARY KEY,
+      api_key     TEXT NOT NULL,
+      prefix      TEXT,
+      seeded_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+      refreshed_at TIMESTAMPTZ
+    )
+  `)
 }
