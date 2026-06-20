@@ -21,6 +21,7 @@ import {
   AudioWaveform,
   Command,
   GalleryVerticalEnd,
+  Network,
 } from 'lucide-react'
 import { ClerkLogo } from '@/assets/clerk-logo'
 import { type SidebarData } from '../types'
@@ -49,6 +50,16 @@ export const sidebarData: SidebarData = {
     },
   ],
   navGroups: [
+    {
+      title: 'Headscale',
+      items: [
+        {
+          title: 'DERP Regions',
+          url: '/derp',
+          icon: Network,
+        },
+      ],
+    },
     {
       title: 'General',
       items: [

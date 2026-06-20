@@ -21,6 +21,13 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    // Dev: chuyển tiếp API + derpmap sang backend Fastify (server/) chạy ở :8787
+    proxy: {
+      '/api': { target: 'http://localhost:8787', changeOrigin: true },
+      '/derpmap.json': { target: 'http://localhost:8787', changeOrigin: true },
+    },
+  },
   test: {
     silent: 'passed-only',
     unstubEnvs: true,

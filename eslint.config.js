@@ -7,7 +7,9 @@ import { defineConfig } from 'eslint/config'
 import tseslint from 'typescript-eslint'
 
 export default defineConfig(
-  { ignores: ['dist', 'src/components/ui'] },
+  // 'server' = backend Fastify (package riêng, có CI job + tsconfig + test riêng;
+  // không áp rule React/browser của frontend lên nó).
+  { ignores: ['dist', 'src/components/ui', 'server'] },
   {
     extends: [
       js.configs.recommended,

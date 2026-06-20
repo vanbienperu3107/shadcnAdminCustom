@@ -45,3 +45,30 @@ jobs:
 
       - name: Build the project
         run: pnpm build
+
+  backend:
+    name: DERP backend (test + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install backend deps
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests (build-derpmap + region-id)
+        run: npm test
+
+      - name: Build
+        run: npm run build
