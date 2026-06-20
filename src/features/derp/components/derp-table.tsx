@@ -149,11 +149,14 @@ export function DerpTable({ data }: { data: DerpServer[] }) {
     onSettled: () => qc.invalidateQueries({ queryKey: derpKeys.all }),
   })
 
-  // Probe health THẬT — tự chạy khi mở trang; nút "Probe lại" sẽ refetch query này.
+  // Probe health THẬT — tự chạy khi mở trang + TỰ refetch mỗi 30s; nút "Probe lại"
+  // refetch ngay query này.
   const health = useQuery({
     queryKey: derpKeys.health,
     queryFn: fetchHealth,
     staleTime: 30_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
   })
 

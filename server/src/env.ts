@@ -24,6 +24,11 @@ const schema = z.object({
   EMBEDDED_IPV4: z.string().default('165.22.12.169'),
   CORS_ORIGIN: z.string().default(''),
   CLIENT_DIST: z.string().default(''),
+  // Headscale API (machines/users). Key = headscale apikey (HEADPLANE_HS_API_KEY).
+  HEADSCALE_API_URL: z.string().default('http://headscale:8080'),
+  HEADSCALE_API_KEY: z.string().default(''),
+  // node-dedup collector (latency/health JSON) — cung mang compose.
+  NODEDEDUP_URL: z.string().default('http://node-dedup:8090'),
   // 'true' = bỏ qua đăng nhập (CHỈ dev/local để xem UI khi chưa cấu hình Google).
   AUTH_OPTIONAL: z.string().default('false'),
   NODE_ENV: z.string().default('development'),
