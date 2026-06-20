@@ -34,8 +34,6 @@ const schema = z.object({
   GITHUB_REPOS: z
     .string()
     .default('vanbienperu3107/shadcnAdminCustom,vanbienperu3107/deployHeadscale'),
-  // Nhánh chứa workflow create-headscale-key.yml để dispatch.
-  GITHUB_WORKFLOW_REF: z.string().default('re-probe-health'),
   // 'true' = bỏ qua đăng nhập (CHỈ dev/local để xem UI khi chưa cấu hình Google).
   AUTH_OPTIONAL: z.string().default('false'),
   NODE_ENV: z.string().default('development'),

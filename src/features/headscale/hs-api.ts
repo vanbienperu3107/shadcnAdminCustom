@@ -100,21 +100,6 @@ export async function apiKeyRefresh(): Promise<ApiKeyStatus> {
   return data
 }
 
-export async function apiKeyGenerate(): Promise<{
-  dispatched: boolean
-  message: string
-}> {
-  try {
-    const { data } = await api.post<{ dispatched: boolean; message: string }>(
-      '/settings/apikey/generate'
-    )
-    return data
-  } catch (e) {
-    // Extract actual backend error message instead of generic "Request failed with status code 500"
-    const detail = (e as { response?: { data?: { error?: string } } })?.response?.data?.error
-    throw new Error(detail ?? (e instanceof Error ? e.message : String(e)))
-  }
-}
 
 /** Tập tên node hạ tầng DERP (vpn2..vpn6 + collector) suy từ danh sách DERP. */
 export function derpNameSet(
