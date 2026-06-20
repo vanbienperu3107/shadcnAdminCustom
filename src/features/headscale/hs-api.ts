@@ -72,3 +72,29 @@ export function userName(u: HsMachine['user']): string {
   if (!u) return '—'
   return typeof u === 'string' ? u : (u.name ?? '—')
 }
+
+/** Tập tên node hạ tầng DERP (vpn2..vpn6 + collector) suy từ danh sách DERP. */
+export function derpNameSet(
+  derp: { hostname: string; code: string }[]
+): Set<string> {
+  const s = new Set<string>(['collector', 'vpn2'])
+  for (const d of derp) {
+    const short = d.hostname.split('.')[0]?.toLowerCase()
+    if (short) s.add(short)
+  }
+  return s
+}
+
+/** Node này là hạ tầng DERP (không phải thiết bị người dùng)? */
+export function isDerpNode(
+  name: string | undefined,
+  names: Set<string>
+): boolean {
+  const n = (name ?? '').toLowerCase()
+  if (!n) return false
+  if (names.has(n)) return true
+  for (const d of names) {
+    if (n === d || n.startsWith(d + '-') || n.startsWith(d + '.')) return true
+  }
+  return false
+}

@@ -1,10 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ConfigDrawer } from '@/components/config-drawer'
-import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { Search } from '@/components/search'
-import { ThemeSwitch } from '@/components/theme-switch'
 import { DerpDialogs } from './components/derp-dialogs'
 import { DerpPrimaryButtons } from './components/derp-primary-buttons'
 import { DerpProvider } from './components/derp-provider'
@@ -23,13 +18,6 @@ export function Derp() {
 
   return (
     <DerpProvider>
-      <Header fixed>
-        <Search className='me-auto' />
-        <ThemeSwitch />
-        <ConfigDrawer />
-        <ProfileDropdown />
-      </Header>
-
       <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
