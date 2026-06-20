@@ -216,9 +216,10 @@ function ApiKeyCard({
         {/* Chưa cấu hình: hướng dẫn */}
         {!status.configured && !generating && (
           <p className='text-xs text-muted-foreground'>
-            Bấm <b className='text-foreground'>Tạo Headscale API Key</b> — hệ
-            thống tự SSH vào vpn2, tạo key và lưu vào DB. Từ đó tự xoay vòng mỗi
-            24h, không cần thao tác thêm.
+            Key sẽ được tạo tự động khi deploy (<code className='font-mono'>git tag deploy-dashboard-N</code>).
+            Nếu cần tạo ngay không cần deploy, bấm{' '}
+            <b className='text-foreground'>Tạo Headscale API Key</b> — hệ thống
+            dispatch GitHub workflow SSH vào vpn2 tạo key và lưu vào DB.
           </p>
         )}
       </CardContent>

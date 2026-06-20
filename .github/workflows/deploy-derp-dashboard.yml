@@ -105,6 +105,21 @@ jobs:
             $SUDO docker ps --filter name=derp-backend --format '  {{.Names}} {{.Status}} net={{.Networks}}'
             sleep 4
             $SUDO docker exec derp-backend wget -qO- http://127.0.0.1:8787/healthz || echo "  healthz chua san sang (xem: docker logs derp-backend)"
+
+            echo ""
+            echo "==> Auto-seed Headscale API key (non-fatal)"
+            HS_KEY="$($SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>/dev/null | tr -d '[:space:]' || true)"
+            if [ -n "$HS_KEY" ]; then
+              echo "  Key OK (prefix: $(echo "$HS_KEY" | cut -d'.' -f1)...)"
+              sleep 2
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://vpn2.hangocthanh.io.vn/app/api/settings/apikey/webhook" \
+                -H "Content-Type: application/json" \
+                -H "X-Webhook-Secret: $DERP_SESSION_SECRET" \
+                -d "{\"key\":\"$HS_KEY\"}" --max-time 15 2>/dev/null || echo "000")
+              echo "  Webhook: HTTP $HTTP_CODE"
+            else
+              echo "  headscale chua san sang — backend se dung DB key cu"
+            fi
         env:
           DERP_DATABASE_URL: ${{ secrets.DERP_DATABASE_URL }}
           DERP_SESSION_SECRET: ${{ secrets.DERP_SESSION_SECRET }}
