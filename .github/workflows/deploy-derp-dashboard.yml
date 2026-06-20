@@ -4,9 +4,8 @@ name: Deploy DERP dashboard
 # KHONG dung main, KHONG dung compose cua deployHeadscale.
 #
 # CACH DUNG: push 1 git TAG dang 'deploy-dashboard-*' (tren bat ky nhanh nao):
-#   git tag deploy-dashboard-1 && git push origin deploy-dashboard-1
-# -> build image tu commit do -> copy deploy/docker-compose.yml + .env len vpn2 ->
-#    chay rieng derp-backend roi connect vao mang headscale (Caddy /app + derp.urls van goi duoc).
+#   git tag deploy-dashboard-2 && git push origin deploy-dashboard-2
+# -> build image tu commit do -> SSH vpn2 -> docker run derp-backend tren mang headscale.
 #
 # CAN secrets trong repo nay:
 #   SSH_HOST, SSH_USER, SSH_KEY, SSH_PORT (tuy chon)
@@ -54,18 +53,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Copy compose lên vpn2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || '22' }}
-          source: deploy/docker-compose.yml
-          target: derp-dashboard
-          strip_components: 1
-
-      - name: Deploy derp-backend lên vpn2 (độc lập, connect mạng headscale)
+      - name: Deploy derp-backend lên vpn2 (docker run, mạng headscale)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -78,34 +66,36 @@ jobs:
           script: |
             set -e
             if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; else SUDO=""; fi
-            cd "$HOME/derp-dashboard"
-
-            echo "==> Ghi .env (secrets, KHONG in ra log)"
-            umask 077
-            : > .env
-            printf 'DERP_DATABASE_URL=%s\n'   "$DERP_DATABASE_URL"   >> .env
-            printf 'DERP_SESSION_SECRET=%s\n'  "$DERP_SESSION_SECRET"  >> .env
-            printf 'DERP_ALLOWED_EMAILS=%s\n'  "$DERP_ALLOWED_EMAILS"  >> .env
-            printf 'GOOGLE_CLIENT_ID=%s\n'     "$GOOGLE_CLIENT_ID"     >> .env
-            printf 'GOOGLE_CLIENT_SECRET=%s\n' "$GOOGLE_CLIENT_SECRET" >> .env
+            IMG="ghcr.io/vanbienperu3107/derp-backend:latest"
 
             echo "==> Detect mang cua headscale"
             HSNET=$($SUDO docker inspect headscale -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' 2>/dev/null | awk '{print $1}')
             echo "  headscale network: ${HSNET:-<khong thay>}"
+            NETARG=""
+            [ -n "$HSNET" ] && NETARG="--network $HSNET"
 
-            echo "==> Xoa derp-backend cu (neu deployHeadscale dang giu) roi dung ban moi"
+            echo "==> Pull image moi"
+            $SUDO docker pull "$IMG"
+
+            echo "==> Xoa derp-backend cu roi chay ban moi"
             $SUDO docker rm -f derp-backend >/dev/null 2>&1 || true
-            $SUDO docker compose pull
-            $SUDO docker compose up -d
+            $SUDO docker run -d --name derp-backend --restart unless-stopped $NETARG \
+              -e DATABASE_URL="$DERP_DATABASE_URL" \
+              -e PORT=8787 \
+              -e PUBLIC_URL="https://vpn2.hangocthanh.io.vn/app" \
+              -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
+              -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
+              -e SESSION_SECRET="$DERP_SESSION_SECRET" \
+              -e ALLOWED_EMAILS="$DERP_ALLOWED_EMAILS" \
+              -e AUTH_OPTIONAL=false \
+              -e NODE_ENV=production \
+              "$IMG"
 
-            if [ -n "$HSNET" ]; then
-              echo "==> Connect derp-backend vao mang headscale ($HSNET)"
-              $SUDO docker network connect "$HSNET" derp-backend 2>/dev/null || true
-            else
-              echo "  CANH BAO: khong detect duoc mang headscale. Kiem tra 'docker network ls' + connect tay."
+            if [ -z "$HSNET" ]; then
+              echo "  CANH BAO: khong detect duoc mang headscale -> Caddy/headscale co the khong goi duoc derp-backend. Kiem tra 'docker network ls' + 'docker network connect <net> derp-backend'."
             fi
 
             echo "==> Trang thai + health"
-            $SUDO docker compose ps
+            $SUDO docker ps --filter name=derp-backend --format '  {{.Names}} {{.Status}} net={{.Networks}}'
             sleep 4
-            $SUDO docker exec derp-backend wget -qO- http://127.0.0.1:8787/healthz || echo "  healthz chua san sang (xem docker logs derp-backend)"
+            $SUDO docker exec derp-backend wget -qO- http://127.0.0.1:8787/healthz || echo "  healthz chua san sang (xem: docker logs derp-backend)"
