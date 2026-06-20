@@ -1,15 +1,17 @@
 name: Deploy DERP dashboard
 
-# Deploy RIENG dashboard DERP (service derp-backend) len vpn2 — KHONG dung main,
-# KHONG dung lai toan bo stack headscale.
+# Deploy DOC LAP dashboard DERP (derp-backend) len vpn2 — TU CHUA trong repo nay,
+# KHONG dung main, KHONG dung compose cua deployHeadscale.
 #
-# CACH DUNG: push 1 git TAG dang 'deploy-dashboard-*' tro toi commit muon deploy
-# (tren BAT KY nhanh nao, vd re-probe-health):
+# CACH DUNG: push 1 git TAG dang 'deploy-dashboard-*' (tren bat ky nhanh nao):
 #   git tag deploy-dashboard-1 && git push origin deploy-dashboard-1
-# -> build image tu commit do -> push GHCR :latest -> pull + recreate CHI derp-backend.
+# -> build image tu commit do -> copy deploy/docker-compose.yml + .env len vpn2 ->
+#    chay rieng derp-backend roi connect vao mang headscale (Caddy /app + derp.urls van goi duoc).
 #
-# CAN them secrets vao repo nay (sao tu repo deployHeadscale):
-#   SSH_HOST, SSH_USER, SSH_KEY, SSH_PORT (tuy chon), DEPLOY_PATH
+# CAN secrets trong repo nay:
+#   SSH_HOST, SSH_USER, SSH_KEY, SSH_PORT (tuy chon)
+#   DERP_DATABASE_URL, DERP_SESSION_SECRET, DERP_ALLOWED_EMAILS,
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 on:
   push:
     tags:
@@ -25,10 +27,10 @@ concurrency:
 
 jobs:
   build-and-deploy:
-    name: Build branch + deploy derp-backend
+    name: Build branch + deploy derp-backend (self-contained)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout branch đã chọn
+      - name: Checkout commit được tag
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
@@ -41,7 +43,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push image (từ branch này)
+      - name: Build & push image (từ commit này)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -52,27 +54,58 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy CHỈ derp-backend lên vpn2 (SSH)
+      - name: Copy compose lên vpn2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          source: deploy/docker-compose.yml
+          target: derp-dashboard
+          strip_components: 1
+
+      - name: Deploy derp-backend lên vpn2 (độc lập, connect mạng headscale)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
-          envs: DEPLOY_PATH
+          envs: DERP_DATABASE_URL,DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET
           script_stop: true
           command_timeout: 10m
           script: |
             set -e
             if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; else SUDO=""; fi
-            cd "$DEPLOY_PATH"
-            echo "==> Pull derp-backend:latest moi (vua build tu branch)"
-            $SUDO docker compose pull derp-backend
-            echo "==> Recreate CHI derp-backend (--no-deps: khong dung headscale/caddy...)"
-            $SUDO docker compose up -d --no-deps --force-recreate derp-backend
-            $SUDO docker compose ps derp-backend
-            echo "==> Health check derp-backend"
+            cd "$HOME/derp-dashboard"
+
+            echo "==> Ghi .env (secrets, KHONG in ra log)"
+            umask 077
+            : > .env
+            printf 'DERP_DATABASE_URL=%s\n'   "$DERP_DATABASE_URL"   >> .env
+            printf 'DERP_SESSION_SECRET=%s\n'  "$DERP_SESSION_SECRET"  >> .env
+            printf 'DERP_ALLOWED_EMAILS=%s\n'  "$DERP_ALLOWED_EMAILS"  >> .env
+            printf 'GOOGLE_CLIENT_ID=%s\n'     "$GOOGLE_CLIENT_ID"     >> .env
+            printf 'GOOGLE_CLIENT_SECRET=%s\n' "$GOOGLE_CLIENT_SECRET" >> .env
+
+            echo "==> Detect mang cua headscale"
+            HSNET=$($SUDO docker inspect headscale -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' 2>/dev/null | awk '{print $1}')
+            echo "  headscale network: ${HSNET:-<khong thay>}"
+
+            echo "==> Xoa derp-backend cu (neu deployHeadscale dang giu) roi dung ban moi"
+            $SUDO docker rm -f derp-backend >/dev/null 2>&1 || true
+            $SUDO docker compose pull
+            $SUDO docker compose up -d
+
+            if [ -n "$HSNET" ]; then
+              echo "==> Connect derp-backend vao mang headscale ($HSNET)"
+              $SUDO docker network connect "$HSNET" derp-backend 2>/dev/null || true
+            else
+              echo "  CANH BAO: khong detect duoc mang headscale. Kiem tra 'docker network ls' + connect tay."
+            fi
+
+            echo "==> Trang thai + health"
+            $SUDO docker compose ps
             sleep 4
             $SUDO docker exec derp-backend wget -qO- http://127.0.0.1:8787/healthz || echo "  healthz chua san sang (xem docker logs derp-backend)"
-        env:
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
