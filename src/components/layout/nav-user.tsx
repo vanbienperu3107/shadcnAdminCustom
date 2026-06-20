@@ -1,12 +1,6 @@
-import { Link } from '@tanstack/react-router'
-import {
-  BadgeCheck,
-  Bell,
-  ChevronsUpDown,
-  CreditCard,
-  LogOut,
-  Sparkles,
-} from 'lucide-react'
+import { Check, ChevronsUpDown, LogOut, Monitor, Moon, Sun } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { useTheme } from '@/context/theme-provider'
 import useDialogState from '@/hooks/use-dialog-state'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -36,6 +30,7 @@ type NavUserProps = {
 
 export function NavUser({ user }: NavUserProps) {
   const { isMobile } = useSidebar()
+  const { theme, setTheme } = useTheme()
   const [open, setOpen] = useDialogState()
 
   return (
@@ -78,31 +73,33 @@ export function NavUser({ user }: NavUserProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuLabel className='text-xs text-muted-foreground'>
+                Giao diện
+              </DropdownMenuLabel>
               <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <Sparkles />
-                  Upgrade to Pro
+                <DropdownMenuItem onClick={() => setTheme('light')}>
+                  <Sun />
+                  Sáng
+                  <Check
+                    size={14}
+                    className={cn('ms-auto', theme !== 'light' && 'hidden')}
+                  />
                 </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem asChild>
-                  <Link to='/settings/account'>
-                    <BadgeCheck />
-                    Account
-                  </Link>
+                <DropdownMenuItem onClick={() => setTheme('dark')}>
+                  <Moon />
+                  Tối
+                  <Check
+                    size={14}
+                    className={cn('ms-auto', theme !== 'dark' && 'hidden')}
+                  />
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to='/settings'>
-                    <CreditCard />
-                    Billing
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to='/settings/notifications'>
-                    <Bell />
-                    Notifications
-                  </Link>
+                <DropdownMenuItem onClick={() => setTheme('system')}>
+                  <Monitor />
+                  Hệ thống
+                  <Check
+                    size={14}
+                    className={cn('ms-auto', theme !== 'system' && 'hidden')}
+                  />
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
@@ -111,7 +108,7 @@ export function NavUser({ user }: NavUserProps) {
                 onClick={() => setOpen(true)}
               >
                 <LogOut />
-                Sign out
+                Đăng xuất
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

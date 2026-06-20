@@ -3,7 +3,11 @@ import { getCookie } from '@/lib/cookies'
 import { cn } from '@/lib/utils'
 import { LayoutProvider } from '@/context/layout-provider'
 import { SearchProvider } from '@/context/search-provider'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { SkipToMain } from '@/components/skip-to-main'
 
@@ -18,6 +22,11 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
       <LayoutProvider>
         <SidebarProvider defaultOpen={defaultOpen}>
           <SkipToMain />
+          {/* Header bị bỏ -> nút mở sidebar nổi, chỉ hiện trên mobile */}
+          <SidebarTrigger
+            variant='outline'
+            className='fixed start-3 top-3 z-50 scale-110 shadow-sm md:hidden'
+          />
           <AppSidebar />
           <SidebarInset
             className={cn(
