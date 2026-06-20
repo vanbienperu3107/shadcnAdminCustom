@@ -1,3 +1,5 @@
+import { useQuery } from '@tanstack/react-query'
+import { fetchMe } from '@/lib/auth-api'
 import { useLayout } from '@/context/layout-provider'
 import {
   Sidebar,
@@ -14,6 +16,15 @@ import { TeamSwitcher } from './team-switcher'
 
 export function AppSidebar() {
   const { collapsible, variant } = useLayout()
+  // Hiện đúng tài khoản Google đang đăng nhập (thay user demo).
+  const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+  const user = me
+    ? {
+        name: me.name ?? me.email,
+        email: me.email,
+        avatar: me.picture ?? sidebarData.user.avatar,
+      }
+    : sidebarData.user
   return (
     <Sidebar collapsible={collapsible} variant={variant}>
       <SidebarHeader>
@@ -29,7 +40,7 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={sidebarData.user} />
+        <NavUser user={user} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
