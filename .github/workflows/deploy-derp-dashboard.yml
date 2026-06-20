@@ -74,25 +74,10 @@ jobs:
             NETARG=""
             [ -n "$HSNET" ] && NETARG="--network $HSNET"
 
-            echo "==> HEADSCALE_API_KEY (Machines/Users): cache hoac TU TAO tren headscale (best-effort)"
-            HS_DIR="${HOME:-/root}/derp-dashboard"
-            HS_KEY_FILE="$HS_DIR/.hs_apikey"
-            HS_KEY=""
-            set +e   # block nay KHONG duoc lam sap deploy
-            mkdir -p "$HS_DIR" 2>/dev/null
-            if [ -s "$HS_KEY_FILE" ]; then
-              HS_KEY=$(cat "$HS_KEY_FILE" 2>/dev/null)
-              echo "  dung key da cache"
-            else
-              HS_KEY=$($SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>/dev/null | tr -d '[:space:]')
-              if [ -n "$HS_KEY" ]; then
-                printf '%s' "$HS_KEY" > "$HS_KEY_FILE" 2>/dev/null && chmod 600 "$HS_KEY_FILE" 2>/dev/null
-                echo "  da TAO + luu apikey (KHONG in key ra log)"
-              else
-                echo "  CANH BAO: chua tao duoc apikey -> Machines/Users se trong (deploy VAN tiep tuc)"
-              fi
-            fi
-            set -e
+            echo "==> HEADSCALE_API_KEY (best-effort; KHONG lam sap deploy)"
+            HS_RAW="$($SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>/dev/null || true)"
+            HS_KEY="$(printf '%s' "$HS_RAW" | tr -d '[:space:]' 2>/dev/null || true)"
+            test -n "$HS_KEY" && echo "  apikey tao OK (khong in ra log)" || echo "  apikey trong -> Machines/Users se trong (deploy van tiep tuc)"
 
             echo "==> Pull image moi"
             $SUDO docker pull "$IMG"
