@@ -6,7 +6,9 @@
 # ---- Frontend (Vite SPA) ----
 FROM node:22-alpine AS frontend
 WORKDIR /app
-RUN corepack enable
+# Pin pnpm 9 (pnpm 10 hard-fails frozen install với ERR_PNPM_IGNORED_BUILDS do
+# chặn postinstall của esbuild/@clerk). pnpm 9 chạy các script đó -> vite build ok.
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
