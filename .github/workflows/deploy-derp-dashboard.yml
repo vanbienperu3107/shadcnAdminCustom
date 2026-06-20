@@ -11,6 +11,9 @@ name: Deploy DERP dashboard
 #   SSH_HOST, SSH_USER, SSH_KEY, SSH_PORT (tuy chon)
 #   DERP_DATABASE_URL, DERP_SESSION_SECRET, DERP_ALLOWED_EMAILS,
 #   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+#   DERP_PUBLIC_URL   — URL công khai backend (vd: https://vpn2.hangocthanh.io.vn/app)
+#                       dùng cho PUBLIC_URL env và webhook auto-seed key.
+#   HEADSCALE_API_KEY — (tuỳ chọn) key bootstrap lần đầu nếu muốn seed qua env var
 on:
   push:
     tags:
@@ -60,7 +63,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
-          envs: DERP_DATABASE_URL,DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,GH_PAT,HEADSCALE_API_KEY
+          envs: DERP_DATABASE_URL,DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,DERP_PUBLIC_URL,HEADSCALE_API_KEY,GH_PAT
           script_stop: true
           command_timeout: 10m
           script: |
@@ -68,15 +71,14 @@ jobs:
             if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; else SUDO=""; fi
             IMG="ghcr.io/vanbienperu3107/derp-backend:latest"
 
+            # PUBLIC_URL từ secret — backend ở đâu cũng được, không hardcode
+            BACKEND_URL="${DERP_PUBLIC_URL:-https://vpn2.hangocthanh.io.vn/app}"
+
             echo "==> Detect mang cua headscale"
             HSNET=$($SUDO docker inspect headscale -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' 2>/dev/null | awk '{print $1}')
             echo "  headscale network: ${HSNET:-<khong thay>}"
             NETARG=""
             [ -n "$HSNET" ] && NETARG="--network $HSNET"
-
-            # API key được quản lý bởi backend (DB + auto-refresh 24h).
-            # HEADSCALE_API_KEY env chỉ dùng để seed lần đầu nếu DB rỗng.
-            # Nếu secret không set, backend đọc từ DB (đã có từ lần trước).
 
             echo "==> Pull image moi"
             $SUDO docker pull "$IMG"
@@ -86,7 +88,7 @@ jobs:
             $SUDO docker run -d --name derp-backend --restart unless-stopped $NETARG \
               -e DATABASE_URL="$DERP_DATABASE_URL" \
               -e PORT=8787 \
-              -e PUBLIC_URL="https://vpn2.hangocthanh.io.vn/app" \
+              -e PUBLIC_URL="$BACKEND_URL" \
               -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
               -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
               -e SESSION_SECRET="$DERP_SESSION_SECRET" \
@@ -98,7 +100,7 @@ jobs:
               "$IMG"
 
             if [ -z "$HSNET" ]; then
-              echo "  CANH BAO: khong detect duoc mang headscale -> Caddy/headscale co the khong goi duoc derp-backend. Kiem tra 'docker network ls' + 'docker network connect <net> derp-backend'."
+              echo "  CANH BAO: khong detect duoc mang headscale -> Caddy co the khong goi duoc derp-backend."
             fi
 
             echo "==> Trang thai + health"
@@ -107,18 +109,18 @@ jobs:
             $SUDO docker exec derp-backend wget -qO- http://127.0.0.1:8787/healthz || echo "  healthz chua san sang (xem: docker logs derp-backend)"
 
             echo ""
-            echo "==> Auto-seed Headscale API key (non-fatal)"
+            echo "==> Auto-seed Headscale API key qua SSH (non-fatal)"
             HS_KEY="$($SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>/dev/null | tr -d '[:space:]' || true)"
             if [ -n "$HS_KEY" ]; then
               echo "  Key OK (prefix: $(echo "$HS_KEY" | cut -d'.' -f1)...)"
               sleep 2
-              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://vpn2.hangocthanh.io.vn/app/api/settings/apikey/webhook" \
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${BACKEND_URL}/api/settings/apikey/webhook" \
                 -H "Content-Type: application/json" \
                 -H "X-Webhook-Secret: $DERP_SESSION_SECRET" \
                 -d "{\"key\":\"$HS_KEY\"}" --max-time 15 2>/dev/null || echo "000")
               echo "  Webhook: HTTP $HTTP_CODE"
             else
-              echo "  headscale chua san sang — backend se dung DB key cu"
+              echo "  headscale chua san sang — backend dung HEADSCALE_API_KEY env hoac DB key cu"
             fi
         env:
           DERP_DATABASE_URL: ${{ secrets.DERP_DATABASE_URL }}
@@ -126,5 +128,6 @@ jobs:
           DERP_ALLOWED_EMAILS: ${{ secrets.DERP_ALLOWED_EMAILS }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GH_PAT: ${{ secrets.GH_PAT }}
+          DERP_PUBLIC_URL: ${{ secrets.DERP_PUBLIC_URL }}
           HEADSCALE_API_KEY: ${{ secrets.HEADSCALE_API_KEY }}
+          GH_PAT: ${{ secrets.GH_PAT }}
