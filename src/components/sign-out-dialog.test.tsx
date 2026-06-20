@@ -5,6 +5,7 @@ import { SignOutDialog } from './sign-out-dialog'
 
 const navigate = vi.fn()
 const reset = vi.fn()
+const logout = vi.fn().mockResolvedValue(undefined)
 
 const MOCK_HREF = 'https://app.test/dashboard?tab=1'
 
@@ -12,6 +13,10 @@ vi.mock('@/stores/auth-store', () => ({
   useAuthStore: () => ({
     auth: { reset },
   }),
+}))
+
+vi.mock('@/lib/auth-api', () => ({
+  logout: () => logout(),
 }))
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
@@ -35,7 +40,9 @@ describe('SignOutDialog', () => {
 
     await userEvent.click(getByRole('button', { name: /^Sign out$/i }))
 
-    expect(reset).toHaveBeenCalledOnce()
+    // handleSignOut là async (await logout() trước) -> chờ tới khi reset được gọi.
+    await vi.waitFor(() => expect(reset).toHaveBeenCalledOnce())
+    expect(logout).toHaveBeenCalledOnce()
     expect(navigate).toHaveBeenCalledWith({
       to: '/sign-in',
       search: { redirect: MOCK_HREF },
