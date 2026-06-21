@@ -131,10 +131,20 @@ jobs:
           script: |
             SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO=sudo
             BACKEND_URL="${DERP_PUBLIC_URL:-https://vpn2.hangocthanh.io.vn/app}"
+
+            echo "==> Check headscale container status"
+            HS_STATUS="$($SUDO docker inspect headscale --format '{{.State.Status}}' 2>/dev/null || echo 'missing')"
+            echo "  headscale status: $HS_STATUS"
+            if [ "$HS_STATUS" != "running" ]; then
+              echo "  headscale not running, attempting docker start..."
+              $SUDO docker start headscale && sleep 5 || echo "  docker start failed (will try anyway)"
+              HS_STATUS="$($SUDO docker inspect headscale --format '{{.State.Status}}' 2>/dev/null || echo 'missing')"
+              echo "  headscale status after start: $HS_STATUS"
+            fi
+
             echo "==> Creating headscale API key"
             KEY="$($SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>&1 | tail -1 | tr -d '[:space:]')"
             echo "==> KEY_LEN=${#KEY} KEY_PREFIX=${KEY%%.*}"
-            # Headscale key luon co dau . (vd: prefix.secret); loi docker khong co dau .
             if [ -z "$KEY" ] || [ "${KEY%%.*}" = "$KEY" ]; then
               echo "==> No valid key (no dot found) — skipping webhook"
               exit 0
