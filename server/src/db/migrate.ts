@@ -84,4 +84,9 @@ export async function migrate(): Promise<void> {
   await db.execute(sql`
     CREATE INDEX IF NOT EXISTS idx_latency_src ON latency_samples(src_hostname)
   `)
+
+  // Feature A: cột maintenance cho DERP nodes
+  await db.execute(sql`
+    ALTER TABLE derp_servers ADD COLUMN IF NOT EXISTS maintenance BOOLEAN NOT NULL DEFAULT false
+  `)
 }

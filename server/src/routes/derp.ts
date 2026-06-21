@@ -22,11 +22,16 @@ const createSchema = z.object({
   longitude: z.number().nullish(),
   enabled: z.boolean().default(true),
   paused: z.boolean().default(false),
+  maintenance: z.boolean().default(false),
   priority: z.number().int().min(1).max(1000).default(100),
 })
 
 const updateSchema = createSchema.partial()
-const toggleSchema = z.object({ enabled: z.boolean().optional(), paused: z.boolean().optional() })
+const toggleSchema = z.object({
+  enabled: z.boolean().optional(),
+  paused: z.boolean().optional(),
+  maintenance: z.boolean().optional(),
+})
 
 function isUniqueViolation(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505'
@@ -126,9 +131,10 @@ export async function derpRoutes(app: FastifyInstance): Promise<void> {
     const [row] = await db
       .update(derpServers)
       .set({
-        enabled: parsed.data.enabled ?? existing.enabled,
-        paused: parsed.data.paused ?? existing.paused,
-        updatedAt: new Date(),
+        enabled:     parsed.data.enabled     ?? existing.enabled,
+        paused:      parsed.data.paused      ?? existing.paused,
+        maintenance: parsed.data.maintenance ?? existing.maintenance,
+        updatedAt:   new Date(),
       })
       .where(eq(derpServers.regionId, regionId))
       .returning()

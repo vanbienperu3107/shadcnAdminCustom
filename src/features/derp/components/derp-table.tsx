@@ -11,6 +11,7 @@ import {
   Pencil,
   Play,
   Trash2,
+  Wrench,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -107,6 +108,17 @@ function StatusBadge({ row }: { row: DerpServer }) {
       >
         <span className='me-1 inline-block size-2 rounded-full bg-amber-500' />
         Tạm dừng
+      </Badge>
+    )
+  }
+  if (row.maintenance) {
+    return (
+      <Badge
+        variant='outline'
+        className='border-orange-500/40 text-orange-600 dark:text-orange-400'
+      >
+        <span className='me-1 inline-block size-2 rounded-full bg-orange-500' />
+        Bảo trì
       </Badge>
     )
   }
@@ -264,6 +276,29 @@ export function DerpTable({ data }: { data: DerpServer[] }) {
                             }
                           >
                             <Pause className='me-2 size-4' /> Tạm dừng
+                          </DropdownMenuItem>
+                        )}
+                        {row.maintenance ? (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              toggleMut.mutate({
+                                regionId: row.regionId,
+                                body: { maintenance: false },
+                              })
+                            }
+                          >
+                            <Wrench className='me-2 size-4' /> Tắt bảo trì
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              toggleMut.mutate({
+                                regionId: row.regionId,
+                                body: { maintenance: true },
+                              })
+                            }
+                          >
+                            <Wrench className='me-2 size-4' /> Bật bảo trì
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />

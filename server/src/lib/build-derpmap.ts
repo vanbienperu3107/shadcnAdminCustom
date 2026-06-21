@@ -29,6 +29,7 @@ export type DerpServerRow = {
   longitude: number | null
   enabled: boolean
   paused: boolean
+  maintenance: boolean
   embedded: boolean
   priority: number
 }
@@ -101,7 +102,8 @@ export function buildDerpMap(rows: DerpServerRow[]): DerpMapJson {
     if (r.longitude != null) region.Longitude = r.longitude
     Regions[String(r.regionId)] = region
 
-    const score = scoreFromPriority(r.priority)
+    // maintenance=true: node vẫn trong DERPMap nhưng score=9999 → client tự chuyển sang node khác
+    const score = r.maintenance ? 9999 : scoreFromPriority(r.priority)
     if (score !== 1) RegionScore[String(r.regionId)] = score
   }
 

@@ -24,9 +24,10 @@ export const derpServers = pgTable('derp_servers', {
   stunOnly: boolean('stun_only').notNull().default(false),
   latitude: real('latitude'),
   longitude: real('longitude'),
-  enabled: boolean('enabled').notNull().default(true), // ON/OFF
-  paused: boolean('paused').notNull().default(false), // tạm dừng
-  embedded: boolean('embedded').notNull().default(false), // region 999, read-only
+  enabled:     boolean('enabled').notNull().default(true),      // ON/OFF
+  paused:      boolean('paused').notNull().default(false),      // tạm dừng (ẩn khỏi DERPMap)
+  maintenance: boolean('maintenance').notNull().default(false), // bảo trì (score=9999, client tự chuyển)
+  embedded:    boolean('embedded').notNull().default(false),    // region 999, read-only
   priority: integer('priority').notNull().default(100), // số nhỏ = ưu tiên cao
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

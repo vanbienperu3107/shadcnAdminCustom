@@ -17,6 +17,7 @@ export type DerpServer = {
   longitude: number | null
   enabled: boolean
   paused: boolean
+  maintenance: boolean
   embedded: boolean
   priority: number
   createdAt: string
