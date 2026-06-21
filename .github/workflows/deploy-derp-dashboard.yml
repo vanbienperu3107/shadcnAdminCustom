@@ -107,21 +107,6 @@ jobs:
             $SUDO docker ps --filter name=derp-backend --format '  {{.Names}} {{.Status}} net={{.Networks}}'
             sleep 4
             $SUDO docker exec derp-backend wget -qO- http://127.0.0.1:8787/healthz || echo "  healthz chua san sang (xem: docker logs derp-backend)"
-
-            echo ""
-            echo "==> Auto-seed Headscale API key (non-fatal)"
-            HS_KEYVAL="$(timeout 20 $SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>/dev/null | tr -d '[:space:]')" || HS_KEYVAL=""
-            echo "  raw output: '${HS_KEYVAL:0:16}...'"
-            if [ -n "$HS_KEYVAL" ] && echo "$HS_KEYVAL" | grep -q '\.'; then
-              echo "  Key OK — posting to webhook"
-              curl -fsSL -X POST "${BACKEND_URL}/api/settings/apikey/webhook" \
-                -H "Content-Type: application/json" \
-                -H "X-Webhook-Secret: $DERP_SESSION_SECRET" \
-                -d "{\"key\":\"$HS_KEYVAL\"}" --max-time 15 \
-                && echo "  Webhook OK" || echo "  Webhook failed (non-fatal)"
-            else
-              echo "  headscale not ready or no key (output='${HS_KEYVAL:-(empty)}')"
-            fi
         env:
           DERP_DATABASE_URL: ${{ secrets.DERP_DATABASE_URL }}
           DERP_SESSION_SECRET: ${{ secrets.DERP_SESSION_SECRET }}
@@ -131,3 +116,36 @@ jobs:
           DERP_PUBLIC_URL: ${{ secrets.DERP_PUBLIC_URL }}
           HEADSCALE_API_KEY: ${{ secrets.HEADSCALE_API_KEY }}
           GH_PAT: ${{ secrets.GH_PAT }}
+
+      - name: Auto-seed Headscale API key (non-fatal)
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          envs: DERP_SESSION_SECRET,DERP_PUBLIC_URL
+          script_stop: false
+          command_timeout: 2m
+          script: |
+            SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO=sudo
+            BACKEND_URL="${DERP_PUBLIC_URL:-https://vpn2.hangocthanh.io.vn/app}"
+            echo "==> Creating headscale API key"
+            KEY="$($SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>&1 | tail -1 | tr -d '[:space:]')"
+            echo "==> KEY_LEN=${#KEY} KEY_PREFIX=${KEY%%.*}"
+            if [ -z "$KEY" ]; then
+              echo "==> headscale not ready, skipping"
+              exit 0
+            fi
+            echo "==> POSTing key to backend webhook"
+            curl -fsSL \
+              -X POST "${BACKEND_URL}/api/settings/apikey/webhook" \
+              -H "Content-Type: application/json" \
+              -H "X-Webhook-Secret: ${DERP_SESSION_SECRET}" \
+              -d "{\"key\":\"$KEY\"}" \
+              --max-time 15 \
+              && echo "==> Webhook OK" || echo "==> Webhook failed"
+        env:
+          DERP_SESSION_SECRET: ${{ secrets.DERP_SESSION_SECRET }}
+          DERP_PUBLIC_URL: ${{ secrets.DERP_PUBLIC_URL }}
