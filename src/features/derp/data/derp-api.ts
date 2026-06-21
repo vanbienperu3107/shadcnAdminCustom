@@ -68,7 +68,7 @@ export async function deleteDerp(regionId: number): Promise<void> {
 
 export async function toggleDerp(
   regionId: number,
-  body: { enabled?: boolean; paused?: boolean }
+  body: { enabled?: boolean; paused?: boolean; maintenance?: boolean }
 ): Promise<DerpServer> {
   const { data } = await api.post<DerpServer>(`/derp/${regionId}/toggle`, body)
   return data
