@@ -110,4 +110,16 @@ export async function migrate(): Promise<void> {
   await db.execute(sql`
     CREATE INDEX IF NOT EXISTS idx_force_routes_region ON derp_force_routes(region_id)
   `)
+
+  // Feature B: per-node DERP region assignments
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS derp_node_assignments (
+      node_key   TEXT NOT NULL,
+      region_id  INTEGER NOT NULL REFERENCES derp_servers(region_id) ON DELETE CASCADE,
+      PRIMARY KEY (node_key, region_id)
+    )
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_node_assignments_node ON derp_node_assignments(node_key)
+  `)
 }

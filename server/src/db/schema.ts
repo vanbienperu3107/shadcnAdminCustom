@@ -94,6 +94,14 @@ export const derpForceRoutes = pgTable('derp_force_routes', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+/** Per-node DERP region assignments (Feature B).
+ *  Mỗi dòng gán một node (theo node_key Tailscale) vào một DERP region.
+ *  headscale patch gọi GET /api/internal/derp-map/:nodeKey → trả DERPMap chỉ gồm các region này. */
+export const derpNodeAssignments = pgTable('derp_node_assignments', {
+  nodeKey:  text('node_key').notNull(),
+  regionId: integer('region_id').notNull().references(() => derpServers.regionId, { onDelete: 'cascade' }),
+}, (t) => [primaryKey({ columns: [t.nodeKey, t.regionId] })])
+
 export type DerpServer = typeof derpServers.$inferSelect
 export type NewDerpServer = typeof derpServers.$inferInsert
 export type User = typeof users.$inferSelect
@@ -101,3 +109,4 @@ export type Session = typeof sessions.$inferSelect
 export type HeadscaleApiKey = typeof headscaleApiKey.$inferSelect
 export type LatencySample = typeof latencySamples.$inferSelect
 export type DerpForceRoute = typeof derpForceRoutes.$inferSelect
+export type DerpNodeAssignment = typeof derpNodeAssignments.$inferSelect
