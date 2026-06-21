@@ -110,18 +110,26 @@ jobs:
 
             echo ""
             echo "==> Auto-seed Headscale API key qua SSH (non-fatal)"
-            HS_KEY="$($SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>/dev/null | tr -d '[:space:]' || true)"
-            if [ -n "$HS_KEY" ]; then
-              echo "  Key OK (prefix: $(echo "$HS_KEY" | cut -d'.' -f1)...)"
-              sleep 2
-              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${BACKEND_URL}/api/settings/apikey/webhook" \
-                -H "Content-Type: application/json" \
-                -H "X-Webhook-Secret: $DERP_SESSION_SECRET" \
-                -d "{\"key\":\"$HS_KEY\"}" --max-time 15 2>/dev/null || echo "000")
-              echo "  Webhook: HTTP $HTTP_CODE"
-            else
-              echo "  headscale chua san sang — backend dung HEADSCALE_API_KEY env hoac DB key cu"
-            fi
+            (
+              set +e
+              HS_KEY=""
+              if tmp="$($SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>/dev/null)"; then
+                HS_KEY="$(echo "$tmp" | tr -d '[:space:]')"
+              fi
+              if [ -n "$HS_KEY" ]; then
+                echo "  Key OK (prefix: $(echo "$HS_KEY" | cut -d'.' -f1)...)"
+                sleep 2
+                HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                  -X POST "${BACKEND_URL}/api/settings/apikey/webhook" \
+                  -H "Content-Type: application/json" \
+                  -H "X-Webhook-Secret: $DERP_SESSION_SECRET" \
+                  --data-raw "{\"key\":\"$HS_KEY\"}" \
+                  --max-time 15 2>/dev/null)
+                echo "  Webhook: HTTP ${HTTP_CODE:-000}"
+              else
+                echo "  headscale not ready — backend dung HEADSCALE_API_KEY env hoac DB key cu"
+              fi
+            ) || true
         env:
           DERP_DATABASE_URL: ${{ secrets.DERP_DATABASE_URL }}
           DERP_SESSION_SECRET: ${{ secrets.DERP_SESSION_SECRET }}
