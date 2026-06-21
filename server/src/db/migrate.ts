@@ -66,4 +66,22 @@ export async function migrate(): Promise<void> {
       refreshed_at TIMESTAMPTZ
     )
   `)
+
+  // Latency từ metrics-report.ps1 — UPSERT theo (src_hostname, dst_hostname), không tích lũy.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS latency_samples (
+      src_hostname  TEXT NOT NULL,
+      dst_hostname  TEXT NOT NULL,
+      src_ip        TEXT,
+      mac           TEXT,
+      rtt_ms        REAL,
+      path          TEXT,
+      ok            BOOLEAN NOT NULL DEFAULT true,
+      reported_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (src_hostname, dst_hostname)
+    )
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_latency_src ON latency_samples(src_hostname)
+  `)
 }

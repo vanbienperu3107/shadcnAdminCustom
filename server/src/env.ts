@@ -27,8 +27,11 @@ const schema = z.object({
   // Headscale API (machines/users). Key = headscale apikey (HEADPLANE_HS_API_KEY).
   HEADSCALE_API_URL: z.string().default('http://headscale:8080'),
   HEADSCALE_API_KEY: z.string().default(''),
-  // node-dedup collector (latency/health JSON) — cung mang compose.
+  // [deprecated] node-dedup collector — thay bằng POST /api/metrics/report sau Feature L.
   NODEDEDUP_URL: z.string().default('http://node-dedup:8090'),
+  // Shared secret cho endpoint POST /api/metrics/report (gửi từ metrics-report.ps1).
+  // Để trống = bỏ qua kiểm tra (chỉ dùng trong môi trường dev nội bộ).
+  METRICS_SHARED_SECRET: z.string().default(''),
   // GitHub Actions (tab Deploy & CI). PAT read actions; repos phẩy ngăn cách.
   GITHUB_TOKEN: z.string().default(''),
   GITHUB_REPOS: z

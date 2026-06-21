@@ -6,6 +6,7 @@ import {
   real,
   timestamp,
   serial,
+  primaryKey,
 } from 'drizzle-orm/pg-core'
 
 /** 1 region = 1 node (theo yêu cầu). region_id do backend tự cấp, 999 reserved cho embedded. */
@@ -62,8 +63,26 @@ export const headscaleApiKey = pgTable('headscale_api_keys', {
   refreshedAt: timestamp('refreshed_at', { withTimezone: true }),
 })
 
+/** Latency reports từ metrics-report.ps1 chạy trên client (mỗi 60s).
+ *  UPSERT theo (src_hostname, dst_hostname) — chỉ giữ bản mới nhất, không tích lũy vô hạn. */
+export const latencySamples = pgTable(
+  'latency_samples',
+  {
+    srcHostname: text('src_hostname').notNull(),
+    dstHostname: text('dst_hostname').notNull(),
+    srcIp:       text('src_ip'),
+    mac:         text('mac'),
+    rttMs:       real('rtt_ms'),
+    path:        text('path'),          // 'direct' | 'derp:regionName'
+    ok:          boolean('ok').notNull().default(true),
+    reportedAt:  timestamp('reported_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.srcHostname, t.dstHostname] })]
+)
+
 export type DerpServer = typeof derpServers.$inferSelect
 export type NewDerpServer = typeof derpServers.$inferInsert
 export type User = typeof users.$inferSelect
 export type Session = typeof sessions.$inferSelect
 export type HeadscaleApiKey = typeof headscaleApiKey.$inferSelect
+export type LatencySample = typeof latencySamples.$inferSelect
