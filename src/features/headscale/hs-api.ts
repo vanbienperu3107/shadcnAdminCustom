@@ -4,6 +4,7 @@ export type HsMachine = {
   id?: string
   name?: string
   givenName?: string
+  nodeKey?: string  // e.g. "nodekey:abc123..." — dùng cho Feature B per-node DERPMap
   user?: { name?: string } | string
   ipAddresses?: string[]
   online?: boolean

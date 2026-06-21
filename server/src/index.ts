@@ -14,6 +14,7 @@ import { derpmapRoutes } from './routes/derpmap.js'
 import { headscalePublicRoutes, headscaleRoutes } from './routes/headscale.js'
 import { healthRoutes } from './routes/health.js'
 import { forceRouteRoutes } from './routes/force-routes.js'
+import { nodeAssignmentsPublicRoutes, nodeAssignmentsRoutes } from './routes/node-assignments.js'
 
 async function main() {
   const app = Fastify({ logger: { level: 'info' } })
@@ -31,6 +32,8 @@ async function main() {
   await app.register(headscalePublicRoutes)
   await app.register(headscaleRoutes)
   await app.register(forceRouteRoutes)
+  await app.register(nodeAssignmentsPublicRoutes)
+  await app.register(nodeAssignmentsRoutes)
   await app.register(ciRoutes)
   await app.register(apikeyRoutes)
 

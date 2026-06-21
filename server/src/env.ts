@@ -32,6 +32,9 @@ const schema = z.object({
   // Shared secret cho endpoint POST /api/metrics/report (gửi từ metrics-report.ps1).
   // Để trống = bỏ qua kiểm tra (chỉ dùng trong môi trường dev nội bộ).
   METRICS_SHARED_SECRET: z.string().default(''),
+  // Secret mà headscale patch gửi kèm header X-Headscale-Secret khi gọi GET /api/internal/derp-map/:nodeKey.
+  // Để trống = không kiểm tra (chỉ dùng trong dev). Cấu hình trong headscale config: derp.dashboard.secret.
+  HEADSCALE_DASHBOARD_SECRET: z.string().default(''),
   // Private key SSH để quản lý firewall iptables trên DERP nodes (Feature C).
   // Nội dung PEM (bắt đầu bằng -----BEGIN ...). Trong Docker: dùng env var hoặc secret mount.
   DERP_SSH_PRIVATE_KEY: z.string().default(''),
