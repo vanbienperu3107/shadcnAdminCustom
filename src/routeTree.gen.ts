@@ -35,6 +35,8 @@ import { Route as AuthenticatedLatencyIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
 import { Route as AuthenticatedDerpIndexRouteImport } from './routes/_authenticated/derp/index'
 import { Route as AuthenticatedDeployIndexRouteImport } from './routes/_authenticated/deploy/index'
+import { Route as AuthenticatedForceRoutesIndexRouteImport } from './routes/_authenticated/force-routes/index'
+import { Route as AuthenticatedNodeAssignmentsIndexRouteImport } from './routes/_authenticated/node-assignments/index'
 import { Route as AuthenticatedChatsIndexRouteImport } from './routes/_authenticated/chats/index'
 import { Route as AuthenticatedAppsIndexRouteImport } from './routes/_authenticated/apps/index'
 import { Route as ClerkAuthenticatedUserManagementRouteImport } from './routes/clerk/_authenticated/user-management'
@@ -181,6 +183,18 @@ const AuthenticatedDeployIndexRoute =
     path: '/deploy/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedForceRoutesIndexRoute =
+  AuthenticatedForceRoutesIndexRouteImport.update({
+    id: '/force-routes/',
+    path: '/force-routes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedNodeAssignmentsIndexRoute =
+  AuthenticatedNodeAssignmentsIndexRouteImport.update({
+    id: '/node-assignments/',
+    path: '/node-assignments/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedChatsIndexRoute = AuthenticatedChatsIndexRouteImport.update({
   id: '/chats/',
   path: '/chats/',
@@ -264,6 +278,8 @@ export interface FileRoutesByFullPath {
   '/chats/': typeof AuthenticatedChatsIndexRoute
   '/deploy/': typeof AuthenticatedDeployIndexRoute
   '/derp/': typeof AuthenticatedDerpIndexRoute
+  '/force-routes/': typeof AuthenticatedForceRoutesIndexRoute
+  '/node-assignments/': typeof AuthenticatedNodeAssignmentsIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/latency/': typeof AuthenticatedLatencyIndexRoute
   '/machines/': typeof AuthenticatedMachinesIndexRoute
@@ -298,6 +314,8 @@ export interface FileRoutesByTo {
   '/chats': typeof AuthenticatedChatsIndexRoute
   '/deploy': typeof AuthenticatedDeployIndexRoute
   '/derp': typeof AuthenticatedDerpIndexRoute
+  '/force-routes': typeof AuthenticatedForceRoutesIndexRoute
+  '/node-assignments': typeof AuthenticatedNodeAssignmentsIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
   '/latency': typeof AuthenticatedLatencyIndexRoute
   '/machines': typeof AuthenticatedMachinesIndexRoute
@@ -337,6 +355,8 @@ export interface FileRoutesById {
   '/_authenticated/chats/': typeof AuthenticatedChatsIndexRoute
   '/_authenticated/deploy/': typeof AuthenticatedDeployIndexRoute
   '/_authenticated/derp/': typeof AuthenticatedDerpIndexRoute
+  '/_authenticated/force-routes/': typeof AuthenticatedForceRoutesIndexRoute
+  '/_authenticated/node-assignments/': typeof AuthenticatedNodeAssignmentsIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/_authenticated/latency/': typeof AuthenticatedLatencyIndexRoute
   '/_authenticated/machines/': typeof AuthenticatedMachinesIndexRoute
@@ -374,6 +394,8 @@ export interface FileRouteTypes {
     | '/chats/'
     | '/deploy/'
     | '/derp/'
+    | '/force-routes/'
+    | '/node-assignments/'
     | '/help-center/'
     | '/latency/'
     | '/machines/'
@@ -408,6 +430,8 @@ export interface FileRouteTypes {
     | '/chats'
     | '/deploy'
     | '/derp'
+    | '/force-routes'
+    | '/node-assignments'
     | '/help-center'
     | '/latency'
     | '/machines'
@@ -446,6 +470,8 @@ export interface FileRouteTypes {
     | '/_authenticated/chats/'
     | '/_authenticated/deploy/'
     | '/_authenticated/derp/'
+    | '/_authenticated/force-routes/'
+    | '/_authenticated/node-assignments/'
     | '/_authenticated/help-center/'
     | '/_authenticated/latency/'
     | '/_authenticated/machines/'
@@ -648,6 +674,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDerpIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/force-routes/': {
+      id: '/_authenticated/force-routes/'
+      path: '/force-routes'
+      fullPath: '/force-routes/'
+      preLoaderRoute: typeof AuthenticatedForceRoutesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/node-assignments/': {
+      id: '/_authenticated/node-assignments/'
+      path: '/node-assignments'
+      fullPath: '/node-assignments/'
+      preLoaderRoute: typeof AuthenticatedNodeAssignmentsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/deploy/': {
       id: '/_authenticated/deploy/'
       path: '/deploy'
@@ -759,6 +799,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
   AuthenticatedDeployIndexRoute: typeof AuthenticatedDeployIndexRoute
   AuthenticatedDerpIndexRoute: typeof AuthenticatedDerpIndexRoute
+  AuthenticatedForceRoutesIndexRoute: typeof AuthenticatedForceRoutesIndexRoute
+  AuthenticatedNodeAssignmentsIndexRoute: typeof AuthenticatedNodeAssignmentsIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
   AuthenticatedLatencyIndexRoute: typeof AuthenticatedLatencyIndexRoute
   AuthenticatedMachinesIndexRoute: typeof AuthenticatedMachinesIndexRoute
@@ -776,6 +818,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
   AuthenticatedDeployIndexRoute: AuthenticatedDeployIndexRoute,
   AuthenticatedDerpIndexRoute: AuthenticatedDerpIndexRoute,
+  AuthenticatedForceRoutesIndexRoute: AuthenticatedForceRoutesIndexRoute,
+  AuthenticatedNodeAssignmentsIndexRoute: AuthenticatedNodeAssignmentsIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
   AuthenticatedLatencyIndexRoute: AuthenticatedLatencyIndexRoute,
   AuthenticatedMachinesIndexRoute: AuthenticatedMachinesIndexRoute,
