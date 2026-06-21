@@ -1,54 +1,49 @@
-import { useState, type ReactNode } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import {
-  Activity,
-  KeyRound,
-  Network,
-  Radio,
-  RefreshCw,
-  Server,
-  Terminal,
-  Users,
-} from 'lucide-react'
+import { Activity, Network, Radio, Server, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Main } from '@/components/layout/main'
 import { derpKeys, fetchHealth, listDerp } from '@/features/derp/data/derp-api'
 import {
-  apiKeyRefresh,
   derpNameSet,
-  fetchApiKeyStatus,
   fetchHsUsers,
+  fetchLatency,
   fetchMachines,
   hsKeys,
   isDerpNode,
-  type ApiKeyStatus,
+  userName,
 } from '@/features/headscale/hs-api'
 
-function Stat({
-  icon: Icon,
-  label,
-  value,
-  sub,
-  to,
-}: {
+type StatProps = {
   icon: typeof Server
   label: string
   value: ReactNode
   sub?: string
   to: '/overview' | '/machines' | '/tailnet-users' | '/latency' | '/derp'
-}) {
+}
+
+function Stat({ icon: Icon, label, value, sub, to }: StatProps) {
   return (
     <Link to={to}>
       <Card className='transition-colors hover:bg-muted/40'>
-        <CardContent className='flex items-center gap-4 p-5'>
-          <Icon className='size-8 text-muted-foreground' />
+        <CardContent className='flex items-center gap-3 p-5'>
+          <Icon className='size-7 shrink-0 text-muted-foreground' />
           <div className='ms-auto text-end'>
-            <div className='text-sm text-muted-foreground'>{label}</div>
+            <div className='text-xs text-muted-foreground'>{label}</div>
             <div className='text-3xl font-bold tracking-tight'>{value}</div>
-            {sub && <div className='text-xs text-muted-foreground'>{sub}</div>}
+            {sub && (
+              <div className='text-xs text-muted-foreground'>{sub}</div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -56,118 +51,25 @@ function Stat({
   )
 }
 
-function fmt(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString('vi-VN', { hour12: false })
-}
-
-function ApiKeyCard({ status }: { status: ApiKeyStatus }) {
-  const qc = useQueryClient()
-  const [errMsg, setErrMsg] = useState('')
-  const [okMsg, setOkMsg] = useState('')
-
-  const refreshMut = useMutation({
-    mutationFn: apiKeyRefresh,
-    onSuccess: (data) => {
-      qc.setQueryData(hsKeys.apiKey, data)
-      setOkMsg('Key đã xoay vòng thành công!')
-      setErrMsg('')
-    },
-    onError: (e: Error) => {
-      setErrMsg(e.message)
-      setOkMsg('')
-    },
-  })
-
+function RelayBadge({ region }: { region: string }) {
+  if (!region)
+    return <span className='text-xs text-muted-foreground'>—</span>
+  if (region === 'direct')
+    return (
+      <Badge
+        variant='outline'
+        className='border-emerald-500/40 text-xs text-emerald-600 dark:text-emerald-400'
+      >
+        P2P
+      </Badge>
+    )
   return (
-    <Card>
-      <CardContent className='flex flex-col gap-3 p-5'>
-        {/* Header */}
-        <div className='flex flex-wrap items-center justify-between gap-2'>
-          <div className='flex items-center gap-2'>
-            <KeyRound className='size-5 text-muted-foreground' />
-            <span className='font-semibold'>Headscale API Key</span>
-            {status.configured ? (
-              <Badge
-                variant='outline'
-                className='border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
-              >
-                <span className='me-1 inline-block size-2 rounded-full bg-emerald-500' />
-                Đã cấu hình
-              </Badge>
-            ) : (
-              <Badge
-                variant='outline'
-                className='border-amber-500/40 text-amber-600 dark:text-amber-400'
-              >
-                Chưa cấu hình
-              </Badge>
-            )}
-          </div>
-
-          {/* Xoay vòng — chỉ khi đã có key */}
-          {status.configured && (
-            <Button
-              size='sm'
-              variant='outline'
-              disabled={refreshMut.isPending}
-              onClick={() => {
-                setErrMsg('')
-                setOkMsg('')
-                refreshMut.mutate()
-              }}
-            >
-              <RefreshCw className={refreshMut.isPending ? 'animate-spin' : ''} />
-              Xoay vòng key
-            </Button>
-          )}
-        </div>
-
-        {/* Key metadata */}
-        {status.configured && (
-          <div className='grid gap-1 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-4'>
-            <span>
-              <b className='text-foreground'>Prefix:</b>{' '}
-              <span className='font-mono'>{status.prefix ?? '—'}</span>
-            </span>
-            <span>
-              <b className='text-foreground'>Seeded:</b> {fmt(status.seededAt)}
-            </span>
-            <span>
-              <b className='text-foreground'>Last refresh:</b>{' '}
-              {fmt(status.refreshedAt)}
-            </span>
-            <span>
-              <b className='text-foreground'>Next auto-refresh:</b>{' '}
-              {fmt(status.nextRefreshAt)}{' '}
-              <span className='text-muted-foreground'>(24h)</span>
-            </span>
-          </div>
-        )}
-
-        {/* Thông báo */}
-        {okMsg && <p className='text-xs text-emerald-600 dark:text-emerald-400'>{okMsg}</p>}
-        {errMsg && <p className='text-xs text-destructive'>Lỗi: {errMsg}</p>}
-
-        {/* Chưa cấu hình: hướng dẫn */}
-        {!status.configured && (
-          <div className='space-y-2 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-xs text-muted-foreground'>
-            <p>Key được tạo tự động mỗi lần deploy. Để tạo ngay không cần deploy:</p>
-            <div className='flex items-start gap-1.5'>
-              <Terminal className='mt-0.5 size-3 shrink-0 text-foreground' />
-              <code className='font-mono text-foreground'>
-                docker exec headscale headscale apikeys create --expiration 8760h
-              </code>
-            </div>
-            <p>
-              Lưu kết quả vào GitHub Secret{' '}
-              <code className='font-mono text-foreground'>HEADSCALE_API_KEY</code> — backend tự
-              seed vào DB khi khởi động. Từ đó tự xoay vòng mỗi 24h.
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <Badge
+      variant='outline'
+      className='border-violet-500/40 text-xs text-violet-600 dark:text-violet-400'
+    >
+      {region}
+    </Badge>
   )
 }
 
@@ -184,10 +86,10 @@ export function Overview() {
     refetchInterval: 30_000,
   })
   const users = useQuery({ queryKey: hsKeys.users, queryFn: fetchHsUsers })
-  const apiKey = useQuery({
-    queryKey: hsKeys.apiKey,
-    queryFn: fetchApiKeyStatus,
-    refetchInterval: 60_000,
+  const lat = useQuery({
+    queryKey: hsKeys.latency,
+    queryFn: fetchLatency,
+    refetchInterval: 30_000,
   })
 
   const regions = derp.data ?? []
@@ -196,11 +98,62 @@ export function Overview() {
   const healthDown = (health.data ?? []).filter((h) => !h.up).length
 
   const names = derpNameSet(regions)
-  const realNodes = (machines.data?.nodes ?? []).filter(
+  const allNodes = machines.data?.nodes ?? []
+  const realNodes = allNodes.filter(
     (n) => !isDerpNode(n.givenName || n.name, names)
   )
   const realOnline = realNodes.filter((n) => n.online).length
-  const hsOk = machines.data?.configured
+  const hsOk = !!machines.data?.configured
+
+  // Stat value colors
+  const machineColor =
+    hsOk && realNodes.length > 0
+      ? realOnline === realNodes.length
+        ? 'text-emerald-500 dark:text-emerald-400'
+        : 'text-amber-500 dark:text-amber-400'
+      : ''
+
+  const healthColor =
+    healthDown === 0 && healthUp > 0
+      ? 'text-emerald-500 dark:text-emerald-400'
+      : healthDown > 0
+        ? 'text-rose-500 dark:text-rose-400'
+        : ''
+
+  // Build per-client DERP info from latency pairs.
+  // pairs shape: { src, dst, last_path, avg_ms } — src populated after Feature L migration.
+  // Until then columns show "—" gracefully.
+  const pairs = lat.data?.pairs ?? []
+  const clientDerpMap = new Map<string, { region: string; rttMs: number | null }>()
+  for (const p of pairs) {
+    const src = String(p.src ?? '').toLowerCase().trim()
+    const dst = String(p.dst ?? '').toLowerCase().trim()
+    const path = String(p.last_path ?? p.path ?? '')
+    const rtt =
+      typeof p.avg_ms === 'number'
+        ? p.avg_ms
+        : typeof p.rtt_ms === 'number'
+          ? p.rtt_ms
+          : null
+    if (!src) continue
+    // Capture home DERP region from outgoing relay path
+    if (path.startsWith('derp:') && !clientDerpMap.has(src)) {
+      clientDerpMap.set(src, { region: path.slice(5), rttMs: null })
+    }
+    // Capture RTT to DERP server when dst is a DERP node
+    if (names.has(dst) && rtt !== null) {
+      const info = clientDerpMap.get(src)
+      if (info) {
+        if (info.rttMs === null) info.rttMs = rtt
+      } else {
+        clientDerpMap.set(src, { region: '', rttMs: rtt })
+      }
+    }
+  }
+
+  const clientRows = realNodes
+    .slice()
+    .sort((a, b) => Number(b.online) - Number(a.online))
 
   return (
     <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
@@ -211,47 +164,179 @@ export function Overview() {
         </p>
       </div>
 
+      {/* Stats */}
       <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-5'>
         <Stat
           icon={Server}
           label='Machines'
-          value={hsOk ? realNodes.length : '—'}
-          sub={
-            hsOk ? `${realOnline} online · chỉ thiết bị thật` : 'cần API key'
+          value={
+            hsOk ? (
+              <span className={machineColor}>{realNodes.length}</span>
+            ) : (
+              '—'
+            )
           }
+          sub={hsOk ? `${realOnline} online · thiết bị thật` : 'cần API key'}
           to='/machines'
         />
         <Stat
           icon={Users}
           label='Users'
-          value={hsOk ? (users.data?.users.length ?? 0) : '—'}
+          value={
+            hsOk ? (
+              <span className='text-sky-500 dark:text-sky-400'>
+                {users.data?.users.length ?? 0}
+              </span>
+            ) : (
+              '—'
+            )
+          }
           sub={hsOk ? 'tailnet users' : 'cần API key'}
           to='/tailnet-users'
         />
         <Stat
           icon={Network}
           label='DERP regions'
-          value={regions.length}
+          value={
+            <span className='text-sky-500 dark:text-sky-400'>
+              {regions.length}
+            </span>
+          }
           sub={`${activeRegions} đang bật`}
           to='/derp'
         />
         <Stat
           icon={Radio}
           label='DERP health'
-          value={`${healthUp}/${healthUp + healthDown}`}
+          value={
+            <span className={healthColor}>
+              {healthUp}/{healthUp + healthDown}
+            </span>
+          }
           sub={healthDown > 0 ? `${healthDown} chết` : 'tất cả sống'}
           to='/derp'
         />
         <Stat
           icon={Activity}
           label='Client → DERP'
-          value={hsOk ? realOnline : '—'}
+          value={
+            hsOk ? (
+              <span className='text-violet-500 dark:text-violet-400'>
+                {realOnline}
+              </span>
+            ) : (
+              '—'
+            )
+          }
           sub='xem định tuyến'
           to='/latency'
         />
       </div>
 
-      {apiKey.data && <ApiKeyCard status={apiKey.data} />}
+      {/* Client devices table */}
+      {hsOk && (
+        <div className='flex flex-col gap-2'>
+          <div>
+            <h3 className='text-sm font-semibold'>
+              Thiết bị người dùng{' '}
+              <span className='text-muted-foreground'>
+                ({realNodes.length})
+              </span>
+            </h3>
+            <p className='text-xs text-muted-foreground'>
+              DERP đang dùng &amp; latency cập nhật từ client mỗi 60s.
+            </p>
+          </div>
+          <div className='overflow-hidden rounded-md border'>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tên</TableHead>
+                  <TableHead>User</TableHead>
+                  <TableHead>IP</TableHead>
+                  <TableHead>DERP đang dùng</TableHead>
+                  <TableHead>Latency đến DERP</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead>Last seen</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {clientRows.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className='h-16 text-center text-muted-foreground'
+                    >
+                      Không có thiết bị nào.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  clientRows.map((n, i) => {
+                    const key = (n.givenName || n.name || '').toLowerCase()
+                    const info = clientDerpMap.get(key)
+                    return (
+                      <TableRow
+                        key={n.id ?? i}
+                        className={n.online ? '' : 'opacity-50'}
+                      >
+                        <TableCell className='font-medium'>
+                          {n.givenName || n.name || '—'}
+                        </TableCell>
+                        <TableCell className='text-xs text-muted-foreground'>
+                          {userName(n.user)}
+                        </TableCell>
+                        <TableCell className='font-mono text-xs'>
+                          {n.ipAddresses?.[0] ?? '—'}
+                        </TableCell>
+                        <TableCell>
+                          {n.online ? (
+                            <RelayBadge region={info?.region ?? ''} />
+                          ) : (
+                            <span className='text-xs text-muted-foreground'>
+                              —
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className='font-mono text-xs'>
+                          {n.online && info?.rttMs != null ? (
+                            `${Math.round(info.rttMs * 10) / 10}ms`
+                          ) : (
+                            <span className='text-muted-foreground'>—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {n.online ? (
+                            <Badge
+                              variant='outline'
+                              className='border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                            >
+                              <span className='me-1 inline-block size-2 rounded-full bg-emerald-500' />
+                              Connected
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant='outline'
+                              className='border-muted-foreground/30 text-muted-foreground'
+                            >
+                              <span className='me-1 inline-block size-2 rounded-full bg-muted-foreground' />
+                              offline
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className='text-xs text-muted-foreground'>
+                          {n.lastSeen
+                            ? new Date(n.lastSeen).toLocaleString()
+                            : '—'}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
     </Main>
   )
 }
