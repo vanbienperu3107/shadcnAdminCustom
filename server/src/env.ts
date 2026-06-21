@@ -32,6 +32,9 @@ const schema = z.object({
   // Shared secret cho endpoint POST /api/metrics/report (gửi từ metrics-report.ps1).
   // Để trống = bỏ qua kiểm tra (chỉ dùng trong môi trường dev nội bộ).
   METRICS_SHARED_SECRET: z.string().default(''),
+  // Private key SSH để quản lý firewall iptables trên DERP nodes (Feature C).
+  // Nội dung PEM (bắt đầu bằng -----BEGIN ...). Trong Docker: dùng env var hoặc secret mount.
+  DERP_SSH_PRIVATE_KEY: z.string().default(''),
   // GitHub Actions (tab Deploy & CI). PAT read actions; repos phẩy ngăn cách.
   GITHUB_TOKEN: z.string().default(''),
   GITHUB_REPOS: z

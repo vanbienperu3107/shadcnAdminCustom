@@ -20,6 +20,8 @@ export type DerpServer = {
   maintenance: boolean
   embedded: boolean
   priority: number
+  sshUser: string | null
+  sshPort: number | null
   createdAt: string
   updatedAt: string
 }

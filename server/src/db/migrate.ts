@@ -89,4 +89,25 @@ export async function migrate(): Promise<void> {
   await db.execute(sql`
     ALTER TABLE derp_servers ADD COLUMN IF NOT EXISTS maintenance BOOLEAN NOT NULL DEFAULT false
   `)
+
+  // Feature C: SSH credentials cho DERP nodes + bảng force routes
+  await db.execute(sql`
+    ALTER TABLE derp_servers ADD COLUMN IF NOT EXISTS ssh_user TEXT DEFAULT 'root'
+  `)
+  await db.execute(sql`
+    ALTER TABLE derp_servers ADD COLUMN IF NOT EXISTS ssh_port INTEGER DEFAULT 22
+  `)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS derp_force_routes (
+      id          SERIAL PRIMARY KEY,
+      region_id   INTEGER NOT NULL REFERENCES derp_servers(region_id) ON DELETE CASCADE,
+      client_ip   TEXT NOT NULL,
+      label       TEXT,
+      active      BOOLEAN NOT NULL DEFAULT true,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_force_routes_region ON derp_force_routes(region_id)
+  `)
 }
