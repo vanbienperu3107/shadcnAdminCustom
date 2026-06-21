@@ -88,13 +88,6 @@ export async function fetchApiKeyStatus(): Promise<ApiKeyStatus> {
   return data
 }
 
-export async function apiKeySeed(key: string): Promise<ApiKeyStatus> {
-  const { data } = await api.post<ApiKeyStatus>('/settings/apikey/seed', {
-    key,
-  })
-  return data
-}
-
 export async function apiKeyRefresh(): Promise<ApiKeyStatus> {
   const { data } = await api.post<ApiKeyStatus>('/settings/apikey/refresh')
   return data
