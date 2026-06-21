@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Main } from '@/components/layout/main'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
 import {
@@ -25,7 +26,9 @@ function MachineRow({ n }: { n: HsMachine }) {
       <TableCell className='font-medium'>
         {n.givenName || n.name || '—'}
       </TableCell>
-      <TableCell>{userName(n.user)}</TableCell>
+      <TableCell className='text-xs text-muted-foreground'>
+        {userName(n.user)}
+      </TableCell>
       <TableCell className='font-mono text-xs'>
         {n.ipAddresses?.[0] ?? '—'}
       </TableCell>
@@ -97,12 +100,12 @@ export function Machines() {
 
   const names = derpNameSet(derp.data ?? [])
   const nodes = data?.nodes ?? []
-  const userNodes = nodes.filter(
-    (n) => !isDerpNode(n.givenName || n.name, names)
-  )
-  const derpNodes = nodes.filter((n) =>
-    isDerpNode(n.givenName || n.name, names)
-  )
+  const userNodes = nodes
+    .filter((n) => !isDerpNode(n.givenName || n.name, names))
+    .sort((a, b) => Number(b.online) - Number(a.online))
+  const derpNodes = nodes
+    .filter((n) => isDerpNode(n.givenName || n.name, names))
+    .sort((a, b) => Number(b.online) - Number(a.online))
 
   return (
     <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
@@ -121,26 +124,28 @@ export function Machines() {
       ) : !data?.configured ? (
         <NotConfigured />
       ) : (
-        <>
-          <div className='flex flex-col gap-2'>
-            <h3 className='text-sm font-semibold'>
-              Thiết bị người dùng{' '}
-              <span className='text-muted-foreground'>
+        <Tabs defaultValue='users'>
+          <TabsList>
+            <TabsTrigger value='users'>
+              Thiết bị người dùng
+              <span className='ms-1.5 text-muted-foreground'>
                 ({userNodes.length})
               </span>
-            </h3>
-            <MachineTable rows={userNodes} />
-          </div>
-          <div className='flex flex-col gap-2'>
-            <h3 className='text-sm font-semibold'>
-              Node DERP / hạ tầng{' '}
-              <span className='text-muted-foreground'>
+            </TabsTrigger>
+            <TabsTrigger value='derp'>
+              Node DERP / hạ tầng
+              <span className='ms-1.5 text-muted-foreground'>
                 ({derpNodes.length})
               </span>
-            </h3>
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value='users' className='mt-4'>
+            <MachineTable rows={userNodes} />
+          </TabsContent>
+          <TabsContent value='derp' className='mt-4'>
             <MachineTable rows={derpNodes} />
-          </div>
-        </>
+          </TabsContent>
+        </Tabs>
       )}
     </Main>
   )
