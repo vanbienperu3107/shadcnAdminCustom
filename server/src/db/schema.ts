@@ -29,6 +29,9 @@ export const derpServers = pgTable('derp_servers', {
   maintenance: boolean('maintenance').notNull().default(false), // bảo trì (score=9999, client tự chuyển)
   embedded:    boolean('embedded').notNull().default(false),    // region 999, read-only
   priority: integer('priority').notNull().default(100), // số nhỏ = ưu tiên cao
+  // SSH để quản lý firewall (Feature C)
+  sshUser: text('ssh_user').default('root'),
+  sshPort: integer('ssh_port').default(22),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -81,9 +84,20 @@ export const latencySamples = pgTable(
   (t) => [primaryKey({ columns: [t.srcHostname, t.dstHostname] })]
 )
 
+/** Danh sách IP client bị ép đi qua một DERP cụ thể (quản lý iptables DERP-FORCE). */
+export const derpForceRoutes = pgTable('derp_force_routes', {
+  id:        serial('id').primaryKey(),
+  regionId:  integer('region_id').notNull().references(() => derpServers.regionId, { onDelete: 'cascade' }),
+  clientIp:  text('client_ip').notNull(),
+  label:     text('label'),   // tên máy / ghi chú
+  active:    boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export type DerpServer = typeof derpServers.$inferSelect
 export type NewDerpServer = typeof derpServers.$inferInsert
 export type User = typeof users.$inferSelect
 export type Session = typeof sessions.$inferSelect
 export type HeadscaleApiKey = typeof headscaleApiKey.$inferSelect
 export type LatencySample = typeof latencySamples.$inferSelect
+export type DerpForceRoute = typeof derpForceRoutes.$inferSelect

@@ -1,5 +1,6 @@
 import {
   Activity,
+  Flame,
   LayoutDashboard,
   Network,
   Rocket,
@@ -30,6 +31,7 @@ export const sidebarData: SidebarData = {
         { title: 'Users', url: '/tailnet-users', icon: Users },
         { title: 'Latency', url: '/latency', icon: Activity },
         { title: 'DERP Regions', url: '/derp', icon: Network },
+        { title: 'Force Routes', url: '/force-routes', icon: Flame },
         { title: 'Deploy & CI', url: '/deploy', icon: Rocket },
       ],
     },
