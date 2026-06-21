@@ -134,8 +134,9 @@ jobs:
             echo "==> Creating headscale API key"
             KEY="$($SUDO docker exec headscale headscale apikeys create --expiration 8760h 2>&1 | tail -1 | tr -d '[:space:]')"
             echo "==> KEY_LEN=${#KEY} KEY_PREFIX=${KEY%%.*}"
-            if [ -z "$KEY" ]; then
-              echo "==> headscale not ready, skipping"
+            # Headscale key luon co dau . (vd: prefix.secret); loi docker khong co dau .
+            if [ -z "$KEY" ] || [ "${KEY%%.*}" = "$KEY" ]; then
+              echo "==> No valid key (no dot found) — skipping webhook"
               exit 0
             fi
             echo "==> POSTing key to backend webhook"

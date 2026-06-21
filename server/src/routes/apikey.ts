@@ -34,7 +34,9 @@ export async function apikeyRoutes(app: FastifyInstance): Promise<void> {
 
   // POST /api/settings/apikey/webhook — nhận key từ deploy workflow (không cần Google auth)
   // Xác thực bằng X-Webhook-Secret header = SESSION_SECRET
-  const webhookBody = z.object({ key: z.string().min(10) })
+  const webhookBody = z.object({
+    key: z.string().min(10).refine((k) => k.includes('.'), 'invalid key format — must contain a dot'),
+  })
 
   app.post(
     '/api/settings/apikey/webhook',
