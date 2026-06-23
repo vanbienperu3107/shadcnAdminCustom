@@ -150,9 +150,11 @@ export type HsPreAuthKey = {
   expiration?: string
 }
 
-export async function fetchPreAuthKeys(user: string): Promise<HsPreAuthKey[]> {
+export async function fetchPreAuthKeys(
+  user: string
+): Promise<{ preAuthKeys: HsPreAuthKey[] }> {
   const { data } = await api.get(`/users/${user}/preauthkeys`)
-  return data?.preAuthKeys ?? []
+  return { preAuthKeys: data?.preAuthKeys ?? [] }
 }
 
 export async function createPreAuthKey(opts: {
