@@ -15,6 +15,7 @@ import { headscalePublicRoutes, headscaleRoutes } from './routes/headscale.js'
 import { healthRoutes } from './routes/health.js'
 import { forceRouteRoutes } from './routes/force-routes.js'
 import { nodeAssignmentsPublicRoutes, nodeAssignmentsRoutes } from './routes/node-assignments.js'
+import { clientConfigRoutes } from './routes/client-config.js'
 
 async function main() {
   const app = Fastify({ logger: { level: 'info' } })
@@ -36,6 +37,7 @@ async function main() {
   await app.register(nodeAssignmentsRoutes)
   await app.register(ciRoutes)
   await app.register(apikeyRoutes)
+  await app.register(clientConfigRoutes)
 
   // SPA tĩnh (prod)
   if (env.CLIENT_DIST && existsSync(env.CLIENT_DIST)) {

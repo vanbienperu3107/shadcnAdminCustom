@@ -102,6 +102,20 @@ export const derpNodeAssignments = pgTable('derp_node_assignments', {
   regionId: integer('region_id').notNull().references(() => derpServers.regionId, { onDelete: 'cascade' }),
 }, (t) => [primaryKey({ columns: [t.nodeKey, t.regionId] })])
 
+export const clientConfig = pgTable('client_config', {
+  key:       text('key').primaryKey(),
+  value:     text('value').notNull(),
+  note:      text('note'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const clientNetcheck = pgTable('client_netcheck', {
+  client:     text('client').primaryKey(),
+  portSocks5: integer('port_socks5'),
+  portHttp:   integer('port_http'),
+  reportedAt: timestamp('reported_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export type DerpServer = typeof derpServers.$inferSelect
 export type NewDerpServer = typeof derpServers.$inferInsert
 export type User = typeof users.$inferSelect
@@ -110,3 +124,5 @@ export type HeadscaleApiKey = typeof headscaleApiKey.$inferSelect
 export type LatencySample = typeof latencySamples.$inferSelect
 export type DerpForceRoute = typeof derpForceRoutes.$inferSelect
 export type DerpNodeAssignment = typeof derpNodeAssignments.$inferSelect
+export type ClientConfig = typeof clientConfig.$inferSelect
+export type ClientNetcheck = typeof clientNetcheck.$inferSelect
