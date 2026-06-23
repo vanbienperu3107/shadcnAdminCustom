@@ -47,6 +47,11 @@ import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
+import { Route as AuthenticatedAclIndexRouteImport } from './routes/_authenticated/acl/index'
+import { Route as AuthenticatedClientConfigIndexRouteImport } from './routes/_authenticated/client-config/index'
+import { Route as AuthenticatedHsRoutesIndexRouteImport } from './routes/_authenticated/hs-routes/index'
+import { Route as AuthenticatedPreauthKeysIndexRouteImport } from './routes/_authenticated/preauth-keys/index'
+import { Route as AuthenticatedSettingsHeadscaleRouteImport } from './routes/_authenticated/settings/headscale'
 
 const ClerkRouteRoute = ClerkRouteRouteImport.update({
   id: '/clerk',
@@ -251,6 +256,35 @@ const AuthenticatedErrorsErrorRoute =
     path: '/errors/$error',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAclIndexRoute = AuthenticatedAclIndexRouteImport.update({
+  id: '/acl/',
+  path: '/acl',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedClientConfigIndexRoute =
+  AuthenticatedClientConfigIndexRouteImport.update({
+    id: '/client-config/',
+    path: '/client-config',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedHsRoutesIndexRoute =
+  AuthenticatedHsRoutesIndexRouteImport.update({
+    id: '/hs-routes/',
+    path: '/hs-routes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPreauthKeysIndexRoute =
+  AuthenticatedPreauthKeysIndexRouteImport.update({
+    id: '/preauth-keys/',
+    path: '/preauth-keys',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSettingsHeadscaleRoute =
+  AuthenticatedSettingsHeadscaleRouteImport.update({
+    id: '/settings/headscale',
+    path: '/headscale',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -288,6 +322,11 @@ export interface FileRoutesByFullPath {
   '/tailnet-users/': typeof AuthenticatedTailnetUsersIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
+  '/acl/': typeof AuthenticatedAclIndexRoute
+  '/client-config/': typeof AuthenticatedClientConfigIndexRoute
+  '/hs-routes/': typeof AuthenticatedHsRoutesIndexRoute
+  '/preauth-keys/': typeof AuthenticatedPreauthKeysIndexRoute
+  '/settings/headscale': typeof AuthenticatedSettingsHeadscaleRoute
 }
 export interface FileRoutesByTo {
   '/clerk': typeof ClerkAuthenticatedRouteRouteWithChildren
@@ -324,6 +363,11 @@ export interface FileRoutesByTo {
   '/tailnet-users': typeof AuthenticatedTailnetUsersIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
+  '/acl': typeof AuthenticatedAclIndexRoute
+  '/client-config': typeof AuthenticatedClientConfigIndexRoute
+  '/hs-routes': typeof AuthenticatedHsRoutesIndexRoute
+  '/preauth-keys': typeof AuthenticatedPreauthKeysIndexRoute
+  '/settings/headscale': typeof AuthenticatedSettingsHeadscaleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -365,6 +409,11 @@ export interface FileRoutesById {
   '/_authenticated/tailnet-users/': typeof AuthenticatedTailnetUsersIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
+  '/_authenticated/acl/': typeof AuthenticatedAclIndexRoute
+  '/_authenticated/client-config/': typeof AuthenticatedClientConfigIndexRoute
+  '/_authenticated/hs-routes/': typeof AuthenticatedHsRoutesIndexRoute
+  '/_authenticated/preauth-keys/': typeof AuthenticatedPreauthKeysIndexRoute
+  '/_authenticated/settings/headscale': typeof AuthenticatedSettingsHeadscaleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -404,6 +453,11 @@ export interface FileRouteTypes {
     | '/tailnet-users/'
     | '/tasks/'
     | '/users/'
+    | '/acl/'
+    | '/client-config/'
+    | '/hs-routes/'
+    | '/preauth-keys/'
+    | '/settings/headscale'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/clerk'
@@ -440,6 +494,11 @@ export interface FileRouteTypes {
     | '/tailnet-users'
     | '/tasks'
     | '/users'
+    | '/acl'
+    | '/client-config'
+    | '/hs-routes'
+    | '/preauth-keys'
+    | '/settings/headscale'
   id:
     | '__root__'
     | '/_authenticated'
@@ -480,6 +539,11 @@ export interface FileRouteTypes {
     | '/_authenticated/tailnet-users/'
     | '/_authenticated/tasks/'
     | '/_authenticated/users/'
+    | '/_authenticated/acl/'
+    | '/_authenticated/client-config/'
+    | '/_authenticated/hs-routes/'
+    | '/_authenticated/preauth-keys/'
+    | '/_authenticated/settings/headscale'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -765,6 +829,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErrorsErrorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/acl/': {
+      id: '/_authenticated/acl/'
+      path: '/acl'
+      fullPath: '/acl/'
+      preLoaderRoute: typeof AuthenticatedAclIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/client-config/': {
+      id: '/_authenticated/client-config/'
+      path: '/client-config'
+      fullPath: '/client-config/'
+      preLoaderRoute: typeof AuthenticatedClientConfigIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/hs-routes/': {
+      id: '/_authenticated/hs-routes/'
+      path: '/hs-routes'
+      fullPath: '/hs-routes/'
+      preLoaderRoute: typeof AuthenticatedHsRoutesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/preauth-keys/': {
+      id: '/_authenticated/preauth-keys/'
+      path: '/preauth-keys'
+      fullPath: '/preauth-keys/'
+      preLoaderRoute: typeof AuthenticatedPreauthKeysIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings/headscale': {
+      id: '/_authenticated/settings/headscale'
+      path: '/headscale'
+      fullPath: '/settings/headscale'
+      preLoaderRoute: typeof AuthenticatedSettingsHeadscaleRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
   }
 }
 
@@ -774,6 +873,7 @@ interface AuthenticatedSettingsRouteRouteChildren {
   AuthenticatedSettingsDisplayRoute: typeof AuthenticatedSettingsDisplayRoute
   AuthenticatedSettingsNotificationsRoute: typeof AuthenticatedSettingsNotificationsRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
+  AuthenticatedSettingsHeadscaleRoute: typeof AuthenticatedSettingsHeadscaleRoute
 }
 
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
@@ -784,6 +884,7 @@ const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteCh
     AuthenticatedSettingsNotificationsRoute:
       AuthenticatedSettingsNotificationsRoute,
     AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
+    AuthenticatedSettingsHeadscaleRoute: AuthenticatedSettingsHeadscaleRoute,
   }
 
 const AuthenticatedSettingsRouteRouteWithChildren =
@@ -808,6 +909,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTailnetUsersIndexRoute: typeof AuthenticatedTailnetUsersIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
+  AuthenticatedAclIndexRoute: typeof AuthenticatedAclIndexRoute
+  AuthenticatedClientConfigIndexRoute: typeof AuthenticatedClientConfigIndexRoute
+  AuthenticatedHsRoutesIndexRoute: typeof AuthenticatedHsRoutesIndexRoute
+  AuthenticatedPreauthKeysIndexRoute: typeof AuthenticatedPreauthKeysIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -827,6 +932,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTailnetUsersIndexRoute: AuthenticatedTailnetUsersIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
+  AuthenticatedAclIndexRoute: AuthenticatedAclIndexRoute,
+  AuthenticatedClientConfigIndexRoute: AuthenticatedClientConfigIndexRoute,
+  AuthenticatedHsRoutesIndexRoute: AuthenticatedHsRoutesIndexRoute,
+  AuthenticatedPreauthKeysIndexRoute: AuthenticatedPreauthKeysIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
