@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save } from 'lucide-react'
 import { toast } from 'sonner'
@@ -14,23 +14,17 @@ export function Acl() {
     queryFn: fetchAcl,
   })
 
-  const [policy, setPolicy] = useState('')
-  const [dirty, setDirty] = useState(false)
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => {
-    if (data?.policy !== undefined) {
-      setPolicy(data.policy)
-      setDirty(false)
-    }
-  }, [data?.policy])
+  // editedPolicy=null means no local edits; fall back to server value.
+  const [editedPolicy, setEditedPolicy] = useState<string | null>(null)
+  const policy = editedPolicy ?? data?.policy ?? ''
+  const dirty = editedPolicy !== null
 
   const saveMut = useMutation({
     mutationFn: () => updateAcl(policy),
     onSuccess: () => {
       toast.success('Đã lưu ACL policy')
       void qc.invalidateQueries({ queryKey: hsKeys.acl })
-      setDirty(false)
+      setEditedPolicy(null)
     },
     onError: (e: Error) => toast.error(`Lỗi: ${e.message}`),
   })
@@ -78,10 +72,7 @@ export function Acl() {
           <textarea
             className='min-h-[60vh] w-full resize-y rounded-md border bg-muted/30 p-4 font-mono text-sm leading-relaxed outline-none focus:ring-1 focus:ring-ring'
             value={policy}
-            onChange={(e) => {
-              setPolicy(e.target.value)
-              setDirty(true)
-            }}
+            onChange={(e) => setEditedPolicy(e.target.value)}
             spellCheck={false}
           />
         </div>
