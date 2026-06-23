@@ -17,6 +17,7 @@ export function Acl() {
   const [policy, setPolicy] = useState('')
   const [dirty, setDirty] = useState(false)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (data?.policy !== undefined) {
       setPolicy(data.policy)
