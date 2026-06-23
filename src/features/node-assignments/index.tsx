@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Loader2, Map, Pencil, Trash2 } from 'lucide-react'
+import {
+  CheckCircle2,
+  Loader2,
+  Map as MapIcon,
+  Pencil,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -167,7 +173,7 @@ export function NodeAssignments() {
       <Main className='flex flex-1 flex-col gap-6'>
         <div>
           <h2 className='text-2xl font-bold tracking-tight'>
-            <Map className='me-2 mb-0.5 inline size-6 text-blue-500' />
+            <MapIcon className='me-2 mb-0.5 inline size-6 text-blue-500' />
             Node Assignments
           </h2>
           <p className='text-muted-foreground'>

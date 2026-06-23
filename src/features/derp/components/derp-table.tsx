@@ -143,7 +143,7 @@ export function DerpTable({ data }: { data: DerpServer[] }) {
       body,
     }: {
       regionId: number
-      body: { enabled?: boolean; paused?: boolean }
+      body: { enabled?: boolean; paused?: boolean; maintenance?: boolean }
     }) => toggleDerp(regionId, body),
     // Optimistic: cập nhật cache ngay -> KHÔNG reload
     onMutate: async ({ regionId, body }) => {

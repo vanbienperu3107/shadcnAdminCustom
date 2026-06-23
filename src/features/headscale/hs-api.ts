@@ -23,6 +23,9 @@ export const hsKeys = {
   latency: ['hs', 'latency'] as const,
   ci: ['hs', 'ci'] as const,
   apiKey: ['settings', 'apikey'] as const,
+  acl: ['hs', 'acl'] as const,
+  routes: ['hs', 'routes'] as const,
+  preauthkeys: (user: string) => ['hs', 'preauthkeys', user] as const,
 }
 
 export type CiRun = {
@@ -92,6 +95,81 @@ export async function fetchApiKeyStatus(): Promise<ApiKeyStatus> {
 export async function apiKeyRefresh(): Promise<ApiKeyStatus> {
   const { data } = await api.post<ApiKeyStatus>('/settings/apikey/refresh')
   return data
+}
+
+// ── ACL ──────────────────────────────────────────────────────────────────────
+
+export async function fetchAcl(): Promise<{
+  configured: boolean
+  policy: string
+}> {
+  const { data } = await api.get('/acl')
+  return data
+}
+
+export async function updateAcl(policy: string): Promise<void> {
+  await api.post('/acl', { policy })
+}
+
+// ── Routes ───────────────────────────────────────────────────────────────────
+
+export type HsRoute = {
+  id?: string
+  prefix?: string
+  node?: { givenName?: string; name?: string; id?: string }
+  enabled?: boolean
+  isPrimary?: boolean
+  updatedAt?: string
+}
+
+export async function fetchRoutes(): Promise<{
+  configured: boolean
+  routes: HsRoute[]
+}> {
+  const { data } = await api.get('/routes')
+  return data
+}
+
+export async function enableRoute(id: string): Promise<void> {
+  await api.post(`/routes/${id}/enable`, {})
+}
+
+export async function deleteRoute(id: string): Promise<void> {
+  await api.delete(`/routes/${id}`)
+}
+
+// ── Pre-auth keys ─────────────────────────────────────────────────────────────
+
+export type HsPreAuthKey = {
+  id?: string
+  key?: string
+  user?: string
+  reusable?: boolean
+  ephemeral?: boolean
+  used?: boolean
+  expiration?: string
+}
+
+export async function fetchPreAuthKeys(user: string): Promise<HsPreAuthKey[]> {
+  const { data } = await api.get(`/users/${user}/preauthkeys`)
+  return data?.preAuthKeys ?? []
+}
+
+export async function createPreAuthKey(opts: {
+  user: string
+  reusable: boolean
+  ephemeral: boolean
+  expiration: string
+}): Promise<HsPreAuthKey> {
+  const { data } = await api.post('/preauthkeys', opts)
+  return data?.preAuthKey ?? {}
+}
+
+export async function expirePreAuthKey(
+  user: string,
+  key: string
+): Promise<void> {
+  await api.post(`/users/${user}/preauthkeys/expire`, { key })
 }
 
 /** Tập tên node hạ tầng DERP (vpn2..vpn6 + collector) suy từ danh sách DERP. */
