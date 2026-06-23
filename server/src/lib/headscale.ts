@@ -2,15 +2,23 @@ import { env } from '../env.js'
 import { getApiKey } from './apikey-manager.js'
 
 /** Gọi headscale HTTP API bằng Bearer API key (đọc từ DB, fallback env). */
-export async function hsApi<T = unknown>(path: string): Promise<T> {
+export async function hsApi<T = unknown>(
+  path: string,
+  init?: Omit<RequestInit, 'headers' | 'signal'>,
+): Promise<T> {
   const key = await getApiKey()
   if (!key) throw new Error('no_headscale_key')
   const url = `${env.HEADSCALE_API_URL.replace(/\/$/, '')}${path}`
   const res = await fetch(url, {
-    headers: { authorization: `Bearer ${key}` },
+    ...init,
+    headers: {
+      authorization: `Bearer ${key}`,
+      ...(init?.body != null ? { 'content-type': 'application/json' } : {}),
+    },
     signal: AbortSignal.timeout(8000),
   })
   if (!res.ok) throw new Error(`headscale ${res.status}`)
+  if (res.status === 204) return {} as T
   return (await res.json()) as T
 }
 

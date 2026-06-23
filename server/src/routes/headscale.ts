@@ -94,6 +94,108 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
     }
   })
 
+  // ── Routes ──────────────────────────────────────────────────────────────────
+
+  app.get('/api/routes', async (_req, reply) => {
+    if (!(await isHsConfigured())) return { configured: false, routes: [] }
+    try {
+      const d = await hsApi<{ routes?: unknown[] }>('/api/v1/routes')
+      return { configured: true, routes: d.routes ?? [] }
+    } catch (e) {
+      return reply.code(502).send({ configured: true, error: String(e), routes: [] })
+    }
+  })
+
+  app.post('/api/routes/:id/enable', async (req, reply) => {
+    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'not configured' })
+    const { id } = req.params as { id: string }
+    try {
+      await hsApi(`/api/v1/routes/${encodeURIComponent(id)}/enable`, { method: 'POST' })
+      return { ok: true }
+    } catch (e) {
+      return reply.code(502).send({ error: String(e) })
+    }
+  })
+
+  app.delete('/api/routes/:id', async (req, reply) => {
+    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'not configured' })
+    const { id } = req.params as { id: string }
+    try {
+      await hsApi(`/api/v1/routes/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      return reply.code(204).send()
+    } catch (e) {
+      return reply.code(502).send({ error: String(e) })
+    }
+  })
+
+  // ── ACL Policy ───────────────────────────────────────────────────────────────
+
+  app.get('/api/acl', async (_req, reply) => {
+    if (!(await isHsConfigured())) return { configured: false, policy: '' }
+    try {
+      const d = await hsApi<{ policy?: string }>('/api/v1/policy')
+      return { configured: true, policy: d.policy ?? '' }
+    } catch (e) {
+      return reply.code(502).send({ configured: true, error: String(e), policy: '' })
+    }
+  })
+
+  app.post('/api/acl', async (req, reply) => {
+    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'not configured' })
+    const { policy } = req.body as { policy?: string }
+    if (typeof policy !== 'string') return reply.code(400).send({ error: 'policy string required' })
+    try {
+      await hsApi('/api/v1/policy', { method: 'PUT', body: JSON.stringify({ policy }) })
+      return { ok: true }
+    } catch (e) {
+      return reply.code(502).send({ error: String(e) })
+    }
+  })
+
+  // ── Pre-auth Keys ────────────────────────────────────────────────────────────
+
+  app.get('/api/users/:user/preauthkeys', async (req, reply) => {
+    if (!(await isHsConfigured())) return { configured: false, preAuthKeys: [] }
+    const { user } = req.params as { user: string }
+    try {
+      const d = await hsApi<{ preAuthKeys?: unknown[] }>(
+        `/api/v1/preauthkey?user=${encodeURIComponent(user)}`,
+      )
+      return { configured: true, preAuthKeys: d.preAuthKeys ?? [] }
+    } catch (e) {
+      return reply.code(502).send({ configured: true, error: String(e), preAuthKeys: [] })
+    }
+  })
+
+  app.post('/api/preauthkeys', async (req, reply) => {
+    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'not configured' })
+    try {
+      const d = await hsApi<{ preAuthKey?: unknown }>('/api/v1/preauthkey', {
+        method: 'POST',
+        body: JSON.stringify(req.body),
+      })
+      return { preAuthKey: d.preAuthKey ?? {} }
+    } catch (e) {
+      return reply.code(502).send({ error: String(e) })
+    }
+  })
+
+  app.post('/api/users/:user/preauthkeys/expire', async (req, reply) => {
+    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'not configured' })
+    const { user } = req.params as { user: string }
+    const { key } = req.body as { key?: string }
+    if (!key) return reply.code(400).send({ error: 'key required' })
+    try {
+      await hsApi('/api/v1/preauthkey/expire', {
+        method: 'POST',
+        body: JSON.stringify({ user, key }),
+      })
+      return { ok: true }
+    } catch (e) {
+      return reply.code(502).send({ error: String(e) })
+    }
+  })
+
   /** Latency từ Neon DB (Feature L). Format pairs tương thích với hs-api.ts fetchLatency(). */
   app.get('/api/latency', async (_req, reply) => {
     try {
