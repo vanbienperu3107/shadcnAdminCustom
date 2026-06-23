@@ -1,6 +1,5 @@
 import {
   Activity,
-  FileCode2,
   Flame,
   Key,
   LayoutDashboard,
