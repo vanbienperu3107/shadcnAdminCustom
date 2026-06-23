@@ -12,6 +12,14 @@ import {
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -22,14 +30,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
@@ -54,22 +54,37 @@ function SyncOutput({ result }: { result: SyncResult | null }) {
           : 'border-destructive/30 bg-destructive/5 text-destructive'
       }`}
     >
-      {result.error && <p className='mb-1 font-semibold'>Lỗi: {result.error}</p>}
+      {result.error && (
+        <p className='mb-1 font-semibold'>Lỗi: {result.error}</p>
+      )}
       {result.steps.map((s, i) => (
-        <pre key={i} className='whitespace-pre-wrap'>{s}</pre>
+        <pre key={i} className='whitespace-pre-wrap'>
+          {s}
+        </pre>
       ))}
     </div>
   )
 }
 
-function AddRouteDialog({ regionId, derpName }: { regionId: number; derpName: string }) {
+function AddRouteDialog({
+  regionId,
+  derpName,
+}: {
+  regionId: number
+  derpName: string
+}) {
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const [ip, setIp] = useState('')
   const [label, setLabel] = useState('')
 
   const mut = useMutation({
-    mutationFn: () => createForceRoute({ regionId, clientIp: ip.trim(), label: label.trim() || undefined }),
+    mutationFn: () =>
+      createForceRoute({
+        regionId,
+        clientIp: ip.trim(),
+        label: label.trim() || undefined,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: forceKeys.all })
       setOpen(false)
@@ -112,12 +127,16 @@ function AddRouteDialog({ regionId, derpName }: { regionId: number; derpName: st
           </div>
         </div>
         <DialogFooter>
-          <Button variant='outline' onClick={() => setOpen(false)}>Hủy</Button>
+          <Button variant='outline' onClick={() => setOpen(false)}>
+            Hủy
+          </Button>
           <Button
             onClick={() => mut.mutate()}
             disabled={!ip.trim() || mut.isPending}
           >
-            {mut.isPending && <Loader2 className='me-1.5 size-3.5 animate-spin' />}
+            {mut.isPending && (
+              <Loader2 className='me-1.5 size-3.5 animate-spin' />
+            )}
             Thêm
           </Button>
         </DialogFooter>
@@ -167,11 +186,16 @@ export function ForceRoutes() {
     onSuccess: (result, regionId) => {
       setSyncResults((prev) => ({ ...prev, [regionId]: result }))
       toast[result.ok ? 'success' : 'error'](
-        result.ok ? 'Sync iptables thành công' : `Sync thất bại: ${result.error}`
+        result.ok
+          ? 'Sync iptables thành công'
+          : `Sync thất bại: ${result.error}`
       )
     },
     onError: (e: Error, regionId) => {
-      setSyncResults((prev) => ({ ...prev, [regionId]: { ok: false, steps: [], error: e.message } }))
+      setSyncResults((prev) => ({
+        ...prev,
+        [regionId]: { ok: false, steps: [], error: e.message },
+      }))
       toast.error(e.message)
     },
   })
@@ -181,11 +205,16 @@ export function ForceRoutes() {
     onSuccess: (result, regionId) => {
       setSyncResults((prev) => ({ ...prev, [regionId]: result }))
       toast[result.ok ? 'success' : 'error'](
-        result.ok ? 'Đã xóa DERP-FORCE chain' : `Clear thất bại: ${result.error}`
+        result.ok
+          ? 'Đã xóa DERP-FORCE chain'
+          : `Clear thất bại: ${result.error}`
       )
     },
     onError: (e: Error, regionId) => {
-      setSyncResults((prev) => ({ ...prev, [regionId]: { ok: false, steps: [], error: e.message } }))
+      setSyncResults((prev) => ({
+        ...prev,
+        [regionId]: { ok: false, steps: [], error: e.message },
+      }))
       toast.error(e.message)
     },
   })
@@ -196,12 +225,13 @@ export function ForceRoutes() {
       <Main className='flex flex-1 flex-col gap-6'>
         <div>
           <h2 className='text-2xl font-bold tracking-tight'>
-            <Flame className='mb-0.5 me-2 inline size-6 text-orange-500' />
+            <Flame className='me-2 mb-0.5 inline size-6 text-orange-500' />
             Firewall Force Routes
           </h2>
           <p className='text-muted-foreground'>
-            Quản lý iptables DERP-FORCE chain trên từng node. Client IP trong danh sách sẽ được
-            ACCEPT vào chain riêng — ép traffic qua DERP chỉ định.
+            Quản lý iptables DERP-FORCE chain trên từng node. Client IP trong
+            danh sách sẽ được ACCEPT vào chain riêng — ép traffic qua DERP chỉ
+            định.
           </p>
         </div>
 
@@ -267,7 +297,9 @@ export function ForceRoutes() {
                 <TableBody>
                   {g.routes.map((r) => (
                     <TableRow key={r.id}>
-                      <TableCell className='font-mono text-sm'>{r.clientIp}</TableCell>
+                      <TableCell className='font-mono text-sm'>
+                        {r.clientIp}
+                      </TableCell>
                       <TableCell className='text-muted-foreground'>
                         {r.label ?? '—'}
                       </TableCell>
@@ -302,7 +334,9 @@ export function ForceRoutes() {
             {/* Sync output */}
             {syncResults[g.regionId] && (
               <div className='border-t p-4'>
-                <p className='mb-1 text-xs font-medium text-muted-foreground'>Kết quả sync:</p>
+                <p className='mb-1 text-xs font-medium text-muted-foreground'>
+                  Kết quả sync:
+                </p>
                 <SyncOutput result={syncResults[g.regionId]} />
               </div>
             )}
@@ -313,21 +347,29 @@ export function ForceRoutes() {
           <p className='font-medium text-foreground'>Lưu ý:</p>
           <ul className='mt-1 list-inside list-disc space-y-0.5'>
             <li>
-              Cần cấu hình <code className='font-mono text-foreground'>DERP_SSH_PRIVATE_KEY</code>{' '}
-              trong env và SSH public key trong <code className='font-mono'>~/.ssh/authorized_keys</code>{' '}
-              trên từng DERP VPS.
+              Cần cấu hình{' '}
+              <code className='font-mono text-foreground'>
+                DERP_SSH_PRIVATE_KEY
+              </code>{' '}
+              trong env và SSH public key trong{' '}
+              <code className='font-mono'>~/.ssh/authorized_keys</code> trên
+              từng DERP VPS.
             </li>
             <li>
-              SSH user cần quyền chạy <code className='font-mono'>iptables</code> (root hoặc sudo
+              SSH user cần quyền chạy{' '}
+              <code className='font-mono'>iptables</code> (root hoặc sudo
               NOPASSWD).
             </li>
             <li>
-              Chain <code className='font-mono'>DERP-FORCE</code> chỉ ACCEPT — không DROP client
-              ngoài danh sách. Để chặn, thay đổi default policy INPUT thành DROP trên VPS.
+              Chain <code className='font-mono'>DERP-FORCE</code> chỉ ACCEPT —
+              không DROP client ngoài danh sách. Để chặn, thay đổi default
+              policy INPUT thành DROP trên VPS.
             </li>
             <li>
-              <code className='font-mono'>Sync iptables</code> = áp dụng lại toàn bộ danh sách
-              active. <code className='font-mono'>Clear chain</code> = xóa chain khỏi VPS.
+              <code className='font-mono'>Sync iptables</code> = áp dụng lại
+              toàn bộ danh sách active.{' '}
+              <code className='font-mono'>Clear chain</code> = xóa chain khỏi
+              VPS.
             </li>
           </ul>
         </div>

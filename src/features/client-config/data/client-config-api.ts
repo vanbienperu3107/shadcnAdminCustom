@@ -24,7 +24,10 @@ export async function listClientConfig(): Promise<ClientConfigRow[]> {
   return res.data.configs
 }
 
-export async function updateClientConfig(key: string, value: string): Promise<ClientConfigRow> {
+export async function updateClientConfig(
+  key: string,
+  value: string
+): Promise<ClientConfigRow> {
   const res = await api.put<ClientConfigRow>(`/client-config/${key}`, { value })
   return res.data
 }

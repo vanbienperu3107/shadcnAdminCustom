@@ -43,8 +43,13 @@ export async function deleteForceRoute(id: number): Promise<void> {
   await api.delete(`/force-routes/${id}`)
 }
 
-export async function toggleForceRoute(id: number, active: boolean): Promise<ForceRoute> {
-  const { data } = await api.patch<ForceRoute>(`/force-routes/${id}`, { active })
+export async function toggleForceRoute(
+  id: number,
+  active: boolean
+): Promise<ForceRoute> {
+  const { data } = await api.patch<ForceRoute>(`/force-routes/${id}`, {
+    active,
+  })
   return data
 }
 

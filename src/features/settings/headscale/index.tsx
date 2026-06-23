@@ -69,9 +69,7 @@ function ApiKeyCard({ status }: { status: ApiKeyStatus }) {
               refreshMut.mutate()
             }}
           >
-            <RefreshCw
-              className={refreshMut.isPending ? 'animate-spin' : ''}
-            />
+            <RefreshCw className={refreshMut.isPending ? 'animate-spin' : ''} />
             Xoay vòng key
           </Button>
         )}
@@ -82,7 +80,9 @@ function ApiKeyCard({ status }: { status: ApiKeyStatus }) {
         <div className='grid gap-2 text-sm sm:grid-cols-2'>
           <div className='flex flex-col gap-0.5 rounded-md border p-3'>
             <span className='text-xs text-muted-foreground'>Prefix</span>
-            <span className='font-mono font-medium'>{status.prefix ?? '—'}</span>
+            <span className='font-mono font-medium'>
+              {status.prefix ?? '—'}
+            </span>
           </div>
           <div className='flex flex-col gap-0.5 rounded-md border p-3'>
             <span className='text-xs text-muted-foreground'>Seeded</span>

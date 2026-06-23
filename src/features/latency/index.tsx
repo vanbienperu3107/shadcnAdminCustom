@@ -55,7 +55,7 @@ type RowData = {
   name: string
   user: string
   ip: string
-  derpRegion: string   // home DERP region (from src-based lookup)
+  derpRegion: string // home DERP region (from src-based lookup)
   derpRttMs: number | null
   online: boolean
   lastSeen?: string
@@ -86,12 +86,17 @@ function NodeTable({ rows }: { rows: RowData[] }) {
             </TableRow>
           ) : (
             rows.map((r, i) => (
-              <TableRow key={r.id ?? i} className={r.online ? '' : 'opacity-50'}>
+              <TableRow
+                key={r.id ?? i}
+                className={r.online ? '' : 'opacity-50'}
+              >
                 <TableCell className='font-medium'>{r.name}</TableCell>
                 <TableCell className='font-mono text-xs'>{r.ip}</TableCell>
                 <TableCell>
                   {r.online ? (
-                    <RelayBadge path={r.derpRegion ? `derp:${r.derpRegion}` : ''} />
+                    <RelayBadge
+                      path={r.derpRegion ? `derp:${r.derpRegion}` : ''}
+                    />
                   ) : (
                     <span className='text-muted-foreground'>—</span>
                   )}
@@ -143,10 +148,17 @@ export function Latency() {
 
   // Src-based lookup: for each client, find its home DERP region and RTT.
   // pairs shape: { src, dst, last_path, avg_ms } — src populated after Feature L.
-  const clientDerpMap = new Map<string, { region: string; rttMs: number | null }>()
+  const clientDerpMap = new Map<
+    string,
+    { region: string; rttMs: number | null }
+  >()
   for (const p of pairs) {
-    const src = String(p.src ?? '').toLowerCase().trim()
-    const dst = String(p.dst ?? '').toLowerCase().trim()
+    const src = String(p.src ?? '')
+      .toLowerCase()
+      .trim()
+    const dst = String(p.dst ?? '')
+      .toLowerCase()
+      .trim()
     const path = String(p.last_path ?? p.path ?? '')
     const rtt =
       typeof p.avg_ms === 'number'

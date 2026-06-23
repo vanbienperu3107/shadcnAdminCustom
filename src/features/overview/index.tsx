@@ -41,9 +41,7 @@ function Stat({ icon: Icon, label, value, sub, to }: StatProps) {
           <div className='ms-auto text-end'>
             <div className='text-xs text-muted-foreground'>{label}</div>
             <div className='text-3xl font-bold tracking-tight'>{value}</div>
-            {sub && (
-              <div className='text-xs text-muted-foreground'>{sub}</div>
-            )}
+            {sub && <div className='text-xs text-muted-foreground'>{sub}</div>}
           </div>
         </CardContent>
       </Card>
@@ -52,8 +50,7 @@ function Stat({ icon: Icon, label, value, sub, to }: StatProps) {
 }
 
 function RelayBadge({ region }: { region: string }) {
-  if (!region)
-    return <span className='text-xs text-muted-foreground'>—</span>
+  if (!region) return <span className='text-xs text-muted-foreground'>—</span>
   if (region === 'direct')
     return (
       <Badge
@@ -124,10 +121,17 @@ export function Overview() {
   // pairs shape: { src, dst, last_path, avg_ms } — src populated after Feature L migration.
   // Until then columns show "—" gracefully.
   const pairs = lat.data?.pairs ?? []
-  const clientDerpMap = new Map<string, { region: string; rttMs: number | null }>()
+  const clientDerpMap = new Map<
+    string,
+    { region: string; rttMs: number | null }
+  >()
   for (const p of pairs) {
-    const src = String(p.src ?? '').toLowerCase().trim()
-    const dst = String(p.dst ?? '').toLowerCase().trim()
+    const src = String(p.src ?? '')
+      .toLowerCase()
+      .trim()
+    const dst = String(p.dst ?? '')
+      .toLowerCase()
+      .trim()
     const path = String(p.last_path ?? p.path ?? '')
     const rtt =
       typeof p.avg_ms === 'number'

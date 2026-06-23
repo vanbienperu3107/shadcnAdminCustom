@@ -4,7 +4,7 @@ export type HsMachine = {
   id?: string
   name?: string
   givenName?: string
-  nodeKey?: string  // e.g. "nodekey:abc123..." — dùng cho Feature B per-node DERPMap
+  nodeKey?: string // e.g. "nodekey:abc123..." — dùng cho Feature B per-node DERPMap
   user?: { name?: string } | string
   ipAddresses?: string[]
   online?: boolean
@@ -93,7 +93,6 @@ export async function apiKeyRefresh(): Promise<ApiKeyStatus> {
   const { data } = await api.post<ApiKeyStatus>('/settings/apikey/refresh')
   return data
 }
-
 
 /** Tập tên node hạ tầng DERP (vpn2..vpn6 + collector) suy từ danh sách DERP. */
 export function derpNameSet(

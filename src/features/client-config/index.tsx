@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Main } from '@/components/layout/main'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -19,6 +18,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { Main } from '@/components/layout/main'
 import {
   configKeys,
   listClientConfig,
@@ -79,8 +79,8 @@ export function ClientConfig() {
       <div>
         <h2 className='text-2xl font-bold tracking-tight'>Client Config</h2>
         <p className='text-muted-foreground'>
-          Quản lý cấu hình toàn cục phân phối cho Tailscale client — proxy,
-          PAC, route, metrics.
+          Quản lý cấu hình toàn cục phân phối cho Tailscale client — proxy, PAC,
+          route, metrics.
         </p>
       </div>
 
@@ -210,7 +210,10 @@ export function ClientConfig() {
       </Tabs>
 
       {/* Edit dialog */}
-      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+      <Dialog
+        open={!!editing}
+        onOpenChange={(open) => !open && setEditing(null)}
+      >
         <DialogContent className='sm:max-w-md'>
           <DialogHeader>
             <DialogTitle>

@@ -1,17 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  CheckCircle2,
-  Loader2,
-  Map,
-  Pencil,
-  Trash2,
-} from 'lucide-react'
+import { CheckCircle2, Loader2, Map, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -19,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -30,7 +24,11 @@ import {
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
-import { fetchMachines, hsKeys, type HsMachine } from '@/features/headscale/hs-api'
+import {
+  fetchMachines,
+  hsKeys,
+  type HsMachine,
+} from '@/features/headscale/hs-api'
 import {
   assignmentKeys,
   deleteNodeAssignment,
@@ -82,7 +80,7 @@ function EditDialog({ machine, current, open, onClose }: EditDialogProps) {
         <DialogHeader>
           <DialogTitle>Gán DERP cho {machineName}</DialogTitle>
         </DialogHeader>
-        <p className='text-xs text-muted-foreground font-mono'>
+        <p className='font-mono text-xs text-muted-foreground'>
           nodeKey: {machine.nodeKey ?? '—'}
         </p>
         <div className='space-y-2 py-2'>
@@ -108,9 +106,16 @@ function EditDialog({ machine, current, open, onClose }: EditDialogProps) {
           Khi không chọn region nào, node sẽ nhận DERPMap mặc định từ headscale.
         </p>
         <DialogFooter>
-          <Button variant='outline' onClick={onClose}>Hủy</Button>
-          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !machine.nodeKey}>
-            {mut.isPending && <Loader2 className='me-1.5 size-3.5 animate-spin' />}
+          <Button variant='outline' onClick={onClose}>
+            Hủy
+          </Button>
+          <Button
+            onClick={() => mut.mutate()}
+            disabled={mut.isPending || !machine.nodeKey}
+          >
+            {mut.isPending && (
+              <Loader2 className='me-1.5 size-3.5 animate-spin' />
+            )}
             Lưu
           </Button>
         </DialogFooter>
@@ -123,8 +128,14 @@ export function NodeAssignments() {
   const qc = useQueryClient()
   const [editMachine, setEditMachine] = useState<HsMachine | null>(null)
 
-  const machines = useQuery({ queryKey: hsKeys.machines, queryFn: fetchMachines })
-  const assignments = useQuery({ queryKey: assignmentKeys.all, queryFn: listNodeAssignments })
+  const machines = useQuery({
+    queryKey: hsKeys.machines,
+    queryFn: fetchMachines,
+  })
+  const assignments = useQuery({
+    queryKey: assignmentKeys.all,
+    queryFn: listNodeAssignments,
+  })
   const derps = useQuery({ queryKey: derpKeys.all, queryFn: listDerp })
 
   const deleteMut = useMutation({
@@ -141,10 +152,13 @@ export function NodeAssignments() {
   )
 
   const nodes = (machines.data?.nodes ?? []).filter((m) => m.nodeKey)
-  const isLoading = machines.isLoading || assignments.isLoading || derps.isLoading
+  const isLoading =
+    machines.isLoading || assignments.isLoading || derps.isLoading
 
   const editCurrent = editMachine
-    ? (assignmentMap.get(editMachine.nodeKey ?? '')?.regions.map((r) => r.regionId) ?? [])
+    ? (assignmentMap
+        .get(editMachine.nodeKey ?? '')
+        ?.regions.map((r) => r.regionId) ?? [])
     : []
 
   return (
@@ -153,16 +167,18 @@ export function NodeAssignments() {
       <Main className='flex flex-1 flex-col gap-6'>
         <div>
           <h2 className='text-2xl font-bold tracking-tight'>
-            <Map className='mb-0.5 me-2 inline size-6 text-blue-500' />
+            <Map className='me-2 mb-0.5 inline size-6 text-blue-500' />
             Node Assignments
           </h2>
           <p className='text-muted-foreground'>
-            Gán từng Tailscale node vào các DERP region cụ thể. headscale sẽ gửi DERPMap
-            tùy chỉnh cho node đó thay vì DERPMap chung.
+            Gán từng Tailscale node vào các DERP region cụ thể. headscale sẽ gửi
+            DERPMap tùy chỉnh cho node đó thay vì DERPMap chung.
           </p>
         </div>
 
-        {isLoading && <p className='text-sm text-muted-foreground'>Đang tải…</p>}
+        {isLoading && (
+          <p className='text-sm text-muted-foreground'>Đang tải…</p>
+        )}
 
         {!isLoading && nodes.length === 0 && (
           <p className='text-sm text-muted-foreground'>
@@ -207,13 +223,19 @@ export function NodeAssignments() {
                         {asgn ? (
                           <div className='flex flex-wrap gap-1'>
                             {asgn.regions.map((r) => (
-                              <Badge key={r.regionId} variant='secondary' className='text-xs'>
+                              <Badge
+                                key={r.regionId}
+                                variant='secondary'
+                                className='text-xs'
+                              >
                                 {r.code}
                               </Badge>
                             ))}
                           </div>
                         ) : (
-                          <span className='text-xs text-muted-foreground'>mặc định (base map)</span>
+                          <span className='text-xs text-muted-foreground'>
+                            mặc định (base map)
+                          </span>
                         )}
                       </TableCell>
                       <TableCell className='text-end'>
@@ -255,16 +277,16 @@ export function NodeAssignments() {
               <code className='font-mono text-foreground'>
                 GET /api/internal/derp-map/:nodeKey
               </code>{' '}
-              với <code className='font-mono'>X-Headscale-Secret</code> mỗi 30s để lấy DERPMap
-              tùy chỉnh.
+              với <code className='font-mono'>X-Headscale-Secret</code> mỗi 30s
+              để lấy DERPMap tùy chỉnh.
             </li>
             <li>
               Node không có assignment → nhận DERPMap mặc định (
               <em>headscale fallback</em>).
             </li>
             <li>
-              Node có assignment → chỉ thấy các DERP region được chọn, ưu tiên theo priority
-              và maintenance mode.
+              Node có assignment → chỉ thấy các DERP region được chọn, ưu tiên
+              theo priority và maintenance mode.
             </li>
             <li>
               Yêu cầu headscale image{' '}
@@ -272,8 +294,8 @@ export function NodeAssignments() {
                 ghcr.io/vanbienperu3107/headscale:0.27.1-pernode
               </code>{' '}
               và cấu hình{' '}
-              <code className='font-mono'>derp.dashboard.enabled: true</code> trong{' '}
-              <code className='font-mono'>config.yaml</code>.
+              <code className='font-mono'>derp.dashboard.enabled: true</code>{' '}
+              trong <code className='font-mono'>config.yaml</code>.
             </li>
           </ul>
         </div>

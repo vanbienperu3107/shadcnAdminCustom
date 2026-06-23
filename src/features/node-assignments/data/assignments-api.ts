@@ -19,7 +19,10 @@ export async function listNodeAssignments(): Promise<NodeAssignmentGroup[]> {
   return data
 }
 
-export async function setNodeAssignment(nodeKey: string, regionIds: number[]): Promise<{ nodeKey: string; regionIds: number[] }> {
+export async function setNodeAssignment(
+  nodeKey: string,
+  regionIds: number[]
+): Promise<{ nodeKey: string; regionIds: number[] }> {
   const { data } = await api.put<{ nodeKey: string; regionIds: number[] }>(
     `/node-assignments/${encodeURIComponent(nodeKey)}`,
     { regionIds }

@@ -42,7 +42,11 @@ export const sidebarData: SidebarData = {
         { title: 'Force Routes', url: '/force-routes', icon: Flame },
         { title: 'Node Assignments', url: '/node-assignments', icon: Map },
         { title: 'Deploy & CI', url: '/deploy', icon: Rocket },
-        { title: 'Client Config', url: '/client-config', icon: SlidersHorizontal },
+        {
+          title: 'Client Config',
+          url: '/client-config',
+          icon: SlidersHorizontal,
+        },
       ],
     },
   ],
