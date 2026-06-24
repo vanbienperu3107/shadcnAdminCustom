@@ -101,7 +101,11 @@ export async function derpRoutes(app: FastifyInstance): Promise<void> {
   app.patch<{ Params: { regionId: string } }>('/api/derp/:regionId', async (req, reply) => {
     const regionId = Number(req.params.regionId)
     const parsed = updateSchema.safeParse(req.body)
-    if (!parsed.success) return reply.code(400).send({ error: 'invalid', details: parsed.error.flatten() })
+    if (!parsed.success) {
+      req.log.warn({ regionId, errors: parsed.error.flatten() }, 'PATCH /api/derp validation failed')
+      return reply.code(400).send({ error: 'invalid', details: parsed.error.flatten() })
+    }
+    req.log.info({ regionId, priority: parsed.data.priority }, 'PATCH /api/derp updating')
     const [existing] = await db.select().from(derpServers).where(eq(derpServers.regionId, regionId))
     if (!existing) return reply.code(404).send({ error: 'not_found' })
     if (existing.embedded) return reply.code(403).send({ error: 'embedded_readonly' })
@@ -111,6 +115,7 @@ export async function derpRoutes(app: FastifyInstance): Promise<void> {
         .set({ ...parsed.data, updatedAt: new Date() })
         .where(eq(derpServers.regionId, regionId))
         .returning()
+      req.log.info({ regionId, priority: row?.priority }, 'PATCH /api/derp updated')
       return row
     } catch (err) {
       if (isUniqueViolation(err)) {

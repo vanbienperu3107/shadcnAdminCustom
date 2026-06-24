@@ -77,10 +77,21 @@ export function DerpActionDialog({ open, onOpenChange, currentRow }: Props) {
     }
   }, [open, currentRow, form])
 
-  const mutation = useMutation({
+  const mutation = useMutation<DerpServer | undefined, unknown, DerpFormValues>({
     mutationFn: (values: DerpFormValues) =>
       isEdit ? updateDerp(currentRow!.regionId, values) : createDerp(values),
-    onSuccess: () => {
+    onSuccess: (updatedRow) => {
+      // Cập nhật cache ngay lập tức bằng dữ liệu server trả về,
+      // không chờ invalidateQueries hoàn thành refetch.
+      if (updatedRow) {
+        qc.setQueryData<DerpServer[]>(derpKeys.all, (old) =>
+          old
+            ? old.some((r) => r.regionId === updatedRow.regionId)
+              ? old.map((r) => r.regionId === updatedRow.regionId ? updatedRow : r)
+              : [...old, updatedRow]
+            : [updatedRow]
+        )
+      }
       qc.invalidateQueries({ queryKey: derpKeys.all })
       toast.success(
         isEdit
@@ -90,9 +101,15 @@ export function DerpActionDialog({ open, onOpenChange, currentRow }: Props) {
       onOpenChange(false)
     },
     onError: (err: unknown) => {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? 'Lưu thất bại'
+      const errObj = err as {
+        response?: { status?: number; data?: { error?: string; message?: string } }
+        message?: string
+      }
+      const status = errObj?.response?.status
+      const serverMsg = errObj?.response?.data?.message ?? errObj?.response?.data?.error
+      const msg = serverMsg
+        ? `Lưu thất bại (${status ?? '?'}): ${serverMsg}`
+        : `Lưu thất bại${status ? ` (${status})` : ''}: ${errObj?.message ?? 'lỗi không xác định'}`
       toast.error(msg)
     },
   })
