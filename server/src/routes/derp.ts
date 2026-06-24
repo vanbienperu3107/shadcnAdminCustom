@@ -97,27 +97,47 @@ export async function derpRoutes(app: FastifyInstance): Promise<void> {
     }
   })
 
-  // Sửa
+  // Sửa — build set object explicitly để tránh undefined-spread issues với Drizzle
   app.patch<{ Params: { regionId: string } }>('/api/derp/:regionId', async (req, reply) => {
     const regionId = Number(req.params.regionId)
+    req.log.info({ regionId, rawBody: req.body }, 'PATCH /api/derp received')
     const parsed = updateSchema.safeParse(req.body)
     if (!parsed.success) {
       req.log.warn({ regionId, errors: parsed.error.flatten() }, 'PATCH /api/derp validation failed')
       return reply.code(400).send({ error: 'invalid', details: parsed.error.flatten() })
     }
-    req.log.info({ regionId, priority: parsed.data.priority }, 'PATCH /api/derp updating')
+    req.log.info({ regionId, parsedPriority: parsed.data.priority, parsedKeys: Object.keys(parsed.data) }, 'PATCH /api/derp parsed')
     const [existing] = await db.select().from(derpServers).where(eq(derpServers.regionId, regionId))
     if (!existing) return reply.code(404).send({ error: 'not_found' })
     if (existing.embedded) return reply.code(403).send({ error: 'embedded_readonly' })
+    // Explicitly build the SET object — avoid Drizzle undefined-key pitfalls
+    type DerpSet = typeof derpServers.$inferInsert
+    const setData: Partial<DerpSet> = { updatedAt: new Date() }
+    if (parsed.data.name !== undefined)        setData.name        = parsed.data.name
+    if (parsed.data.code !== undefined)        setData.code        = parsed.data.code
+    if (parsed.data.nodeName !== undefined)    setData.nodeName    = parsed.data.nodeName
+    if (parsed.data.hostname !== undefined)    setData.hostname    = parsed.data.hostname
+    if ('ipv4' in parsed.data)                setData.ipv4        = parsed.data.ipv4 ?? null
+    if (parsed.data.derpPort !== undefined)    setData.derpPort    = parsed.data.derpPort
+    if (parsed.data.stunPort !== undefined)    setData.stunPort    = parsed.data.stunPort
+    if (parsed.data.canPort80 !== undefined)   setData.canPort80   = parsed.data.canPort80
+    if (parsed.data.stunOnly !== undefined)    setData.stunOnly    = parsed.data.stunOnly
+    if (parsed.data.enabled !== undefined)     setData.enabled     = parsed.data.enabled
+    if (parsed.data.paused !== undefined)      setData.paused      = parsed.data.paused
+    if (parsed.data.maintenance !== undefined) setData.maintenance = parsed.data.maintenance
+    if (parsed.data.priority !== undefined)    setData.priority    = parsed.data.priority
+    req.log.info({ regionId, setKeys: Object.keys(setData), priority: setData.priority }, 'PATCH /api/derp setData')
     try {
       const [row] = await db
         .update(derpServers)
-        .set({ ...parsed.data, updatedAt: new Date() })
+        .set(setData)
         .where(eq(derpServers.regionId, regionId))
         .returning()
-      req.log.info({ regionId, priority: row?.priority }, 'PATCH /api/derp updated')
+      req.log.info({ regionId, resultPriority: row?.priority, rowExists: !!row }, 'PATCH /api/derp result')
+      if (!row) return reply.code(500).send({ error: 'update_returned_no_rows' })
       return row
     } catch (err) {
+      req.log.error({ regionId, err: String(err) }, 'PATCH /api/derp error')
       if (isUniqueViolation(err)) {
         return reply.code(409).send({ error: 'conflict', message: 'code hoặc node_name đã tồn tại' })
       }
