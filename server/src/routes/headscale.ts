@@ -4,7 +4,7 @@ import { requireAuth } from '../auth/middleware.js'
 import { db } from '../db/client.js'
 import { latencySamples } from '../db/schema.js'
 import { env } from '../env.js'
-import { hsApi, isHsConfigured } from '../lib/headscale.js'
+import { hsApi, isHsConfigured, isHsNotFound } from '../lib/headscale.js'
 
 type MetricsSample = {
   dst?: unknown
@@ -102,6 +102,8 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
       const d = await hsApi<{ routes?: unknown[] }>('/api/v1/routes')
       return { configured: true, routes: d.routes ?? [] }
     } catch (e) {
+      // Một số bản build headscale không có /api/v1/routes → trả empty thay vì 502
+      if (isHsNotFound(e)) return { configured: true, routes: [] }
       return reply.code(502).send({ configured: true, error: String(e), routes: [] })
     }
   })
@@ -113,7 +115,7 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
       await hsApi(`/api/v1/routes/${encodeURIComponent(id)}/enable`, { method: 'POST' })
       return { ok: true }
     } catch (e) {
-      return reply.code(502).send({ error: String(e) })
+      return reply.code(isHsNotFound(e) ? 404 : 502).send({ error: String(e) })
     }
   })
 
@@ -124,7 +126,7 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
       await hsApi(`/api/v1/routes/${encodeURIComponent(id)}`, { method: 'DELETE' })
       return reply.code(204).send()
     } catch (e) {
-      return reply.code(502).send({ error: String(e) })
+      return reply.code(isHsNotFound(e) ? 404 : 502).send({ error: String(e) })
     }
   })
 
@@ -136,6 +138,7 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
       const d = await hsApi<{ policy?: string }>('/api/v1/policy')
       return { configured: true, policy: d.policy ?? '' }
     } catch (e) {
+      if (isHsNotFound(e)) return { configured: true, policy: '' }
       return reply.code(502).send({ configured: true, error: String(e), policy: '' })
     }
   })
@@ -148,7 +151,7 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
       await hsApi('/api/v1/policy', { method: 'PUT', body: JSON.stringify({ policy }) })
       return { ok: true }
     } catch (e) {
-      return reply.code(502).send({ error: String(e) })
+      return reply.code(isHsNotFound(e) ? 404 : 502).send({ error: String(e) })
     }
   })
 
@@ -163,6 +166,7 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
       )
       return { configured: true, preAuthKeys: d.preAuthKeys ?? [] }
     } catch (e) {
+      if (isHsNotFound(e)) return { configured: true, preAuthKeys: [] }
       return reply.code(502).send({ configured: true, error: String(e), preAuthKeys: [] })
     }
   })

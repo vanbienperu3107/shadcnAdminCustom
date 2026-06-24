@@ -17,9 +17,18 @@ export async function hsApi<T = unknown>(
     },
     signal: AbortSignal.timeout(8000),
   })
-  if (!res.ok) throw new Error(`headscale ${res.status}`)
+  if (!res.ok) {
+    const err = new Error(`headscale ${res.status}`) as Error & { status: number }
+    err.status = res.status
+    throw err
+  }
   if (res.status === 204) return {} as T
   return (await res.json()) as T
+}
+
+/** Headscale status có một số endpoint không tồn tại (tuỳ bản build). */
+export function isHsNotFound(e: unknown): boolean {
+  return e instanceof Error && (e as Error & { status?: number }).status === 404
 }
 
 /** Kiểm tra xem đã có API key cấu hình chưa (DB hoặc env). */
