@@ -77,42 +77,50 @@ export function DerpActionDialog({ open, onOpenChange, currentRow }: Props) {
     }
   }, [open, currentRow, form])
 
-  const mutation = useMutation<DerpServer | undefined, unknown, DerpFormValues>({
-    mutationFn: (values: DerpFormValues) =>
-      isEdit ? updateDerp(currentRow!.regionId, values) : createDerp(values),
-    onSuccess: (updatedRow) => {
-      // Cập nhật cache ngay lập tức bằng dữ liệu server trả về,
-      // không chờ invalidateQueries hoàn thành refetch.
-      if (updatedRow) {
-        qc.setQueryData<DerpServer[]>(derpKeys.all, (old) =>
-          old
-            ? old.some((r) => r.regionId === updatedRow.regionId)
-              ? old.map((r) => r.regionId === updatedRow.regionId ? updatedRow : r)
-              : [...old, updatedRow]
-            : [updatedRow]
+  const mutation = useMutation<DerpServer | undefined, unknown, DerpFormValues>(
+    {
+      mutationFn: (values: DerpFormValues) =>
+        isEdit ? updateDerp(currentRow!.regionId, values) : createDerp(values),
+      onSuccess: (updatedRow) => {
+        // Cập nhật cache ngay lập tức bằng dữ liệu server trả về,
+        // không chờ invalidateQueries hoàn thành refetch.
+        if (updatedRow) {
+          qc.setQueryData<DerpServer[]>(derpKeys.all, (old) =>
+            old
+              ? old.some((r) => r.regionId === updatedRow.regionId)
+                ? old.map((r) =>
+                    r.regionId === updatedRow.regionId ? updatedRow : r
+                  )
+                : [...old, updatedRow]
+              : [updatedRow]
+          )
+        }
+        qc.invalidateQueries({ queryKey: derpKeys.all })
+        toast.success(
+          isEdit
+            ? 'Đã cập nhật node DERP'
+            : 'Đã thêm node DERP — không cần reload'
         )
-      }
-      qc.invalidateQueries({ queryKey: derpKeys.all })
-      toast.success(
-        isEdit
-          ? 'Đã cập nhật node DERP'
-          : 'Đã thêm node DERP — không cần reload'
-      )
-      onOpenChange(false)
-    },
-    onError: (err: unknown) => {
-      const errObj = err as {
-        response?: { status?: number; data?: { error?: string; message?: string } }
-        message?: string
-      }
-      const status = errObj?.response?.status
-      const serverMsg = errObj?.response?.data?.message ?? errObj?.response?.data?.error
-      const msg = serverMsg
-        ? `Lưu thất bại (${status ?? '?'}): ${serverMsg}`
-        : `Lưu thất bại${status ? ` (${status})` : ''}: ${errObj?.message ?? 'lỗi không xác định'}`
-      toast.error(msg)
-    },
-  })
+        onOpenChange(false)
+      },
+      onError: (err: unknown) => {
+        const errObj = err as {
+          response?: {
+            status?: number
+            data?: { error?: string; message?: string }
+          }
+          message?: string
+        }
+        const status = errObj?.response?.status
+        const serverMsg =
+          errObj?.response?.data?.message ?? errObj?.response?.data?.error
+        const msg = serverMsg
+          ? `Lưu thất bại (${status ?? '?'}): ${serverMsg}`
+          : `Lưu thất bại${status ? ` (${status})` : ''}: ${errObj?.message ?? 'lỗi không xác định'}`
+        toast.error(msg)
+      },
+    }
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
