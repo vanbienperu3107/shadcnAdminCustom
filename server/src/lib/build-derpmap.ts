@@ -62,12 +62,20 @@ export type DerpMapJson = {
 }
 
 /**
- * priority 100 = trung tính (score 1.0). Số nhỏ hơn -> ưu tiên hơn (score < 1).
- * Số lớn hơn -> bị phạt (score > 1). Clamp priority về [1, 1000].
+ * priority 100 = baseline (score 1.0).
+ * Số nhỏ hơn (ưu tiên cao hơn) → score << 1 → effective latency thấp hơn.
+ * Số lớn hơn → score >> 1 → effective latency cao hơn (bị phạt).
+ *
+ * Công thức: score = 10^((p-100)/3)
+ *   mỗi 3 đơn vị priority = 10× chênh lệch effective latency
+ *   → priority 88 vs 100 (cách 12 đơn vị) = 10^4 = 10000× ưu tiên hơn
+ *   → bảo đảm strict priority: node priority cao hơn luôn thắng bất kể latency thực
+ *   → trong cùng priority: latency thực là tiebreaker (score bằng nhau)
  */
 export function scoreFromPriority(priority: number): number {
   const p = Math.max(1, Math.min(1000, Math.round(priority || 100)))
-  return Math.round((p / 100) * 100) / 100
+  const score = Math.pow(10, (p - 100) / 3)
+  return Math.round(score * 1e6) / 1e6
 }
 
 function buildNode(r: DerpServerRow): DerpNodeJson {
