@@ -79,6 +79,7 @@ export const latencySamples = pgTable(
     rttMs:       real('rtt_ms'),
     path:        text('path'),          // 'direct' | 'derp:regionName'
     ok:          boolean('ok').notNull().default(true),
+    lossPct:     integer('loss_pct'),
     reportedAt:  timestamp('reported_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.srcHostname, t.dstHostname] })]

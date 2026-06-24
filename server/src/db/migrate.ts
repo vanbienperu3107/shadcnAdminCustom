@@ -85,6 +85,11 @@ export async function migrate(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_latency_src ON latency_samples(src_hostname)
   `)
 
+  // loss_pct — sync với api-center (cùng DB hoặc DB riêng đều an toàn)
+  await db.execute(sql`
+    ALTER TABLE latency_samples ADD COLUMN IF NOT EXISTS loss_pct INTEGER
+  `)
+
   // Feature A: cột maintenance cho DERP nodes
   await db.execute(sql`
     ALTER TABLE derp_servers ADD COLUMN IF NOT EXISTS maintenance BOOLEAN NOT NULL DEFAULT false
