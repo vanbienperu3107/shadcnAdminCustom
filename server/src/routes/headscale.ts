@@ -156,13 +156,27 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
   })
 
   // ── Pre-auth Keys ────────────────────────────────────────────────────────────
+  //
+  // headscale's /api/v1/preauthkey expects a numeric user ID (uint64), not a
+  // username. resolveUserNumericID translates a display name → numeric ID via
+  // GET /api/v1/user?name=<name>, then the actual preauthkey calls use that ID.
+
+  async function resolveUserNumericID(name: string): Promise<string> {
+    const d = await hsApi<{ users?: { id?: string; name?: string }[] }>(
+      `/api/v1/user?name=${encodeURIComponent(name)}`,
+    )
+    const id = d.users?.[0]?.id
+    if (!id) throw Object.assign(new Error(`user not found: ${name}`), { status: 404 })
+    return id
+  }
 
   app.get('/api/users/:user/preauthkeys', async (req, reply) => {
     if (!(await isHsConfigured())) return { configured: false, preAuthKeys: [] }
     const { user } = req.params as { user: string }
     try {
+      const uid = await resolveUserNumericID(user)
       const d = await hsApi<{ preAuthKeys?: unknown[] }>(
-        `/api/v1/preauthkey?user=${encodeURIComponent(user)}`,
+        `/api/v1/preauthkey?user=${encodeURIComponent(uid)}`,
       )
       return { configured: true, preAuthKeys: d.preAuthKeys ?? [] }
     } catch (e) {
@@ -174,9 +188,14 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
   app.post('/api/preauthkeys', async (req, reply) => {
     if (!(await isHsConfigured())) return reply.code(503).send({ error: 'not configured' })
     try {
+      const body = req.body as { user?: string; [k: string]: unknown }
+      const forwardBody: Record<string, unknown> = { ...body }
+      if (typeof body.user === 'string' && !/^\d+$/.test(body.user)) {
+        forwardBody.user = await resolveUserNumericID(body.user)
+      }
       const d = await hsApi<{ preAuthKey?: unknown }>('/api/v1/preauthkey', {
         method: 'POST',
-        body: JSON.stringify(req.body),
+        body: JSON.stringify(forwardBody),
       })
       return { preAuthKey: d.preAuthKey ?? {} }
     } catch (e) {
@@ -190,9 +209,10 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
     const { key } = req.body as { key?: string }
     if (!key) return reply.code(400).send({ error: 'key required' })
     try {
+      const uid = await resolveUserNumericID(user)
       await hsApi('/api/v1/preauthkey/expire', {
         method: 'POST',
-        body: JSON.stringify({ user, key }),
+        body: JSON.stringify({ user: uid, key }),
       })
       return { ok: true }
     } catch (e) {
