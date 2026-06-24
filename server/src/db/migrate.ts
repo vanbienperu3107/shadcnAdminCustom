@@ -152,7 +152,9 @@ export async function migrate(): Promise<void> {
       ('gost_itop_port',    '18889',                      'Port gost upstream cho itop'),
       ('gost_itop_addr',    '',                           'IP itop upstream cho gost'),
       ('squid_proxy_addr',  '',                           'IP Squid HTTP proxy (bỏ trống = tắt)'),
-      ('squid_proxy_port',  '3128',                       'Port Squid HTTP proxy')
+      ('squid_proxy_port',  '3128',                       'Port Squid HTTP proxy'),
+      ('ping_count',        '2',                          'Số lần ping mỗi peer khi đo latency'),
+      ('ping_timeout',      '3s',                         'Timeout mỗi lần ping (vd: 3s, 5s)')
     ON CONFLICT (key) DO NOTHING
   `)
 
