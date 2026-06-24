@@ -293,7 +293,11 @@ export function DerpActionDialog({ open, onOpenChange, currentRow }: Props) {
           <Button variant='outline' onClick={() => onOpenChange(false)}>
             Hủy
           </Button>
-          <Button type='submit' form='derp-form' disabled={mutation.isPending}>
+          <Button
+            type='button'
+            disabled={mutation.isPending}
+            onClick={() => form.handleSubmit((v) => mutation.mutate(v))()}
+          >
             {isEdit ? 'Lưu' : 'Thêm node'}
           </Button>
         </DialogFooter>
