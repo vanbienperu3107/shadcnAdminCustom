@@ -139,6 +139,25 @@ export async function clientRuntimeRoutes(app: FastifyInstance): Promise<void> {
     return db.select().from(pacRules).orderBy(pacRules.priority, pacRules.id)
   })
 
+  // Xem truoc PAC da render (admin, khong can secret) — global + optional ?mac=.
+  app.get('/api/pac-rules/preview', async (req, reply) => {
+    const q = req.query as { mac?: string }
+    const rows = await db
+      .select()
+      .from(pacRules)
+      .where(
+        and(
+          eq(pacRules.enabled, true),
+          q.mac
+            ? or(eq(pacRules.scope, 'global'), and(eq(pacRules.scope, 'node'), eq(pacRules.mac, q.mac)))
+            : eq(pacRules.scope, 'global'),
+        ),
+      )
+    return reply
+      .header('Content-Type', 'text/plain; charset=utf-8')
+      .send(buildPac(rows as unknown as PacRuleRow[]))
+  })
+
   app.post('/api/pac-rules', async (req, reply) => {
     const parsed = pacRuleSchema.safeParse(req.body)
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() })
