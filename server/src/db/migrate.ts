@@ -167,4 +167,54 @@ export async function migrate(): Promise<void> {
       reported_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `)
+
+  // Cấu hình runtime per-node (load từ dashboard lúc client boot). Key = MAC.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS node_runtime_config (
+      mac                 TEXT PRIMARY KEY,
+      hostname            TEXT,
+      mode                TEXT,
+      login_server        TEXT,
+      always_use_derp     BOOLEAN,
+      derp_keepalive_secs INTEGER,
+      peer_http_proxy     TEXT,
+      socks_addr          TEXT,
+      advertise_routes    TEXT,
+      lan_routes          TEXT,
+      pac_server_port     INTEGER,
+      updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_node_runtime_hostname ON node_runtime_config(hostname)
+  `)
+
+  // Luật PAC động — render thành file PAC qua /api/client/pac.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS pac_rules (
+      id           SERIAL PRIMARY KEY,
+      scope        TEXT NOT NULL DEFAULT 'global',
+      mac          TEXT,
+      kind         TEXT NOT NULL,
+      pattern      TEXT NOT NULL,
+      proxy_target TEXT NOT NULL,
+      priority     INTEGER NOT NULL DEFAULT 100,
+      enabled      BOOLEAN NOT NULL DEFAULT true,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_pac_rules_scope_mac ON pac_rules(scope, mac)`)
+
+  // Seed pac_rules từ PAC tĩnh hiện tại (chỉ khi bảng rỗng) — bitel/viettel + dải LAN.
+  await db.execute(sql`
+    INSERT INTO pac_rules (scope, kind, pattern, proxy_target, priority)
+    SELECT * FROM (VALUES
+      ('global', 'domain', 'bitel.com.pe',   'PROXY 127.0.0.1:18888', 100),
+      ('global', 'domain', 'viettel.com.vn', 'PROXY 127.0.0.1:18888', 100),
+      ('global', 'subnet', '10.0.0.0/8',     'PROXY 127.0.0.1:18888', 200),
+      ('global', 'subnet', '172.16.0.0/12',  'PROXY 127.0.0.1:18888', 200),
+      ('global', 'subnet', '192.168.0.0/16', 'PROXY 127.0.0.1:18888', 200)
+    ) AS v(scope, kind, pattern, proxy_target, priority)
+    WHERE NOT EXISTS (SELECT 1 FROM pac_rules)
+  `)
 }
