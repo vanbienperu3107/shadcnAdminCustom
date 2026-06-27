@@ -1,11 +1,11 @@
 import type { FastifyInstance } from 'fastify'
-import { eq, inArray } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/client.js'
 import { derpNodeAssignments, derpServers } from '../db/schema.js'
 import { requireAuth } from '../auth/middleware.js'
 import { env } from '../env.js'
-import { buildDerpMap } from '../lib/build-derpmap.js'
+import { buildPerNodeDerpMap } from '../lib/build-derpmap.js'
 
 /**
  * Public endpoint — gọi bởi headscale patch (Feature B).
@@ -29,21 +29,21 @@ export async function nodeAssignmentsPublicRoutes(app: FastifyInstance): Promise
         .from(derpNodeAssignments)
         .where(eq(derpNodeAssignments.nodeKey, nodeKey))
 
+      // Không có assignment → 404 để headscale dùng base /derpmap.json (full map).
       if (assignments.length === 0) {
         return reply.code(404).send({ error: 'no_assignment' })
       }
 
+      // UNION: lấy TẤT CẢ region (không chỉ region được gán) để node relay được tới
+      // mọi peer; region không gán bị phạt priority (không chọn làm home).
       const regionIds = assignments.map((a) => a.regionId)
-      const servers = await db
-        .select()
-        .from(derpServers)
-        .where(inArray(derpServers.regionId, regionIds))
+      const servers = await db.select().from(derpServers)
 
       if (servers.length === 0) {
         return reply.code(404).send({ error: 'no_derp_servers' })
       }
 
-      return reply.send(buildDerpMap(servers))
+      return reply.send(buildPerNodeDerpMap(servers, regionIds))
     }
   )
 }

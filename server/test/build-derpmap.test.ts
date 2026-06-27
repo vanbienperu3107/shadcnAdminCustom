@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { buildDerpMap, scoreFromPriority, type DerpServerRow } from '../src/lib/build-derpmap'
+import {
+  buildDerpMap,
+  buildPerNodeDerpMap,
+  scoreFromPriority,
+  type DerpServerRow,
+} from '../src/lib/build-derpmap'
 
 function row(over: Partial<DerpServerRow>): DerpServerRow {
   return {
@@ -79,5 +84,38 @@ describe('buildDerpMap', () => {
     expect(json).toContain('"HomeParams"')
     expect(json).toContain('"RegionScore"')
     expect(json).toContain('"Regions"')
+  })
+})
+
+describe('buildPerNodeDerpMap (union model)', () => {
+  const a = row({ regionId: 1000, code: 'a', nodeName: 'a', priority: 100 })
+  const b = row({ regionId: 1001, code: 'b', nodeName: 'b', priority: 100 })
+
+  it('UNION: map gồm TẤT CẢ region dù chỉ gán 1', () => {
+    const map = buildPerNodeDerpMap([a, b], [1000])
+    expect(Object.keys(map.Regions).sort()).toEqual(['1000', '1001'])
+  })
+
+  it('region được gán giữ score thường; region không gán bị phạt (score lớn)', () => {
+    const map = buildPerNodeDerpMap([a, b], [1000])
+    // 1000 (assigned, priority 100) → score 1 → bị bỏ khỏi RegionScore
+    expect(map.HomeParams?.RegionScore?.['1000']).toBeUndefined()
+    // 1001 (không gán) → priority 200 → score >>> 1 → có trong RegionScore
+    expect(map.HomeParams?.RegionScore?.['1001']).toBeGreaterThan(1000)
+  })
+
+  it('assigned (priority cao 88) vẫn luôn thắng non-assigned đã phạt', () => {
+    const hi = row({ regionId: 1000, code: 'a', nodeName: 'a', priority: 88 }) // assigned, score thấp
+    const lo = row({ regionId: 1001, code: 'b', nodeName: 'b', priority: 88 }) // non-assigned -> 188
+    const map = buildPerNodeDerpMap([hi, lo], [1000])
+    const sHi = map.HomeParams?.RegionScore?.['1000'] ?? 1
+    const sLo = map.HomeParams?.RegionScore?.['1001'] ?? 1
+    expect(sLo).toBeGreaterThan(sHi * 1e6) // chênh >10^6 → strict ưu tiên assigned
+  })
+
+  it('không có assignment → không phạt (= buildDerpMap)', () => {
+    expect(JSON.stringify(buildPerNodeDerpMap([a, b], []))).toBe(
+      JSON.stringify(buildDerpMap([a, b])),
+    )
   })
 })

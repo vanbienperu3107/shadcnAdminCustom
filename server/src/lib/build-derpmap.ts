@@ -119,3 +119,35 @@ export function buildDerpMap(rows: DerpServerRow[]): DerpMapJson {
   if (Object.keys(RegionScore).length > 0) map.HomeParams = { RegionScore }
   return map
 }
+
+/**
+ * Per-node DERPMap (Feature B — mô hình UNION).
+ *
+ * Map LUÔN gồm TẤT CẢ region (sau filter của buildDerpMap) → node nào cũng relay
+ * được tới mọi peer (tránh lỗi "no such region" / mất kết nối 1 chiều). Per-node
+ * assignment chỉ điều khiển region nào được ưu tiên làm HOME: region KHÔNG được gán
+ * bị phạt priority (+PENALTY) → score lớn → không bao giờ chọn làm home (trừ khi
+ * mọi region được gán đều chết), nhưng vẫn nằm trong map để relay.
+ *
+ * assignedRegionIds rỗng → không phạt (chọn home theo latency, = base map).
+ *
+ * PENALTY=100: với priority thực tế 88–100, region bị phạt → 188–200 (score 10^29+),
+ * luôn thua region được gán bất kể latency, nhưng vẫn reachable làm relay/last-resort.
+ */
+export const NON_ASSIGNED_PENALTY = 100
+
+export function buildPerNodeDerpMap(
+  servers: DerpServerRow[],
+  assignedRegionIds: number[],
+): DerpMapJson {
+  const assigned = new Set(assignedRegionIds)
+  const adjusted =
+    assigned.size === 0
+      ? servers
+      : servers.map((s) =>
+          assigned.has(s.regionId)
+            ? s
+            : { ...s, priority: Math.min(1000, (s.priority || 100) + NON_ASSIGNED_PENALTY) },
+        )
+  return buildDerpMap(adjusted)
+}
