@@ -96,23 +96,66 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
 
   // ── Routes ──────────────────────────────────────────────────────────────────
 
+  // headscale 0.26+ bỏ /api/v1/routes; subnet routes nằm trong node
+  // (approvedRoutes / availableRoutes / subnetRoutes). Dựng danh sách route từ node.
+  type HsNode = {
+    id?: string
+    name?: string
+    givenName?: string
+    user?: unknown
+    online?: boolean
+    approvedRoutes?: string[]
+    availableRoutes?: string[]
+    subnetRoutes?: string[]
+  }
+
   app.get('/api/routes', async (_req, reply) => {
     if (!(await isHsConfigured())) return { configured: false, routes: [] }
     try {
-      const d = await hsApi<{ routes?: unknown[] }>('/api/v1/routes')
-      return { configured: true, routes: d.routes ?? [] }
+      const d = await hsApi<{ nodes?: HsNode[] }>('/api/v1/node')
+      const routes = (d.nodes ?? []).flatMap((n) => {
+        const approved = n.approvedRoutes ?? []
+        const available = n.availableRoutes ?? []
+        const subnet = n.subnetRoutes ?? []
+        const prefixes = Array.from(new Set([...available, ...approved]))
+        return prefixes.map((prefix) => ({
+          id: `${n.id}|${prefix}`,
+          prefix,
+          enabled: approved.includes(prefix),
+          isPrimary: subnet.includes(prefix),
+          node: { id: n.id, name: n.name, givenName: n.givenName, user: n.user, online: n.online },
+        }))
+      })
+      return { configured: true, routes }
     } catch (e) {
-      // Một số bản build headscale không có /api/v1/routes → trả empty thay vì 502
       if (isHsNotFound(e)) return { configured: true, routes: [] }
       return reply.code(502).send({ configured: true, error: String(e), routes: [] })
     }
   })
 
+  // Tách "<nodeId>|<prefix>" rồi set lại approvedRoutes (add khi enable, remove khi delete).
+  function parseRouteId(raw: string): { nodeId: string; prefix: string } | null {
+    const id = decodeURIComponent(raw)
+    const sep = id.indexOf('|')
+    if (sep < 0) return null
+    return { nodeId: id.slice(0, sep), prefix: id.slice(sep + 1) }
+  }
+  async function setApproved(nodeId: string, mutate: (s: Set<string>) => void): Promise<void> {
+    const d = await hsApi<{ node?: HsNode }>(`/api/v1/node/${encodeURIComponent(nodeId)}`)
+    const set = new Set(d.node?.approvedRoutes ?? [])
+    mutate(set)
+    await hsApi(`/api/v1/node/${encodeURIComponent(nodeId)}/approve_routes`, {
+      method: 'POST',
+      body: JSON.stringify({ routes: [...set] }),
+    })
+  }
+
   app.post('/api/routes/:id/enable', async (req, reply) => {
     if (!(await isHsConfigured())) return reply.code(503).send({ error: 'not configured' })
-    const { id } = req.params as { id: string }
+    const p = parseRouteId((req.params as { id: string }).id)
+    if (!p) return reply.code(400).send({ error: 'bad route id' })
     try {
-      await hsApi(`/api/v1/routes/${encodeURIComponent(id)}/enable`, { method: 'POST' })
+      await setApproved(p.nodeId, (s) => s.add(p.prefix))
       return { ok: true }
     } catch (e) {
       return reply.code(isHsNotFound(e) ? 404 : 502).send({ error: String(e) })
@@ -121,9 +164,10 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete('/api/routes/:id', async (req, reply) => {
     if (!(await isHsConfigured())) return reply.code(503).send({ error: 'not configured' })
-    const { id } = req.params as { id: string }
+    const p = parseRouteId((req.params as { id: string }).id)
+    if (!p) return reply.code(400).send({ error: 'bad route id' })
     try {
-      await hsApi(`/api/v1/routes/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      await setApproved(p.nodeId, (s) => s.delete(p.prefix))
       return reply.code(204).send()
     } catch (e) {
       return reply.code(isHsNotFound(e) ? 404 : 502).send({ error: String(e) })

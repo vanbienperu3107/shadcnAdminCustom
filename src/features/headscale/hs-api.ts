@@ -5,7 +5,7 @@ export type HsMachine = {
   name?: string
   givenName?: string
   nodeKey?: string // e.g. "nodekey:abc123..." — dùng cho Feature B per-node DERPMap
-  user?: { name?: string } | string
+  user?: { name?: string; displayName?: string; email?: string } | string
   ipAddresses?: string[]
   online?: boolean
   lastSeen?: string
@@ -14,6 +14,8 @@ export type HsMachine = {
 export type HsUser = {
   id?: string
   name?: string
+  displayName?: string
+  email?: string
   createdAt?: string
 }
 
@@ -75,7 +77,9 @@ export async function fetchLatency(): Promise<{
 
 export function userName(u: HsMachine['user']): string {
   if (!u) return '—'
-  return typeof u === 'string' ? u : (u.name ?? '—')
+  if (typeof u === 'string') return u || '—'
+  // user.name có thể rỗng (vd OIDC) → fallback displayName -> email.
+  return u.name || u.displayName || u.email || '—'
 }
 
 export type ApiKeyStatus = {
@@ -116,7 +120,13 @@ export async function updateAcl(policy: string): Promise<void> {
 export type HsRoute = {
   id?: string
   prefix?: string
-  node?: { givenName?: string; name?: string; id?: string }
+  node?: {
+    givenName?: string
+    name?: string
+    id?: string
+    user?: { name?: string; displayName?: string; email?: string } | string
+    online?: boolean
+  }
   enabled?: boolean
   isPrimary?: boolean
   updatedAt?: string
@@ -131,11 +141,12 @@ export async function fetchRoutes(): Promise<{
 }
 
 export async function enableRoute(id: string): Promise<void> {
-  await api.post(`/routes/${id}/enable`, {})
+  // id dạng "<nodeId>|<prefix>" (prefix chứa '/') → encode để an toàn trên path.
+  await api.post(`/routes/${encodeURIComponent(id)}/enable`, {})
 }
 
 export async function deleteRoute(id: string): Promise<void> {
-  await api.delete(`/routes/${id}`)
+  await api.delete(`/routes/${encodeURIComponent(id)}`)
 }
 
 // ── Pre-auth keys ─────────────────────────────────────────────────────────────

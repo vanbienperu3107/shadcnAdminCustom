@@ -54,7 +54,7 @@ export function TailnetUsers() {
                 data.users.map((u, i) => (
                   <TableRow key={u.id ?? i}>
                     <TableCell className='font-medium'>
-                      {u.name ?? '—'}
+                      {u.name || u.displayName || u.email || '—'}
                     </TableCell>
                     <TableCell className='font-mono text-xs'>
                       {u.id ?? '—'}

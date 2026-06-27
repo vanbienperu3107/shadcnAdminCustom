@@ -209,11 +209,11 @@ export async function migrate(): Promise<void> {
   await db.execute(sql`
     INSERT INTO pac_rules (scope, kind, pattern, proxy_target, priority)
     SELECT * FROM (VALUES
-      ('global', 'domain', 'bitel.com.pe',   'PROXY 127.0.0.1:18888', 100),
-      ('global', 'domain', 'viettel.com.vn', 'PROXY 127.0.0.1:18888', 100),
-      ('global', 'subnet', '10.0.0.0/8',     'PROXY 127.0.0.1:18888', 200),
-      ('global', 'subnet', '172.16.0.0/12',  'PROXY 127.0.0.1:18888', 200),
-      ('global', 'subnet', '192.168.0.0/16', 'PROXY 127.0.0.1:18888', 200)
+      ('global', 'domain', 'bitel.com.pe',   'PROXY 127.0.0.1:8888', 100),
+      ('global', 'domain', 'viettel.com.vn', 'PROXY 127.0.0.1:8888', 100),
+      ('global', 'subnet', '10.0.0.0/8',     'PROXY 127.0.0.1:8888', 200),
+      ('global', 'subnet', '172.16.0.0/12',  'PROXY 127.0.0.1:8888', 200),
+      ('global', 'subnet', '192.168.0.0/16', 'PROXY 127.0.0.1:8888', 200)
     ) AS v(scope, kind, pattern, proxy_target, priority)
     WHERE NOT EXISTS (SELECT 1 FROM pac_rules)
   `)
