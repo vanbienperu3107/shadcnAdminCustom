@@ -29,29 +29,31 @@ import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 import { Route as AuthenticatedTailnetUsersIndexRouteImport } from './routes/_authenticated/tailnet-users/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
+import { Route as AuthenticatedPreauthKeysIndexRouteImport } from './routes/_authenticated/preauth-keys/index'
+import { Route as AuthenticatedPacRulesIndexRouteImport } from './routes/_authenticated/pac-rules/index'
 import { Route as AuthenticatedOverviewIndexRouteImport } from './routes/_authenticated/overview/index'
+import { Route as AuthenticatedNodeRuntimeIndexRouteImport } from './routes/_authenticated/node-runtime/index'
+import { Route as AuthenticatedNodeAssignmentsIndexRouteImport } from './routes/_authenticated/node-assignments/index'
 import { Route as AuthenticatedMachinesIndexRouteImport } from './routes/_authenticated/machines/index'
 import { Route as AuthenticatedLatencyIndexRouteImport } from './routes/_authenticated/latency/index'
+import { Route as AuthenticatedHsRoutesIndexRouteImport } from './routes/_authenticated/hs-routes/index'
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
+import { Route as AuthenticatedForceRoutesIndexRouteImport } from './routes/_authenticated/force-routes/index'
 import { Route as AuthenticatedDerpIndexRouteImport } from './routes/_authenticated/derp/index'
 import { Route as AuthenticatedDeployIndexRouteImport } from './routes/_authenticated/deploy/index'
-import { Route as AuthenticatedForceRoutesIndexRouteImport } from './routes/_authenticated/force-routes/index'
-import { Route as AuthenticatedNodeAssignmentsIndexRouteImport } from './routes/_authenticated/node-assignments/index'
+import { Route as AuthenticatedClientConfigIndexRouteImport } from './routes/_authenticated/client-config/index'
 import { Route as AuthenticatedChatsIndexRouteImport } from './routes/_authenticated/chats/index'
 import { Route as AuthenticatedAppsIndexRouteImport } from './routes/_authenticated/apps/index'
+import { Route as AuthenticatedAclIndexRouteImport } from './routes/_authenticated/acl/index'
 import { Route as ClerkAuthenticatedUserManagementRouteImport } from './routes/clerk/_authenticated/user-management'
 import { Route as ClerkauthSignUpRouteImport } from './routes/clerk/(auth)/sign-up'
 import { Route as ClerkauthSignInRouteImport } from './routes/clerk/(auth)/sign-in'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings/notifications'
+import { Route as AuthenticatedSettingsHeadscaleRouteImport } from './routes/_authenticated/settings/headscale'
 import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings/display'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
-import { Route as AuthenticatedAclIndexRouteImport } from './routes/_authenticated/acl/index'
-import { Route as AuthenticatedClientConfigIndexRouteImport } from './routes/_authenticated/client-config/index'
-import { Route as AuthenticatedHsRoutesIndexRouteImport } from './routes/_authenticated/hs-routes/index'
-import { Route as AuthenticatedPreauthKeysIndexRouteImport } from './routes/_authenticated/preauth-keys/index'
-import { Route as AuthenticatedSettingsHeadscaleRouteImport } from './routes/_authenticated/settings/headscale'
 
 const ClerkRouteRoute = ClerkRouteRouteImport.update({
   id: '/clerk',
@@ -153,10 +155,34 @@ const AuthenticatedSettingsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
+const AuthenticatedPreauthKeysIndexRoute =
+  AuthenticatedPreauthKeysIndexRouteImport.update({
+    id: '/preauth-keys/',
+    path: '/preauth-keys/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPacRulesIndexRoute =
+  AuthenticatedPacRulesIndexRouteImport.update({
+    id: '/pac-rules/',
+    path: '/pac-rules/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedOverviewIndexRoute =
   AuthenticatedOverviewIndexRouteImport.update({
     id: '/overview/',
     path: '/overview/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedNodeRuntimeIndexRoute =
+  AuthenticatedNodeRuntimeIndexRouteImport.update({
+    id: '/node-runtime/',
+    path: '/node-runtime/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedNodeAssignmentsIndexRoute =
+  AuthenticatedNodeAssignmentsIndexRouteImport.update({
+    id: '/node-assignments/',
+    path: '/node-assignments/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedMachinesIndexRoute =
@@ -171,10 +197,22 @@ const AuthenticatedLatencyIndexRoute =
     path: '/latency/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedHsRoutesIndexRoute =
+  AuthenticatedHsRoutesIndexRouteImport.update({
+    id: '/hs-routes/',
+    path: '/hs-routes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedHelpCenterIndexRoute =
   AuthenticatedHelpCenterIndexRouteImport.update({
     id: '/help-center/',
     path: '/help-center/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedForceRoutesIndexRoute =
+  AuthenticatedForceRoutesIndexRouteImport.update({
+    id: '/force-routes/',
+    path: '/force-routes/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedDerpIndexRoute = AuthenticatedDerpIndexRouteImport.update({
@@ -188,16 +226,10 @@ const AuthenticatedDeployIndexRoute =
     path: '/deploy/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedForceRoutesIndexRoute =
-  AuthenticatedForceRoutesIndexRouteImport.update({
-    id: '/force-routes/',
-    path: '/force-routes/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedNodeAssignmentsIndexRoute =
-  AuthenticatedNodeAssignmentsIndexRouteImport.update({
-    id: '/node-assignments/',
-    path: '/node-assignments/',
+const AuthenticatedClientConfigIndexRoute =
+  AuthenticatedClientConfigIndexRouteImport.update({
+    id: '/client-config/',
+    path: '/client-config/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedChatsIndexRoute = AuthenticatedChatsIndexRouteImport.update({
@@ -208,6 +240,11 @@ const AuthenticatedChatsIndexRoute = AuthenticatedChatsIndexRouteImport.update({
 const AuthenticatedAppsIndexRoute = AuthenticatedAppsIndexRouteImport.update({
   id: '/apps/',
   path: '/apps/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAclIndexRoute = AuthenticatedAclIndexRouteImport.update({
+  id: '/acl/',
+  path: '/acl/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const ClerkAuthenticatedUserManagementRoute =
@@ -230,6 +267,12 @@ const AuthenticatedSettingsNotificationsRoute =
   AuthenticatedSettingsNotificationsRouteImport.update({
     id: '/notifications',
     path: '/notifications',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
+const AuthenticatedSettingsHeadscaleRoute =
+  AuthenticatedSettingsHeadscaleRouteImport.update({
+    id: '/headscale',
+    path: '/headscale',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
 const AuthenticatedSettingsDisplayRoute =
@@ -256,35 +299,6 @@ const AuthenticatedErrorsErrorRoute =
     path: '/errors/$error',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedAclIndexRoute = AuthenticatedAclIndexRouteImport.update({
-  id: '/acl/',
-  path: '/acl',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedClientConfigIndexRoute =
-  AuthenticatedClientConfigIndexRouteImport.update({
-    id: '/client-config/',
-    path: '/client-config',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedHsRoutesIndexRoute =
-  AuthenticatedHsRoutesIndexRouteImport.update({
-    id: '/hs-routes/',
-    path: '/hs-routes',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedPreauthKeysIndexRoute =
-  AuthenticatedPreauthKeysIndexRouteImport.update({
-    id: '/preauth-keys/',
-    path: '/preauth-keys',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedSettingsHeadscaleRoute =
-  AuthenticatedSettingsHeadscaleRouteImport.update({
-    id: '/settings/headscale',
-    path: '/headscale',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -304,29 +318,31 @@ export interface FileRoutesByFullPath {
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
+  '/settings/headscale': typeof AuthenticatedSettingsHeadscaleRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/clerk/sign-in': typeof ClerkauthSignInRoute
   '/clerk/sign-up': typeof ClerkauthSignUpRoute
   '/clerk/user-management': typeof ClerkAuthenticatedUserManagementRoute
+  '/acl/': typeof AuthenticatedAclIndexRoute
   '/apps/': typeof AuthenticatedAppsIndexRoute
   '/chats/': typeof AuthenticatedChatsIndexRoute
+  '/client-config/': typeof AuthenticatedClientConfigIndexRoute
   '/deploy/': typeof AuthenticatedDeployIndexRoute
   '/derp/': typeof AuthenticatedDerpIndexRoute
   '/force-routes/': typeof AuthenticatedForceRoutesIndexRoute
-  '/node-assignments/': typeof AuthenticatedNodeAssignmentsIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
+  '/hs-routes/': typeof AuthenticatedHsRoutesIndexRoute
   '/latency/': typeof AuthenticatedLatencyIndexRoute
   '/machines/': typeof AuthenticatedMachinesIndexRoute
+  '/node-assignments/': typeof AuthenticatedNodeAssignmentsIndexRoute
+  '/node-runtime/': typeof AuthenticatedNodeRuntimeIndexRoute
   '/overview/': typeof AuthenticatedOverviewIndexRoute
+  '/pac-rules/': typeof AuthenticatedPacRulesIndexRoute
+  '/preauth-keys/': typeof AuthenticatedPreauthKeysIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/tailnet-users/': typeof AuthenticatedTailnetUsersIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
-  '/acl/': typeof AuthenticatedAclIndexRoute
-  '/client-config/': typeof AuthenticatedClientConfigIndexRoute
-  '/hs-routes/': typeof AuthenticatedHsRoutesIndexRoute
-  '/preauth-keys/': typeof AuthenticatedPreauthKeysIndexRoute
-  '/settings/headscale': typeof AuthenticatedSettingsHeadscaleRoute
 }
 export interface FileRoutesByTo {
   '/clerk': typeof ClerkAuthenticatedRouteRouteWithChildren
@@ -345,29 +361,31 @@ export interface FileRoutesByTo {
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
+  '/settings/headscale': typeof AuthenticatedSettingsHeadscaleRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/clerk/sign-in': typeof ClerkauthSignInRoute
   '/clerk/sign-up': typeof ClerkauthSignUpRoute
   '/clerk/user-management': typeof ClerkAuthenticatedUserManagementRoute
+  '/acl': typeof AuthenticatedAclIndexRoute
   '/apps': typeof AuthenticatedAppsIndexRoute
   '/chats': typeof AuthenticatedChatsIndexRoute
+  '/client-config': typeof AuthenticatedClientConfigIndexRoute
   '/deploy': typeof AuthenticatedDeployIndexRoute
   '/derp': typeof AuthenticatedDerpIndexRoute
   '/force-routes': typeof AuthenticatedForceRoutesIndexRoute
-  '/node-assignments': typeof AuthenticatedNodeAssignmentsIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
+  '/hs-routes': typeof AuthenticatedHsRoutesIndexRoute
   '/latency': typeof AuthenticatedLatencyIndexRoute
   '/machines': typeof AuthenticatedMachinesIndexRoute
+  '/node-assignments': typeof AuthenticatedNodeAssignmentsIndexRoute
+  '/node-runtime': typeof AuthenticatedNodeRuntimeIndexRoute
   '/overview': typeof AuthenticatedOverviewIndexRoute
+  '/pac-rules': typeof AuthenticatedPacRulesIndexRoute
+  '/preauth-keys': typeof AuthenticatedPreauthKeysIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/tailnet-users': typeof AuthenticatedTailnetUsersIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
-  '/acl': typeof AuthenticatedAclIndexRoute
-  '/client-config': typeof AuthenticatedClientConfigIndexRoute
-  '/hs-routes': typeof AuthenticatedHsRoutesIndexRoute
-  '/preauth-keys': typeof AuthenticatedPreauthKeysIndexRoute
-  '/settings/headscale': typeof AuthenticatedSettingsHeadscaleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -391,29 +409,31 @@ export interface FileRoutesById {
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/_authenticated/settings/display': typeof AuthenticatedSettingsDisplayRoute
+  '/_authenticated/settings/headscale': typeof AuthenticatedSettingsHeadscaleRoute
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/clerk/(auth)/sign-in': typeof ClerkauthSignInRoute
   '/clerk/(auth)/sign-up': typeof ClerkauthSignUpRoute
   '/clerk/_authenticated/user-management': typeof ClerkAuthenticatedUserManagementRoute
+  '/_authenticated/acl/': typeof AuthenticatedAclIndexRoute
   '/_authenticated/apps/': typeof AuthenticatedAppsIndexRoute
   '/_authenticated/chats/': typeof AuthenticatedChatsIndexRoute
+  '/_authenticated/client-config/': typeof AuthenticatedClientConfigIndexRoute
   '/_authenticated/deploy/': typeof AuthenticatedDeployIndexRoute
   '/_authenticated/derp/': typeof AuthenticatedDerpIndexRoute
   '/_authenticated/force-routes/': typeof AuthenticatedForceRoutesIndexRoute
-  '/_authenticated/node-assignments/': typeof AuthenticatedNodeAssignmentsIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
+  '/_authenticated/hs-routes/': typeof AuthenticatedHsRoutesIndexRoute
   '/_authenticated/latency/': typeof AuthenticatedLatencyIndexRoute
   '/_authenticated/machines/': typeof AuthenticatedMachinesIndexRoute
+  '/_authenticated/node-assignments/': typeof AuthenticatedNodeAssignmentsIndexRoute
+  '/_authenticated/node-runtime/': typeof AuthenticatedNodeRuntimeIndexRoute
   '/_authenticated/overview/': typeof AuthenticatedOverviewIndexRoute
+  '/_authenticated/pac-rules/': typeof AuthenticatedPacRulesIndexRoute
+  '/_authenticated/preauth-keys/': typeof AuthenticatedPreauthKeysIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/tailnet-users/': typeof AuthenticatedTailnetUsersIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
-  '/_authenticated/acl/': typeof AuthenticatedAclIndexRoute
-  '/_authenticated/client-config/': typeof AuthenticatedClientConfigIndexRoute
-  '/_authenticated/hs-routes/': typeof AuthenticatedHsRoutesIndexRoute
-  '/_authenticated/preauth-keys/': typeof AuthenticatedPreauthKeysIndexRoute
-  '/_authenticated/settings/headscale': typeof AuthenticatedSettingsHeadscaleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -435,29 +455,31 @@ export interface FileRouteTypes {
     | '/settings/account'
     | '/settings/appearance'
     | '/settings/display'
+    | '/settings/headscale'
     | '/settings/notifications'
     | '/clerk/sign-in'
     | '/clerk/sign-up'
     | '/clerk/user-management'
+    | '/acl/'
     | '/apps/'
     | '/chats/'
+    | '/client-config/'
     | '/deploy/'
     | '/derp/'
     | '/force-routes/'
-    | '/node-assignments/'
     | '/help-center/'
+    | '/hs-routes/'
     | '/latency/'
     | '/machines/'
+    | '/node-assignments/'
+    | '/node-runtime/'
     | '/overview/'
+    | '/pac-rules/'
+    | '/preauth-keys/'
     | '/settings/'
     | '/tailnet-users/'
     | '/tasks/'
     | '/users/'
-    | '/acl/'
-    | '/client-config/'
-    | '/hs-routes/'
-    | '/preauth-keys/'
-    | '/settings/headscale'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/clerk'
@@ -476,29 +498,31 @@ export interface FileRouteTypes {
     | '/settings/account'
     | '/settings/appearance'
     | '/settings/display'
+    | '/settings/headscale'
     | '/settings/notifications'
     | '/clerk/sign-in'
     | '/clerk/sign-up'
     | '/clerk/user-management'
+    | '/acl'
     | '/apps'
     | '/chats'
+    | '/client-config'
     | '/deploy'
     | '/derp'
     | '/force-routes'
-    | '/node-assignments'
     | '/help-center'
+    | '/hs-routes'
     | '/latency'
     | '/machines'
+    | '/node-assignments'
+    | '/node-runtime'
     | '/overview'
+    | '/pac-rules'
+    | '/preauth-keys'
     | '/settings'
     | '/tailnet-users'
     | '/tasks'
     | '/users'
-    | '/acl'
-    | '/client-config'
-    | '/hs-routes'
-    | '/preauth-keys'
-    | '/settings/headscale'
   id:
     | '__root__'
     | '/_authenticated'
@@ -521,29 +545,31 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/account'
     | '/_authenticated/settings/appearance'
     | '/_authenticated/settings/display'
+    | '/_authenticated/settings/headscale'
     | '/_authenticated/settings/notifications'
     | '/clerk/(auth)/sign-in'
     | '/clerk/(auth)/sign-up'
     | '/clerk/_authenticated/user-management'
+    | '/_authenticated/acl/'
     | '/_authenticated/apps/'
     | '/_authenticated/chats/'
+    | '/_authenticated/client-config/'
     | '/_authenticated/deploy/'
     | '/_authenticated/derp/'
     | '/_authenticated/force-routes/'
-    | '/_authenticated/node-assignments/'
     | '/_authenticated/help-center/'
+    | '/_authenticated/hs-routes/'
     | '/_authenticated/latency/'
     | '/_authenticated/machines/'
+    | '/_authenticated/node-assignments/'
+    | '/_authenticated/node-runtime/'
     | '/_authenticated/overview/'
+    | '/_authenticated/pac-rules/'
+    | '/_authenticated/preauth-keys/'
     | '/_authenticated/settings/'
     | '/_authenticated/tailnet-users/'
     | '/_authenticated/tasks/'
     | '/_authenticated/users/'
-    | '/_authenticated/acl/'
-    | '/_authenticated/client-config/'
-    | '/_authenticated/hs-routes/'
-    | '/_authenticated/preauth-keys/'
-    | '/_authenticated/settings/headscale'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -703,11 +729,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/preauth-keys/': {
+      id: '/_authenticated/preauth-keys/'
+      path: '/preauth-keys'
+      fullPath: '/preauth-keys/'
+      preLoaderRoute: typeof AuthenticatedPreauthKeysIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pac-rules/': {
+      id: '/_authenticated/pac-rules/'
+      path: '/pac-rules'
+      fullPath: '/pac-rules/'
+      preLoaderRoute: typeof AuthenticatedPacRulesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/overview/': {
       id: '/_authenticated/overview/'
       path: '/overview'
       fullPath: '/overview/'
       preLoaderRoute: typeof AuthenticatedOverviewIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/node-runtime/': {
+      id: '/_authenticated/node-runtime/'
+      path: '/node-runtime'
+      fullPath: '/node-runtime/'
+      preLoaderRoute: typeof AuthenticatedNodeRuntimeIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/node-assignments/': {
+      id: '/_authenticated/node-assignments/'
+      path: '/node-assignments'
+      fullPath: '/node-assignments/'
+      preLoaderRoute: typeof AuthenticatedNodeAssignmentsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/machines/': {
@@ -724,18 +778,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLatencyIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/hs-routes/': {
+      id: '/_authenticated/hs-routes/'
+      path: '/hs-routes'
+      fullPath: '/hs-routes/'
+      preLoaderRoute: typeof AuthenticatedHsRoutesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/help-center/': {
       id: '/_authenticated/help-center/'
       path: '/help-center'
       fullPath: '/help-center/'
       preLoaderRoute: typeof AuthenticatedHelpCenterIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/derp/': {
-      id: '/_authenticated/derp/'
-      path: '/derp'
-      fullPath: '/derp/'
-      preLoaderRoute: typeof AuthenticatedDerpIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/force-routes/': {
@@ -745,11 +799,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedForceRoutesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/node-assignments/': {
-      id: '/_authenticated/node-assignments/'
-      path: '/node-assignments'
-      fullPath: '/node-assignments/'
-      preLoaderRoute: typeof AuthenticatedNodeAssignmentsIndexRouteImport
+    '/_authenticated/derp/': {
+      id: '/_authenticated/derp/'
+      path: '/derp'
+      fullPath: '/derp/'
+      preLoaderRoute: typeof AuthenticatedDerpIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/deploy/': {
@@ -757,6 +811,13 @@ declare module '@tanstack/react-router' {
       path: '/deploy'
       fullPath: '/deploy/'
       preLoaderRoute: typeof AuthenticatedDeployIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/client-config/': {
+      id: '/_authenticated/client-config/'
+      path: '/client-config'
+      fullPath: '/client-config/'
+      preLoaderRoute: typeof AuthenticatedClientConfigIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/chats/': {
@@ -771,6 +832,13 @@ declare module '@tanstack/react-router' {
       path: '/apps'
       fullPath: '/apps/'
       preLoaderRoute: typeof AuthenticatedAppsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/acl/': {
+      id: '/_authenticated/acl/'
+      path: '/acl'
+      fullPath: '/acl/'
+      preLoaderRoute: typeof AuthenticatedAclIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/clerk/_authenticated/user-management': {
@@ -801,6 +869,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsNotificationsRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/settings/headscale': {
+      id: '/_authenticated/settings/headscale'
+      path: '/headscale'
+      fullPath: '/settings/headscale'
+      preLoaderRoute: typeof AuthenticatedSettingsHeadscaleRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
     '/_authenticated/settings/display': {
       id: '/_authenticated/settings/display'
       path: '/display'
@@ -829,41 +904,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErrorsErrorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/acl/': {
-      id: '/_authenticated/acl/'
-      path: '/acl'
-      fullPath: '/acl/'
-      preLoaderRoute: typeof AuthenticatedAclIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/client-config/': {
-      id: '/_authenticated/client-config/'
-      path: '/client-config'
-      fullPath: '/client-config/'
-      preLoaderRoute: typeof AuthenticatedClientConfigIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/hs-routes/': {
-      id: '/_authenticated/hs-routes/'
-      path: '/hs-routes'
-      fullPath: '/hs-routes/'
-      preLoaderRoute: typeof AuthenticatedHsRoutesIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/preauth-keys/': {
-      id: '/_authenticated/preauth-keys/'
-      path: '/preauth-keys'
-      fullPath: '/preauth-keys/'
-      preLoaderRoute: typeof AuthenticatedPreauthKeysIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/settings/headscale': {
-      id: '/_authenticated/settings/headscale'
-      path: '/headscale'
-      fullPath: '/settings/headscale'
-      preLoaderRoute: typeof AuthenticatedSettingsHeadscaleRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
   }
 }
 
@@ -871,9 +911,9 @@ interface AuthenticatedSettingsRouteRouteChildren {
   AuthenticatedSettingsAccountRoute: typeof AuthenticatedSettingsAccountRoute
   AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
   AuthenticatedSettingsDisplayRoute: typeof AuthenticatedSettingsDisplayRoute
+  AuthenticatedSettingsHeadscaleRoute: typeof AuthenticatedSettingsHeadscaleRoute
   AuthenticatedSettingsNotificationsRoute: typeof AuthenticatedSettingsNotificationsRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
-  AuthenticatedSettingsHeadscaleRoute: typeof AuthenticatedSettingsHeadscaleRoute
 }
 
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
@@ -881,10 +921,10 @@ const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteCh
     AuthenticatedSettingsAccountRoute: AuthenticatedSettingsAccountRoute,
     AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
     AuthenticatedSettingsDisplayRoute: AuthenticatedSettingsDisplayRoute,
+    AuthenticatedSettingsHeadscaleRoute: AuthenticatedSettingsHeadscaleRoute,
     AuthenticatedSettingsNotificationsRoute:
       AuthenticatedSettingsNotificationsRoute,
     AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
-    AuthenticatedSettingsHeadscaleRoute: AuthenticatedSettingsHeadscaleRoute,
   }
 
 const AuthenticatedSettingsRouteRouteWithChildren =
@@ -896,46 +936,51 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
+  AuthenticatedAclIndexRoute: typeof AuthenticatedAclIndexRoute
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
+  AuthenticatedClientConfigIndexRoute: typeof AuthenticatedClientConfigIndexRoute
   AuthenticatedDeployIndexRoute: typeof AuthenticatedDeployIndexRoute
   AuthenticatedDerpIndexRoute: typeof AuthenticatedDerpIndexRoute
   AuthenticatedForceRoutesIndexRoute: typeof AuthenticatedForceRoutesIndexRoute
-  AuthenticatedNodeAssignmentsIndexRoute: typeof AuthenticatedNodeAssignmentsIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
+  AuthenticatedHsRoutesIndexRoute: typeof AuthenticatedHsRoutesIndexRoute
   AuthenticatedLatencyIndexRoute: typeof AuthenticatedLatencyIndexRoute
   AuthenticatedMachinesIndexRoute: typeof AuthenticatedMachinesIndexRoute
+  AuthenticatedNodeAssignmentsIndexRoute: typeof AuthenticatedNodeAssignmentsIndexRoute
+  AuthenticatedNodeRuntimeIndexRoute: typeof AuthenticatedNodeRuntimeIndexRoute
   AuthenticatedOverviewIndexRoute: typeof AuthenticatedOverviewIndexRoute
+  AuthenticatedPacRulesIndexRoute: typeof AuthenticatedPacRulesIndexRoute
+  AuthenticatedPreauthKeysIndexRoute: typeof AuthenticatedPreauthKeysIndexRoute
   AuthenticatedTailnetUsersIndexRoute: typeof AuthenticatedTailnetUsersIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
-  AuthenticatedAclIndexRoute: typeof AuthenticatedAclIndexRoute
-  AuthenticatedClientConfigIndexRoute: typeof AuthenticatedClientConfigIndexRoute
-  AuthenticatedHsRoutesIndexRoute: typeof AuthenticatedHsRoutesIndexRoute
-  AuthenticatedPreauthKeysIndexRoute: typeof AuthenticatedPreauthKeysIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
+  AuthenticatedAclIndexRoute: AuthenticatedAclIndexRoute,
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
+  AuthenticatedClientConfigIndexRoute: AuthenticatedClientConfigIndexRoute,
   AuthenticatedDeployIndexRoute: AuthenticatedDeployIndexRoute,
   AuthenticatedDerpIndexRoute: AuthenticatedDerpIndexRoute,
   AuthenticatedForceRoutesIndexRoute: AuthenticatedForceRoutesIndexRoute,
-  AuthenticatedNodeAssignmentsIndexRoute: AuthenticatedNodeAssignmentsIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
+  AuthenticatedHsRoutesIndexRoute: AuthenticatedHsRoutesIndexRoute,
   AuthenticatedLatencyIndexRoute: AuthenticatedLatencyIndexRoute,
   AuthenticatedMachinesIndexRoute: AuthenticatedMachinesIndexRoute,
+  AuthenticatedNodeAssignmentsIndexRoute:
+    AuthenticatedNodeAssignmentsIndexRoute,
+  AuthenticatedNodeRuntimeIndexRoute: AuthenticatedNodeRuntimeIndexRoute,
   AuthenticatedOverviewIndexRoute: AuthenticatedOverviewIndexRoute,
+  AuthenticatedPacRulesIndexRoute: AuthenticatedPacRulesIndexRoute,
+  AuthenticatedPreauthKeysIndexRoute: AuthenticatedPreauthKeysIndexRoute,
   AuthenticatedTailnetUsersIndexRoute: AuthenticatedTailnetUsersIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
-  AuthenticatedAclIndexRoute: AuthenticatedAclIndexRoute,
-  AuthenticatedClientConfigIndexRoute: AuthenticatedClientConfigIndexRoute,
-  AuthenticatedHsRoutesIndexRoute: AuthenticatedHsRoutesIndexRoute,
-  AuthenticatedPreauthKeysIndexRoute: AuthenticatedPreauthKeysIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

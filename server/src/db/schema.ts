@@ -117,6 +117,38 @@ export const clientNetcheck = pgTable('client_netcheck', {
   reportedAt: timestamp('reported_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+/** Cấu hình runtime per-node (load từ dashboard lúc client khởi động).
+ *  Key = MAC (chính); hostname là cột phụ để tra cứu fallback.
+ *  Cột null = không override (client dùng global/default). */
+export const nodeRuntimeConfig = pgTable('node_runtime_config', {
+  mac:               text('mac').primaryKey(),
+  hostname:          text('hostname'),
+  mode:              text('mode'),
+  loginServer:       text('login_server'),
+  alwaysUseDerp:     boolean('always_use_derp'),     // "fix UDP": true=ép DERP/TCP, false=cho UDP
+  derpKeepaliveSecs: integer('derp_keepalive_secs'),
+  peerHttpProxy:     text('peer_http_proxy'),
+  socksAddr:         text('socks_addr'),
+  advertiseRoutes:   text('advertise_routes'),
+  lanRoutes:         text('lan_routes'),
+  pacServerPort:     integer('pac_server_port'),
+  updatedAt:         timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Luật PAC động (render thành file PAC qua /api/client/pac).
+ *  scope='global' áp cho mọi node; scope='node' chỉ áp cho node có mac trùng. */
+export const pacRules = pgTable('pac_rules', {
+  id:          serial('id').primaryKey(),
+  scope:       text('scope').notNull().default('global'), // 'global' | 'node'
+  mac:         text('mac'),
+  kind:        text('kind').notNull(),                     // 'domain' | 'subnet'
+  pattern:     text('pattern').notNull(),
+  proxyTarget: text('proxy_target').notNull(),             // vd "PROXY 127.0.0.1:18888"
+  priority:    integer('priority').notNull().default(100),
+  enabled:     boolean('enabled').notNull().default(true),
+  createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export type DerpServer = typeof derpServers.$inferSelect
 export type NewDerpServer = typeof derpServers.$inferInsert
 export type User = typeof users.$inferSelect
@@ -127,3 +159,5 @@ export type DerpForceRoute = typeof derpForceRoutes.$inferSelect
 export type DerpNodeAssignment = typeof derpNodeAssignments.$inferSelect
 export type ClientConfig = typeof clientConfig.$inferSelect
 export type ClientNetcheck = typeof clientNetcheck.$inferSelect
+export type NodeRuntimeConfig = typeof nodeRuntimeConfig.$inferSelect
+export type PacRule = typeof pacRules.$inferSelect

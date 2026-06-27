@@ -16,6 +16,7 @@ import { healthRoutes } from './routes/health.js'
 import { forceRouteRoutes } from './routes/force-routes.js'
 import { nodeAssignmentsPublicRoutes, nodeAssignmentsRoutes } from './routes/node-assignments.js'
 import { clientConfigRoutes, clientPublicRoutes } from './routes/client-config.js'
+import { clientRuntimePublicRoutes, clientRuntimeRoutes } from './routes/client-runtime.js'
 
 async function main() {
   const app = Fastify({ logger: { level: 'info' } })
@@ -33,6 +34,8 @@ async function main() {
   await app.register(headscalePublicRoutes)
   await app.register(headscaleRoutes)
   await app.register(clientPublicRoutes)
+  await app.register(clientRuntimePublicRoutes)
+  await app.register(clientRuntimeRoutes)
   await app.register(forceRouteRoutes)
   await app.register(nodeAssignmentsPublicRoutes)
   await app.register(nodeAssignmentsRoutes)

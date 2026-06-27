@@ -58,18 +58,19 @@ describe('buildDerpMap', () => {
 
   it('priority -> HomeParams.RegionScore (chỉ khi score != 1)', () => {
     const map = buildDerpMap([
-      row({ regionId: 1000, code: 'a', nodeName: 'a', priority: 50 }), // score 0.5
+      row({ regionId: 1000, code: 'a', nodeName: 'a', priority: 97 }),  // score 0.1
       row({ regionId: 1001, code: 'b', nodeName: 'b', priority: 100 }), // score 1 -> bỏ
-      row({ regionId: 1002, code: 'c', nodeName: 'c', priority: 200 }), // score 2
+      row({ regionId: 1002, code: 'c', nodeName: 'c', priority: 103 }), // score 10
     ])
-    expect(map.HomeParams?.RegionScore).toEqual({ '1000': 0.5, '1002': 2 })
+    expect(map.HomeParams?.RegionScore).toEqual({ '1000': 0.1, '1002': 10 })
   })
 
-  it('scoreFromPriority clamp & mapping', () => {
-    expect(scoreFromPriority(100)).toBe(1)
-    expect(scoreFromPriority(50)).toBe(0.5)
-    expect(scoreFromPriority(0)).toBe(1) // 0 -> mặc định 100
-    expect(scoreFromPriority(5000)).toBe(10) // clamp 1000
+  it('scoreFromPriority exponential & mapping', () => {
+    // Công thức mũ 10^((p-100)/3): mỗi 3 đơn vị priority = 10× chênh lệch score.
+    expect(scoreFromPriority(100)).toBe(1)    // baseline
+    expect(scoreFromPriority(97)).toBe(0.1)   // priority cao hơn -> score < 1 (ưu tiên hơn)
+    expect(scoreFromPriority(103)).toBe(10)   // priority thấp hơn -> score > 1 (bị phạt)
+    expect(scoreFromPriority(0)).toBe(1)      // 0 -> mặc định 100
   })
 
   it('JSON serialize đúng key casing', () => {

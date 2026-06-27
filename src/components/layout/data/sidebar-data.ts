@@ -1,6 +1,8 @@
 import {
   Activity,
+  Cpu,
   Flame,
+  Globe,
   Key,
   LayoutDashboard,
   Map,
@@ -41,6 +43,8 @@ export const sidebarData: SidebarData = {
         { title: 'DERP Regions', url: '/derp', icon: Network },
         { title: 'Force Routes', url: '/force-routes', icon: Flame },
         { title: 'Node Assignments', url: '/node-assignments', icon: Map },
+        { title: 'Node Runtime', url: '/node-runtime', icon: Cpu },
+        { title: 'PAC Rules', url: '/pac-rules', icon: Globe },
         { title: 'Deploy & CI', url: '/deploy', icon: Rocket },
         {
           title: 'Client Config',
