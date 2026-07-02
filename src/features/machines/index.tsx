@@ -40,7 +40,9 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Main } from '@/components/layout/main'
+import { Derp } from '@/features/derp'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
+import { ForceRoutes } from '@/features/force-routes'
 import {
   deleteMachine,
   derpNameSet,
@@ -52,6 +54,9 @@ import {
   renameMachine,
   userName,
 } from '@/features/headscale/hs-api'
+import { HsRoutes } from '@/features/hs-routes'
+import { Latency } from '@/features/latency'
+import { NodeAssignments } from '@/features/node-assignments'
 
 /** Headscale node name = DNS label: chữ thường a-z0-9 và '-', không bắt đầu/kết
  *  thúc bằng '-'. Bỏ dấu tiếng Việt, hạ chữ thường, thay ký tự lạ bằng '-'. */
@@ -382,41 +387,72 @@ export function Machines() {
       <div>
         <h2 className='text-2xl font-bold tracking-tight'>Machines</h2>
         <p className='text-muted-foreground'>
-          Thiết bị tailnet (Headscale API) — tách thiết bị người dùng và node
-          DERP. Tự làm mới 30s.
+          Thiết bị tailnet, subnet route, và vận hành relay DERP liên quan.
         </p>
       </div>
 
-      {isError ? (
-        <ErrorBox />
-      ) : isLoading ? (
-        <p className='text-sm text-muted-foreground'>Đang tải…</p>
-      ) : !data?.configured ? (
-        <NotConfigured />
-      ) : (
-        <Tabs defaultValue='users'>
-          <TabsList>
-            <TabsTrigger value='users'>
-              Thiết bị người dùng
-              <span className='ms-1.5 text-muted-foreground'>
-                ({userNodes.length})
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value='derp'>
-              Node DERP / hạ tầng
-              <span className='ms-1.5 text-muted-foreground'>
-                ({derpNodes.length})
-              </span>
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value='users' className='mt-4'>
+      {/* Gộp từ: Machines, Routes, DERP Regions, Force Routes, Node
+       *  Assignments, Latency. Mỗi tab tự lazy-load (Radix Tabs chỉ mount
+       *  TabsContent đang active) — không gọi API của các tab chưa mở. */}
+      <Tabs defaultValue='users'>
+        <TabsList className='flex h-auto flex-wrap justify-start'>
+          <TabsTrigger value='users'>
+            Thiết bị người dùng
+            <span className='ms-1.5 text-muted-foreground'>
+              ({userNodes.length})
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value='derpnodes'>
+            Node DERP / hạ tầng
+            <span className='ms-1.5 text-muted-foreground'>
+              ({derpNodes.length})
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value='routes'>Routes</TabsTrigger>
+          <TabsTrigger value='regions'>Regions</TabsTrigger>
+          <TabsTrigger value='force'>Force Routes</TabsTrigger>
+          <TabsTrigger value='assign'>Node Assignments</TabsTrigger>
+          <TabsTrigger value='latency'>Latency</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value='users' className='mt-4'>
+          {isError ? (
+            <ErrorBox />
+          ) : isLoading ? (
+            <p className='text-sm text-muted-foreground'>Đang tải…</p>
+          ) : !data?.configured ? (
+            <NotConfigured />
+          ) : (
             <MachineTable rows={userNodes} onAction={onAction} />
-          </TabsContent>
-          <TabsContent value='derp' className='mt-4'>
+          )}
+        </TabsContent>
+        <TabsContent value='derpnodes' className='mt-4'>
+          {isError ? (
+            <ErrorBox />
+          ) : isLoading ? (
+            <p className='text-sm text-muted-foreground'>Đang tải…</p>
+          ) : !data?.configured ? (
+            <NotConfigured />
+          ) : (
             <MachineTable rows={derpNodes} onAction={onAction} />
-          </TabsContent>
-        </Tabs>
-      )}
+          )}
+        </TabsContent>
+        <TabsContent value='routes' className='mt-4'>
+          <HsRoutes />
+        </TabsContent>
+        <TabsContent value='regions' className='mt-4'>
+          <Derp />
+        </TabsContent>
+        <TabsContent value='force' className='mt-4'>
+          <ForceRoutes />
+        </TabsContent>
+        <TabsContent value='assign' className='mt-4'>
+          <NodeAssignments />
+        </TabsContent>
+        <TabsContent value='latency' className='mt-4'>
+          <Latency />
+        </TabsContent>
+      </Tabs>
 
       <RenameDialog
         open={dialog === 'rename'}

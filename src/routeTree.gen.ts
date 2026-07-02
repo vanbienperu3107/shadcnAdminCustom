@@ -28,6 +28,7 @@ import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authen
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 import { Route as AuthenticatedTailnetUsersIndexRouteImport } from './routes/_authenticated/tailnet-users/index'
+import { Route as AuthenticatedTailnetAccessIndexRouteImport } from './routes/_authenticated/tailnet-access/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedPreauthKeysIndexRouteImport } from './routes/_authenticated/preauth-keys/index'
 import { Route as AuthenticatedPacRulesIndexRouteImport } from './routes/_authenticated/pac-rules/index'
@@ -147,6 +148,12 @@ const AuthenticatedTailnetUsersIndexRoute =
   AuthenticatedTailnetUsersIndexRouteImport.update({
     id: '/tailnet-users/',
     path: '/tailnet-users/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTailnetAccessIndexRoute =
+  AuthenticatedTailnetAccessIndexRouteImport.update({
+    id: '/tailnet-access/',
+    path: '/tailnet-access/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSettingsIndexRoute =
@@ -340,6 +347,7 @@ export interface FileRoutesByFullPath {
   '/pac-rules/': typeof AuthenticatedPacRulesIndexRoute
   '/preauth-keys/': typeof AuthenticatedPreauthKeysIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/tailnet-access/': typeof AuthenticatedTailnetAccessIndexRoute
   '/tailnet-users/': typeof AuthenticatedTailnetUsersIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
@@ -383,6 +391,7 @@ export interface FileRoutesByTo {
   '/pac-rules': typeof AuthenticatedPacRulesIndexRoute
   '/preauth-keys': typeof AuthenticatedPreauthKeysIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
+  '/tailnet-access': typeof AuthenticatedTailnetAccessIndexRoute
   '/tailnet-users': typeof AuthenticatedTailnetUsersIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
@@ -431,6 +440,7 @@ export interface FileRoutesById {
   '/_authenticated/pac-rules/': typeof AuthenticatedPacRulesIndexRoute
   '/_authenticated/preauth-keys/': typeof AuthenticatedPreauthKeysIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/_authenticated/tailnet-access/': typeof AuthenticatedTailnetAccessIndexRoute
   '/_authenticated/tailnet-users/': typeof AuthenticatedTailnetUsersIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
@@ -477,6 +487,7 @@ export interface FileRouteTypes {
     | '/pac-rules/'
     | '/preauth-keys/'
     | '/settings/'
+    | '/tailnet-access/'
     | '/tailnet-users/'
     | '/tasks/'
     | '/users/'
@@ -520,6 +531,7 @@ export interface FileRouteTypes {
     | '/pac-rules'
     | '/preauth-keys'
     | '/settings'
+    | '/tailnet-access'
     | '/tailnet-users'
     | '/tasks'
     | '/users'
@@ -567,6 +579,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pac-rules/'
     | '/_authenticated/preauth-keys/'
     | '/_authenticated/settings/'
+    | '/_authenticated/tailnet-access/'
     | '/_authenticated/tailnet-users/'
     | '/_authenticated/tasks/'
     | '/_authenticated/users/'
@@ -720,6 +733,13 @@ declare module '@tanstack/react-router' {
       path: '/tailnet-users'
       fullPath: '/tailnet-users/'
       preLoaderRoute: typeof AuthenticatedTailnetUsersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tailnet-access/': {
+      id: '/_authenticated/tailnet-access/'
+      path: '/tailnet-access'
+      fullPath: '/tailnet-access/'
+      preLoaderRoute: typeof AuthenticatedTailnetAccessIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings/': {
@@ -952,6 +972,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedOverviewIndexRoute: typeof AuthenticatedOverviewIndexRoute
   AuthenticatedPacRulesIndexRoute: typeof AuthenticatedPacRulesIndexRoute
   AuthenticatedPreauthKeysIndexRoute: typeof AuthenticatedPreauthKeysIndexRoute
+  AuthenticatedTailnetAccessIndexRoute: typeof AuthenticatedTailnetAccessIndexRoute
   AuthenticatedTailnetUsersIndexRoute: typeof AuthenticatedTailnetUsersIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
@@ -978,6 +999,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedOverviewIndexRoute: AuthenticatedOverviewIndexRoute,
   AuthenticatedPacRulesIndexRoute: AuthenticatedPacRulesIndexRoute,
   AuthenticatedPreauthKeysIndexRoute: AuthenticatedPreauthKeysIndexRoute,
+  AuthenticatedTailnetAccessIndexRoute: AuthenticatedTailnetAccessIndexRoute,
   AuthenticatedTailnetUsersIndexRoute: AuthenticatedTailnetUsersIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,

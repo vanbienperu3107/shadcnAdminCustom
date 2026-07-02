@@ -9,7 +9,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Main } from '@/components/layout/main'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
 import {
   derpNameSet,
@@ -206,15 +205,10 @@ export function Latency() {
   const ready = mac.data?.configured && !lat.data?.error
 
   return (
-    <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
-      <div>
-        <h2 className='text-2xl font-bold tracking-tight'>
-          Client đang dùng DERP nào
-        </h2>
-        <p className='text-muted-foreground'>
-          Kết nối và latency của từng node đến DERP relay. Tự làm mới 30s.
-        </p>
-      </div>
+    <div className='flex flex-1 flex-col gap-4 sm:gap-6'>
+      <p className='text-sm text-muted-foreground'>
+        Kết nối và latency của từng node đến DERP relay. Tự làm mới 30s.
+      </p>
 
       {lat.isError ? (
         <div className='rounded-md border border-destructive/40 p-4 text-sm text-destructive'>
@@ -259,6 +253,6 @@ export function Latency() {
           </p>
         </>
       )}
-    </Main>
+    </div>
   )
 }

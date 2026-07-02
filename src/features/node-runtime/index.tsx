@@ -29,7 +29,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Main } from '@/components/layout/main'
 import {
   deleteNodeRuntime,
   listNodeRuntime,
@@ -143,18 +142,13 @@ export function NodeRuntimePage() {
   }
 
   return (
-    <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
+    <div className='flex flex-1 flex-col gap-4 sm:gap-6'>
       <div className='flex items-start justify-between gap-4'>
-        <div>
-          <h2 className='text-2xl font-bold tracking-tight'>
-            Node Runtime Config
-          </h2>
-          <p className='text-muted-foreground'>
-            Cấu hình runtime per-node (theo MAC). Node không có dòng → dùng
-            global/default. Tắt <span className='font-mono'>Ép DERP</span> = cho
-            phép UDP/direct.
-          </p>
-        </div>
+        <p className='text-sm text-muted-foreground'>
+          Cấu hình runtime per-node (theo MAC). Node không có dòng → dùng
+          global/default. Tắt <span className='font-mono'>Ép DERP</span> = cho
+          phép UDP/direct.
+        </p>
         <Button onClick={openNew}>
           <Plus className='size-4' /> Thêm node
         </Button>
@@ -427,7 +421,7 @@ export function NodeRuntimePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Main>
+    </div>
   )
 }
 

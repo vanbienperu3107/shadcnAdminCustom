@@ -27,8 +27,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
 import {
   fetchMachines,
@@ -168,144 +166,134 @@ export function NodeAssignments() {
     : []
 
   return (
-    <>
-      <Header />
-      <Main className='flex flex-1 flex-col gap-6'>
-        <div>
-          <h2 className='text-2xl font-bold tracking-tight'>
-            <MapIcon className='me-2 mb-0.5 inline size-6 text-blue-500' />
-            Node Assignments
-          </h2>
-          <p className='text-muted-foreground'>
-            Gán từng Tailscale node vào các DERP region cụ thể. headscale sẽ gửi
-            DERPMap tùy chỉnh cho node đó thay vì DERPMap chung.
-          </p>
-        </div>
+    <div className='flex flex-1 flex-col gap-6'>
+      <p className='text-sm text-muted-foreground'>
+        <MapIcon className='me-1.5 mb-0.5 inline size-4 text-blue-500' />
+        Gán từng Tailscale node vào các DERP region cụ thể. headscale sẽ gửi
+        DERPMap tùy chỉnh cho node đó thay vì DERPMap chung.
+      </p>
 
-        {isLoading && (
-          <p className='text-sm text-muted-foreground'>Đang tải…</p>
-        )}
+      {isLoading && <p className='text-sm text-muted-foreground'>Đang tải…</p>}
 
-        {!isLoading && nodes.length === 0 && (
-          <p className='text-sm text-muted-foreground'>
-            Không có machine nào có nodeKey. Kiểm tra kết nối Headscale API.
-          </p>
-        )}
+      {!isLoading && nodes.length === 0 && (
+        <p className='text-sm text-muted-foreground'>
+          Không có machine nào có nodeKey. Kiểm tra kết nối Headscale API.
+        </p>
+      )}
 
-        {nodes.length > 0 && (
-          <div className='rounded-lg border'>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Machine</TableHead>
-                  <TableHead>IP</TableHead>
-                  <TableHead>Node Key</TableHead>
-                  <TableHead>DERP Regions</TableHead>
-                  <TableHead className='text-end'>Sửa</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {nodes.map((m) => {
-                  const key = m.nodeKey!
-                  const asgn = assignmentMap.get(key)
-                  return (
-                    <TableRow key={key}>
-                      <TableCell className='font-medium'>
-                        {m.givenName || m.name || '—'}
-                        {m.online && (
-                          <CheckCircle2 className='ms-1.5 inline size-3.5 text-emerald-500' />
-                        )}
-                      </TableCell>
-                      <TableCell className='font-mono text-xs text-muted-foreground'>
-                        {m.ipAddresses?.[0] ?? '—'}
-                      </TableCell>
-                      <TableCell
-                        className='font-mono text-xs text-muted-foreground'
-                        title={key}
-                      >
-                        {truncateKey(key)}
-                      </TableCell>
-                      <TableCell>
-                        {asgn ? (
-                          <div className='flex flex-wrap gap-1'>
-                            {asgn.regions.map((r) => (
-                              <Badge
-                                key={r.regionId}
-                                variant='secondary'
-                                className='text-xs'
-                              >
-                                {r.code}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className='text-xs text-muted-foreground'>
-                            mặc định (base map)
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className='text-end'>
-                        <div className='flex justify-end gap-1'>
+      {nodes.length > 0 && (
+        <div className='rounded-lg border'>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Machine</TableHead>
+                <TableHead>IP</TableHead>
+                <TableHead>Node Key</TableHead>
+                <TableHead>DERP Regions</TableHead>
+                <TableHead className='text-end'>Sửa</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {nodes.map((m) => {
+                const key = m.nodeKey!
+                const asgn = assignmentMap.get(key)
+                return (
+                  <TableRow key={key}>
+                    <TableCell className='font-medium'>
+                      {m.givenName || m.name || '—'}
+                      {m.online && (
+                        <CheckCircle2 className='ms-1.5 inline size-3.5 text-emerald-500' />
+                      )}
+                    </TableCell>
+                    <TableCell className='font-mono text-xs text-muted-foreground'>
+                      {m.ipAddresses?.[0] ?? '—'}
+                    </TableCell>
+                    <TableCell
+                      className='font-mono text-xs text-muted-foreground'
+                      title={key}
+                    >
+                      {truncateKey(key)}
+                    </TableCell>
+                    <TableCell>
+                      {asgn ? (
+                        <div className='flex flex-wrap gap-1'>
+                          {asgn.regions.map((r) => (
+                            <Badge
+                              key={r.regionId}
+                              variant='secondary'
+                              className='text-xs'
+                            >
+                              {r.code}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className='text-xs text-muted-foreground'>
+                          mặc định (base map)
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className='text-end'>
+                      <div className='flex justify-end gap-1'>
+                        <Button
+                          size='icon'
+                          variant='ghost'
+                          className='size-7'
+                          onClick={() => setEditMachine(m)}
+                        >
+                          <Pencil className='size-3.5' />
+                        </Button>
+                        {asgn && (
                           <Button
                             size='icon'
                             variant='ghost'
-                            className='size-7'
-                            onClick={() => setEditMachine(m)}
+                            className='size-7 text-destructive'
+                            disabled={deleteMut.isPending}
+                            onClick={() => deleteMut.mutate(key)}
                           >
-                            <Pencil className='size-3.5' />
+                            <Trash2 className='size-3.5' />
                           </Button>
-                          {asgn && (
-                            <Button
-                              size='icon'
-                              variant='ghost'
-                              className='size-7 text-destructive'
-                              disabled={deleteMut.isPending}
-                              onClick={() => deleteMut.mutate(key)}
-                            >
-                              <Trash2 className='size-3.5' />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-
-        <div className='rounded-md border border-blue-500/30 bg-blue-500/5 p-4 text-sm text-muted-foreground'>
-          <p className='font-medium text-foreground'>Cách hoạt động:</p>
-          <ul className='mt-1 list-inside list-disc space-y-0.5'>
-            <li>
-              headscale patch gọi{' '}
-              <code className='font-mono text-foreground'>
-                GET /api/internal/derp-map/:nodeKey
-              </code>{' '}
-              với <code className='font-mono'>X-Headscale-Secret</code> mỗi 30s
-              để lấy DERPMap tùy chỉnh.
-            </li>
-            <li>
-              Node không có assignment → nhận DERPMap mặc định (
-              <em>headscale fallback</em>).
-            </li>
-            <li>
-              Node có assignment → chỉ thấy các DERP region được chọn, ưu tiên
-              theo priority và maintenance mode.
-            </li>
-            <li>
-              Yêu cầu headscale image{' '}
-              <code className='font-mono text-foreground'>
-                ghcr.io/vanbienperu3107/headscale:0.27.1-pernode
-              </code>{' '}
-              và cấu hình{' '}
-              <code className='font-mono'>derp.dashboard.enabled: true</code>{' '}
-              trong <code className='font-mono'>config.yaml</code>.
-            </li>
-          </ul>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
         </div>
-      </Main>
+      )}
+
+      <div className='rounded-md border border-blue-500/30 bg-blue-500/5 p-4 text-sm text-muted-foreground'>
+        <p className='font-medium text-foreground'>Cách hoạt động:</p>
+        <ul className='mt-1 list-inside list-disc space-y-0.5'>
+          <li>
+            headscale patch gọi{' '}
+            <code className='font-mono text-foreground'>
+              GET /api/internal/derp-map/:nodeKey
+            </code>{' '}
+            với <code className='font-mono'>X-Headscale-Secret</code> mỗi 30s để
+            lấy DERPMap tùy chỉnh.
+          </li>
+          <li>
+            Node không có assignment → nhận DERPMap mặc định (
+            <em>headscale fallback</em>).
+          </li>
+          <li>
+            Node có assignment → chỉ thấy các DERP region được chọn, ưu tiên
+            theo priority và maintenance mode.
+          </li>
+          <li>
+            Yêu cầu headscale image{' '}
+            <code className='font-mono text-foreground'>
+              ghcr.io/vanbienperu3107/headscale:0.27.1-pernode
+            </code>{' '}
+            và cấu hình{' '}
+            <code className='font-mono'>derp.dashboard.enabled: true</code>{' '}
+            trong <code className='font-mono'>config.yaml</code>.
+          </li>
+        </ul>
+      </div>
 
       {editMachine && (
         <EditDialog
@@ -315,6 +303,6 @@ export function NodeAssignments() {
           onClose={() => setEditMachine(null)}
         />
       )}
-    </>
+    </div>
   )
 }

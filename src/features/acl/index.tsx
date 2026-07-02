@@ -3,10 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Main } from '@/components/layout/main'
 import { fetchAcl, hsKeys, updateAcl } from '@/features/headscale/hs-api'
 import { ErrorBox, NotConfigured } from '@/features/machines'
 
+/** Nội dung tab "ACL Policy" trong Tailnet Access — chỉ query khi tab active. */
 export function Acl() {
   const qc = useQueryClient()
   const { data, isLoading, isError } = useQuery({
@@ -30,14 +30,11 @@ export function Acl() {
   })
 
   return (
-    <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
+    <div className='flex flex-1 flex-col gap-4 sm:gap-6'>
       <div className='flex items-start justify-between'>
-        <div>
-          <h2 className='text-2xl font-bold tracking-tight'>ACL Policy</h2>
-          <p className='text-muted-foreground'>
-            Chính sách kiểm soát truy cập tailnet (HuJSON). Lưu để áp dụng ngay.
-          </p>
-        </div>
+        <p className='text-sm text-muted-foreground'>
+          Chính sách kiểm soát truy cập tailnet (HuJSON). Lưu để áp dụng ngay.
+        </p>
         <Button
           size='sm'
           onClick={() => saveMut.mutate()}
@@ -77,6 +74,6 @@ export function Acl() {
           />
         </div>
       )}
-    </Main>
+    </div>
   )
 }

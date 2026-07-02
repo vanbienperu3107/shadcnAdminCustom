@@ -18,7 +18,6 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { Main } from '@/components/layout/main'
 import {
   configKeys,
   listClientConfig,
@@ -75,14 +74,11 @@ export function ClientConfig() {
   }
 
   return (
-    <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
-      <div>
-        <h2 className='text-2xl font-bold tracking-tight'>Client Config</h2>
-        <p className='text-muted-foreground'>
-          Quản lý cấu hình toàn cục phân phối cho Tailscale client — proxy, PAC,
-          route, metrics.
-        </p>
-      </div>
+    <div className='flex flex-1 flex-col gap-4 sm:gap-6'>
+      <p className='text-sm text-muted-foreground'>
+        Quản lý cấu hình toàn cục phân phối cho Tailscale client — proxy, PAC,
+        route, metrics.
+      </p>
 
       <Tabs defaultValue='config'>
         <TabsList>
@@ -260,6 +256,6 @@ export function ClientConfig() {
           )}
         </DialogContent>
       </Dialog>
-    </Main>
+    </div>
   )
 }
