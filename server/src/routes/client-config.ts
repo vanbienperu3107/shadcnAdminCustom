@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { requireAuth } from '../auth/middleware.js'
 import { db } from '../db/client.js'
 import { clientConfig, clientNetcheck } from '../db/schema.js'
@@ -62,6 +62,45 @@ export async function clientConfigRoutes(app: FastifyInstance): Promise<void> {
 
 /** Public — no auth. Client agent calls GET /api/client/config on startup + every 5 min. */
 export async function clientPublicRoutes(app: FastifyInstance): Promise<void> {
+  // POST /api/client/netcheck — node tự báo cáo port đang mở (SOCKS5 userspace /
+  // integrated HTTP peer-proxy), gọi cùng chu kỳ với /api/metrics/report (60s) từ
+  // chính node đó. UPSERT theo hostname, không cần đoán/mò port từ dashboard.
+  app.post('/api/client/netcheck', async (req, reply) => {
+    const body = req.body as {
+      client?: unknown
+      port_socks5?: unknown
+      port_http?: unknown
+      mode?: unknown
+      advertised_routes?: unknown
+    }
+    const client = typeof body?.client === 'string' ? body.client.trim().toLowerCase() : ''
+    if (!client) {
+      return reply.code(400).send({ error: 'client (hostname) required' })
+    }
+    const portSocks5 = typeof body.port_socks5 === 'number' && body.port_socks5 > 0 ? body.port_socks5 : null
+    const portHttp   = typeof body.port_http   === 'number' && body.port_http   > 0 ? body.port_http   : null
+    const mode       = typeof body.mode === 'string' ? body.mode.slice(0, 32) : null
+    const advertisedRoutes = typeof body.advertised_routes === 'string' ? body.advertised_routes.slice(0, 500) : null
+    try {
+      await db
+        .insert(clientNetcheck)
+        .values({ client, portSocks5, portHttp, mode, advertisedRoutes, reportedAt: new Date() })
+        .onConflictDoUpdate({
+          target: clientNetcheck.client,
+          set: {
+            portSocks5:       sql`EXCLUDED.port_socks5`,
+            portHttp:         sql`EXCLUDED.port_http`,
+            mode:             sql`EXCLUDED.mode`,
+            advertisedRoutes: sql`EXCLUDED.advertised_routes`,
+            reportedAt:       sql`EXCLUDED.reported_at`,
+          },
+        })
+      return { ok: true }
+    } catch (e) {
+      return reply.code(502).send({ error: String(e) })
+    }
+  })
+
   app.get('/api/client/config', async (_req, reply) => {
     try {
       const rows = await db.select().from(clientConfig)

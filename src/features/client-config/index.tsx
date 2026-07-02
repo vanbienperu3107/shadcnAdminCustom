@@ -169,8 +169,10 @@ export function ClientConfig() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Client</TableHead>
+                    <TableHead className='w-28'>Mode</TableHead>
                     <TableHead className='w-36'>SOCKS5 Port</TableHead>
-                    <TableHead className='w-36'>HTTP Port</TableHead>
+                    <TableHead className='w-36'>HTTP Proxy Port</TableHead>
+                    <TableHead>Quảng bá (routes)</TableHead>
                     <TableHead className='w-44'>Last Reported</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -178,7 +180,7 @@ export function ClientConfig() {
                   {ports.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={4}
+                        colSpan={6}
                         className='text-center text-sm text-muted-foreground'
                       >
                         Chưa có dữ liệu
@@ -191,10 +193,16 @@ export function ClientConfig() {
                           {p.client}
                         </TableCell>
                         <TableCell className='text-sm'>
+                          {p.mode ?? '—'}
+                        </TableCell>
+                        <TableCell className='text-sm'>
                           {p.portSocks5 ?? '—'}
                         </TableCell>
                         <TableCell className='text-sm'>
                           {p.portHttp ?? '—'}
+                        </TableCell>
+                        <TableCell className='font-mono text-sm'>
+                          {p.advertisedRoutes ?? '—'}
                         </TableCell>
                         <TableCell className='text-sm text-muted-foreground'>
                           {formatDate(p.reportedAt)}
