@@ -1,29 +1,42 @@
-import { existsSync } from 'node:fs'
-import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
-import { env, googleEnabled } from './env.js'
+import Fastify from 'fastify'
+import { existsSync } from 'node:fs'
 import { migrate } from './db/migrate.js'
 import { seedIfEmpty } from './db/seed.js'
+import { env, googleEnabled } from './env.js'
 import { seedFromEnv, startAutoRefresh } from './lib/apikey-manager.js'
-import { authRoutes } from './routes/auth.js'
 import { apikeyRoutes } from './routes/apikey.js'
+import { authRoutes } from './routes/auth.js'
 import { ciRoutes } from './routes/ci.js'
+import {
+  clientConfigRoutes,
+  clientPublicRoutes,
+} from './routes/client-config.js'
+import {
+  clientRuntimePublicRoutes,
+  clientRuntimeRoutes,
+} from './routes/client-runtime.js'
 import { derpRoutes } from './routes/derp.js'
 import { derpmapRoutes } from './routes/derpmap.js'
+import { dnsSplitPublicRoutes, dnsSplitRoutes } from './routes/dns-split.js'
+import { forceRouteRoutes } from './routes/force-routes.js'
 import { headscalePublicRoutes, headscaleRoutes } from './routes/headscale.js'
 import { healthRoutes } from './routes/health.js'
-import { forceRouteRoutes } from './routes/force-routes.js'
-import { nodeAssignmentsPublicRoutes, nodeAssignmentsRoutes } from './routes/node-assignments.js'
-import { clientConfigRoutes, clientPublicRoutes } from './routes/client-config.js'
-import { clientRuntimePublicRoutes, clientRuntimeRoutes } from './routes/client-runtime.js'
+import {
+  nodeAssignmentsPublicRoutes,
+  nodeAssignmentsRoutes,
+} from './routes/node-assignments.js'
 
 async function main() {
   const app = Fastify({ logger: { level: 'info' } })
 
   await app.register(cookie, { secret: env.SESSION_SECRET })
   if (env.CORS_ORIGIN) {
-    await app.register(cors, { origin: env.CORS_ORIGIN.split(','), credentials: true })
+    await app.register(cors, {
+      origin: env.CORS_ORIGIN.split(','),
+      credentials: true,
+    })
   }
 
   // Routes
@@ -42,6 +55,8 @@ async function main() {
   await app.register(ciRoutes)
   await app.register(apikeyRoutes)
   await app.register(clientConfigRoutes)
+  await app.register(dnsSplitPublicRoutes)
+  await app.register(dnsSplitRoutes)
 
   // SPA tĩnh (prod)
   if (env.CLIENT_DIST && existsSync(env.CLIENT_DIST)) {

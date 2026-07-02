@@ -24,16 +24,20 @@ export const derpServers = pgTable('derp_servers', {
   stunOnly: boolean('stun_only').notNull().default(false),
   latitude: real('latitude'),
   longitude: real('longitude'),
-  enabled:     boolean('enabled').notNull().default(true),      // ON/OFF
-  paused:      boolean('paused').notNull().default(false),      // tạm dừng (ẩn khỏi DERPMap)
+  enabled: boolean('enabled').notNull().default(true), // ON/OFF
+  paused: boolean('paused').notNull().default(false), // tạm dừng (ẩn khỏi DERPMap)
   maintenance: boolean('maintenance').notNull().default(false), // bảo trì (score=9999, client tự chuyển)
-  embedded:    boolean('embedded').notNull().default(false),    // region 999, read-only
+  embedded: boolean('embedded').notNull().default(false), // region 999, read-only
   priority: integer('priority').notNull().default(100), // số nhỏ = ưu tiên cao
   // SSH để quản lý firewall (Feature C)
   sshUser: text('ssh_user').default('root'),
   sshPort: integer('ssh_port').default(22),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 export const users = pgTable('users', {
@@ -42,7 +46,9 @@ export const users = pgTable('users', {
   email: text('email').notNull(),
   name: text('name'),
   picture: text('picture'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 export const sessions = pgTable('sessions', {
@@ -54,7 +60,9 @@ export const sessions = pgTable('sessions', {
   refreshToken: text('refresh_token'),
   idToken: text('id_token'),
   tokenExpiry: timestamp('token_expiry', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 })
 
@@ -63,7 +71,9 @@ export const headscaleApiKey = pgTable('headscale_api_keys', {
   id: integer('id').primaryKey(), // always 1
   apiKey: text('api_key').notNull(),
   prefix: text('prefix'), // phần prefix trước dấu "." dùng để expire key cũ
-  seededAt: timestamp('seeded_at', { withTimezone: true }).notNull().defaultNow(),
+  seededAt: timestamp('seeded_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   refreshedAt: timestamp('refreshed_at', { withTimezone: true }),
 })
 
@@ -74,81 +84,120 @@ export const latencySamples = pgTable(
   {
     srcHostname: text('src_hostname').notNull(),
     dstHostname: text('dst_hostname').notNull(),
-    srcIp:       text('src_ip'),
-    mac:         text('mac'),
-    rttMs:       real('rtt_ms'),
-    path:        text('path'),          // 'direct' | 'derp:regionName'
-    ok:          boolean('ok').notNull().default(true),
-    lossPct:     integer('loss_pct'),
-    reportedAt:  timestamp('reported_at', { withTimezone: true }).notNull().defaultNow(),
+    srcIp: text('src_ip'),
+    mac: text('mac'),
+    rttMs: real('rtt_ms'),
+    path: text('path'), // 'direct' | 'derp:regionName'
+    ok: boolean('ok').notNull().default(true),
+    lossPct: integer('loss_pct'),
+    reportedAt: timestamp('reported_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.srcHostname, t.dstHostname] })]
 )
 
 /** Danh sách IP client bị ép đi qua một DERP cụ thể (quản lý iptables DERP-FORCE). */
 export const derpForceRoutes = pgTable('derp_force_routes', {
-  id:        serial('id').primaryKey(),
-  regionId:  integer('region_id').notNull().references(() => derpServers.regionId, { onDelete: 'cascade' }),
-  clientIp:  text('client_ip').notNull(),
-  label:     text('label'),   // tên máy / ghi chú
-  active:    boolean('active').notNull().default(true),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  id: serial('id').primaryKey(),
+  regionId: integer('region_id')
+    .notNull()
+    .references(() => derpServers.regionId, { onDelete: 'cascade' }),
+  clientIp: text('client_ip').notNull(),
+  label: text('label'), // tên máy / ghi chú
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 /** Per-node DERP region assignments (Feature B).
  *  Mỗi dòng gán một node (theo node_key Tailscale) vào một DERP region.
  *  headscale patch gọi GET /api/internal/derp-map/:nodeKey → trả DERPMap chỉ gồm các region này. */
-export const derpNodeAssignments = pgTable('derp_node_assignments', {
-  nodeKey:  text('node_key').notNull(),
-  regionId: integer('region_id').notNull().references(() => derpServers.regionId, { onDelete: 'cascade' }),
-}, (t) => [primaryKey({ columns: [t.nodeKey, t.regionId] })])
+export const derpNodeAssignments = pgTable(
+  'derp_node_assignments',
+  {
+    nodeKey: text('node_key').notNull(),
+    regionId: integer('region_id')
+      .notNull()
+      .references(() => derpServers.regionId, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.nodeKey, t.regionId] })]
+)
 
 export const clientConfig = pgTable('client_config', {
-  key:       text('key').primaryKey(),
-  value:     text('value').notNull(),
-  note:      text('note'),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  note: text('note'),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 export const clientNetcheck = pgTable('client_netcheck', {
-  client:           text('client').primaryKey(),
-  portSocks5:       integer('port_socks5'),
-  portHttp:         integer('port_http'),
-  mode:             text('mode'),              // 'portable' | 'proxy' | 'vpn' (node-build variant)
-  advertisedRoutes: text('advertised_routes'),  // vd "10.0.0.0/8" (chỉ node proxy)
-  reportedAt:       timestamp('reported_at', { withTimezone: true }).notNull().defaultNow(),
+  client: text('client').primaryKey(),
+  portSocks5: integer('port_socks5'),
+  portHttp: integer('port_http'),
+  mode: text('mode'), // 'portable' | 'proxy' | 'vpn' (node-build variant)
+  advertisedRoutes: text('advertised_routes'), // vd "10.0.0.0/8" (chỉ node proxy)
+  reportedAt: timestamp('reported_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 /** Cấu hình runtime per-node (load từ dashboard lúc client khởi động).
  *  Key = MAC (chính); hostname là cột phụ để tra cứu fallback.
  *  Cột null = không override (client dùng global/default). */
 export const nodeRuntimeConfig = pgTable('node_runtime_config', {
-  mac:               text('mac').primaryKey(),
-  hostname:          text('hostname'),
-  mode:              text('mode'),
-  loginServer:       text('login_server'),
-  alwaysUseDerp:     boolean('always_use_derp'),     // "fix UDP": true=ép DERP/TCP, false=cho UDP
+  mac: text('mac').primaryKey(),
+  hostname: text('hostname'),
+  mode: text('mode'),
+  loginServer: text('login_server'),
+  alwaysUseDerp: boolean('always_use_derp'), // "fix UDP": true=ép DERP/TCP, false=cho UDP
   derpKeepaliveSecs: integer('derp_keepalive_secs'),
-  peerHttpProxy:     text('peer_http_proxy'),
-  socksAddr:         text('socks_addr'),
-  advertiseRoutes:   text('advertise_routes'),
-  lanRoutes:         text('lan_routes'),
-  pacServerPort:     integer('pac_server_port'),
-  updatedAt:         timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  peerHttpProxy: text('peer_http_proxy'),
+  socksAddr: text('socks_addr'),
+  advertiseRoutes: text('advertise_routes'),
+  lanRoutes: text('lan_routes'),
+  pacServerPort: integer('pac_server_port'),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 /** Luật PAC động (render thành file PAC qua /api/client/pac).
  *  scope='global' áp cho mọi node; scope='node' chỉ áp cho node có mac trùng. */
 export const pacRules = pgTable('pac_rules', {
-  id:          serial('id').primaryKey(),
-  scope:       text('scope').notNull().default('global'), // 'global' | 'node'
-  mac:         text('mac'),
-  kind:        text('kind').notNull(),                     // 'domain' | 'subnet'
-  pattern:     text('pattern').notNull(),
-  proxyTarget: text('proxy_target').notNull(),             // vd "PROXY 127.0.0.1:18888"
-  priority:    integer('priority').notNull().default(100),
-  enabled:     boolean('enabled').notNull().default(true),
-  createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  id: serial('id').primaryKey(),
+  scope: text('scope').notNull().default('global'), // 'global' | 'node'
+  mac: text('mac'),
+  kind: text('kind').notNull(), // 'domain' | 'subnet'
+  pattern: text('pattern').notNull(),
+  proxyTarget: text('proxy_target').notNull(), // vd "PROXY 127.0.0.1:18888"
+  priority: integer('priority').notNull().default(100),
+  enabled: boolean('enabled').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
+/** Split-DNS: domain nội bộ (bitel.com.pe, viettelperu.com, ...) -> nameserver
+ *  nội bộ (DC Peru). headscale gọi GET /api/internal/dns-split (Feature D,
+ *  cùng dashboard/secret với Feature B per-node DERPMap) mỗi khi build
+ *  MapResponse, merge vào tailcfg.DNSConfig.Routes cho MỌI node — không cần
+ *  sửa config.yaml + restart headscale khi thêm/sửa domain. */
+export const dnsSplitRules = pgTable('dns_split_rules', {
+  id: serial('id').primaryKey(),
+  domain: text('domain').notNull().unique(), // vd "bitel.com.pe" (không cần dấu chấm cuối)
+  nameservers: text('nameservers').notNull(), // CSV, vd "10.121.127.193,10.121.127.194"
+  note: text('note'),
+  enabled: boolean('enabled').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 export type DerpServer = typeof derpServers.$inferSelect
@@ -163,3 +212,4 @@ export type ClientConfig = typeof clientConfig.$inferSelect
 export type ClientNetcheck = typeof clientNetcheck.$inferSelect
 export type NodeRuntimeConfig = typeof nodeRuntimeConfig.$inferSelect
 export type PacRule = typeof pacRules.$inferSelect
+export type DnsSplitRule = typeof dnsSplitRules.$inferSelect
