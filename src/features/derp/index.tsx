@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { Main } from '@/components/layout/main'
 import { DerpDialogs } from './components/derp-dialogs'
 import { DerpPrimaryButtons } from './components/derp-primary-buttons'
 import { DerpProvider } from './components/derp-provider'
 import { DerpTable } from './components/derp-table'
 import { derpKeys, listDerp } from './data/derp-api'
 
+/** Nội dung tab "Regions" trong Machines — chỉ query khi tab active. */
 export function Derp() {
   const {
     data = [],
@@ -18,15 +18,12 @@ export function Derp() {
 
   return (
     <DerpProvider>
-      <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
+      <div className='flex flex-1 flex-col gap-4 sm:gap-6'>
         <div className='flex flex-wrap items-end justify-between gap-2'>
-          <div>
-            <h2 className='text-2xl font-bold tracking-tight'>DERP Regions</h2>
-            <p className='text-muted-foreground'>
-              Quản lý node DERP — bật/tắt, thêm, xóa, tạm dừng, đặt ưu tiên.
-              Client tự phát hiện và chuyển node, không cần reload.
-            </p>
-          </div>
+          <p className='text-sm text-muted-foreground'>
+            Quản lý node DERP — bật/tắt, thêm, xóa, tạm dừng, đặt ưu tiên.
+            Client tự phát hiện và chuyển node, không cần reload.
+          </p>
           <DerpPrimaryButtons />
         </div>
 
@@ -40,7 +37,7 @@ export function Derp() {
         ) : (
           <DerpTable data={data} />
         )}
-      </Main>
+      </div>
 
       <DerpDialogs />
     </DerpProvider>

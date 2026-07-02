@@ -11,7 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Main } from '@/components/layout/main'
 import {
   deleteRoute,
   enableRoute,
@@ -124,14 +123,10 @@ export function HsRoutes() {
   const loading = enableMut.isPending || deleteMut.isPending
 
   return (
-    <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
-      <div>
-        <h2 className='text-2xl font-bold tracking-tight'>Routes</h2>
-        <p className='text-muted-foreground'>
-          Subnet routes các node quảng bá trong tailnet (DERP-Controller API).
-          Tự làm mới 30s.
-        </p>
-      </div>
+    <div className='flex flex-1 flex-col gap-4 sm:gap-6'>
+      <p className='text-sm text-muted-foreground'>
+        Subnet routes các node quảng bá trong tailnet. Tự làm mới 30s.
+      </p>
 
       {isError ? (
         <ErrorBox />
@@ -170,6 +165,6 @@ export function HsRoutes() {
           </Table>
         </div>
       )}
-    </Main>
+    </div>
   )
 }

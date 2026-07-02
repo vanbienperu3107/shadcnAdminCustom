@@ -196,7 +196,7 @@ export function Overview() {
             )
           }
           sub={hsOk ? 'tailnet users' : 'cần API key'}
-          to='/tailnet-users'
+          to='/tailnet-access'
         />
         <Stat
           icon={Network}
@@ -207,7 +207,7 @@ export function Overview() {
             </span>
           }
           sub={`${activeRegions} đang bật`}
-          to='/derp'
+          to='/machines'
         />
         <Stat
           icon={Radio}
@@ -218,7 +218,7 @@ export function Overview() {
             </span>
           }
           sub={healthDown > 0 ? `${healthDown} chết` : 'tất cả sống'}
-          to='/derp'
+          to='/machines'
         />
         <Stat
           icon={Activity}
@@ -233,7 +233,7 @@ export function Overview() {
             )
           }
           sub='xem định tuyến'
-          to='/latency'
+          to='/machines'
         />
       </div>
 

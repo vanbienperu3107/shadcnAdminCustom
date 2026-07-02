@@ -109,9 +109,9 @@ describe('SearchProvider and CommandMenu', () => {
 
     await openCommandPalette(screen)
 
-    await userEvent.click(screen.getByText('DERP Regions'))
+    await userEvent.click(screen.getByText('Machines'))
 
-    expect(mocks.navigate).toHaveBeenCalledWith({ to: '/derp' })
+    expect(mocks.navigate).toHaveBeenCalledWith({ to: '/machines' })
     await expect
       .element(screen.getByPlaceholder(COMMAND_MENU_PLACEHOLDER))
       .not.toBeInTheDocument()

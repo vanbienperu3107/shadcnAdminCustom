@@ -7,10 +7,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Main } from '@/components/layout/main'
 import { fetchHsUsers, hsKeys } from '@/features/headscale/hs-api'
 import { ErrorBox, NotConfigured } from '@/features/machines'
 
+/** Nội dung tab "Users" trong màn hình Tailnet Access — query chỉ chạy khi
+ *  tab này được mở (Radix Tabs không mount TabsContent chưa active). */
 export function TailnetUsers() {
   const { data, isLoading, isError } = useQuery({
     queryKey: hsKeys.users,
@@ -19,14 +20,7 @@ export function TailnetUsers() {
   })
 
   return (
-    <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
-      <div>
-        <h2 className='text-2xl font-bold tracking-tight'>Users</h2>
-        <p className='text-muted-foreground'>
-          Người dùng trong tailnet (từ Headscale API).
-        </p>
-      </div>
-
+    <div className='flex flex-1 flex-col gap-4 sm:gap-6'>
       {isError ? (
         <ErrorBox />
       ) : isLoading ? (
@@ -71,6 +65,6 @@ export function TailnetUsers() {
           </Table>
         </div>
       )}
-    </Main>
+    </div>
   )
 }

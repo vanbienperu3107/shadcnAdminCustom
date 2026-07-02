@@ -1,19 +1,4 @@
-import {
-  Activity,
-  Cpu,
-  Flame,
-  Globe,
-  Key,
-  LayoutDashboard,
-  Map,
-  Network,
-  Rocket,
-  Route,
-  Server,
-  Shield,
-  SlidersHorizontal,
-  Users,
-} from 'lucide-react'
+import { LayoutDashboard, Network, Rocket, Server, Users } from 'lucide-react'
 import { type SidebarData } from '../types'
 
 export const sidebarData: SidebarData = {
@@ -29,45 +14,19 @@ export const sidebarData: SidebarData = {
       plan: 'hangocthanh.io.vn',
     },
   ],
+  // 13 trang cũ gộp còn 4 (2026-07): Overview, Tailnet Access (Users/ACL/
+  // Pre-auth Keys/Node Runtime/PAC Rules/Client Config), Machines (Machines/
+  // Routes/DERP Regions/Force Routes/Node Assignments/Latency), Deploy & CI.
+  // Chỉ 4 mục nên không cần chia nhóm collapsible nữa.
   navGroups: [
     {
-      title: 'Tổng quan',
-      items: [{ title: 'Overview', url: '/overview', icon: LayoutDashboard }],
-    },
-    {
-      title: 'Tailnet',
+      title: 'DERP-Controller',
       items: [
+        { title: 'Overview', url: '/overview', icon: LayoutDashboard },
+        { title: 'Tailnet Access', url: '/tailnet-access', icon: Users },
         { title: 'Machines', url: '/machines', icon: Server },
-        { title: 'Users', url: '/tailnet-users', icon: Users },
-        { title: 'Routes', url: '/hs-routes', icon: Route },
-        { title: 'ACL Policy', url: '/acl', icon: Shield },
-        { title: 'Pre-auth Keys', url: '/preauth-keys', icon: Key },
+        { title: 'Deploy & CI', url: '/deploy', icon: Rocket },
       ],
-    },
-    {
-      title: 'DERP & Latency',
-      items: [
-        { title: 'DERP Regions', url: '/derp', icon: Network },
-        { title: 'Force Routes', url: '/force-routes', icon: Flame },
-        { title: 'Node Assignments', url: '/node-assignments', icon: Map },
-        { title: 'Latency', url: '/latency', icon: Activity },
-      ],
-    },
-    {
-      title: 'Cấu hình Node',
-      items: [
-        { title: 'Node Runtime', url: '/node-runtime', icon: Cpu },
-        { title: 'PAC Rules', url: '/pac-rules', icon: Globe },
-        {
-          title: 'Client Config',
-          url: '/client-config',
-          icon: SlidersHorizontal,
-        },
-      ],
-    },
-    {
-      title: 'Vận hành',
-      items: [{ title: 'Deploy & CI', url: '/deploy', icon: Rocket }],
     },
   ],
 }

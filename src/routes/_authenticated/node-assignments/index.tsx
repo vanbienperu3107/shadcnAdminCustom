@@ -1,6 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { NodeAssignments } from '@/features/node-assignments'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
+// Gộp vào Machines (tab Node Assignments) — 2026-07. Giữ redirect cho link/bookmark cũ.
 export const Route = createFileRoute('/_authenticated/node-assignments/')({
-  component: NodeAssignments,
+  beforeLoad: () => {
+    throw redirect({ to: '/machines' })
+  },
 })

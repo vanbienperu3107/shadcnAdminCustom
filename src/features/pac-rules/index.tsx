@@ -29,7 +29,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Main } from '@/components/layout/main'
 import {
   createPacRule,
   deletePacRule,
@@ -114,16 +113,13 @@ export function PacRulesPage() {
   }
 
   return (
-    <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
+    <div className='flex flex-1 flex-col gap-4 sm:gap-6'>
       <div className='flex items-start justify-between gap-4'>
-        <div>
-          <h2 className='text-2xl font-bold tracking-tight'>PAC Rules</h2>
-          <p className='text-muted-foreground'>
-            Luật PAC động — render thành{' '}
-            <span className='font-mono'>/api/client/pac</span>. Client tự cập
-            nhật mỗi 30s.
-          </p>
-        </div>
+        <p className='text-sm text-muted-foreground'>
+          Luật PAC động — render thành{' '}
+          <span className='font-mono'>/api/client/pac</span>. Client tự cập nhật
+          mỗi 30s.
+        </p>
         <div className='flex gap-2'>
           <Button
             variant='outline'
@@ -363,6 +359,6 @@ export function PacRulesPage() {
           </pre>
         </DialogContent>
       </Dialog>
-    </Main>
+    </div>
   )
 }

@@ -1,6 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Derp } from '@/features/derp'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
+// Gộp vào Machines (tab Regions) — 2026-07. Giữ redirect cho link/bookmark cũ.
 export const Route = createFileRoute('/_authenticated/derp/')({
-  component: Derp,
+  beforeLoad: () => {
+    throw redirect({ to: '/machines' })
+  },
 })
