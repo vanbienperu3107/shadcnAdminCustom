@@ -29,7 +29,7 @@ type StatProps = {
   label: string
   value: ReactNode
   sub?: string
-  to: '/overview' | '/machines' | '/tailnet-users' | '/latency' | '/derp'
+  to: '/overview' | '/machines' | '/tailnet-access'
 }
 
 function Stat({ icon: Icon, label, value, sub, to }: StatProps) {
