@@ -111,10 +111,12 @@ export const clientConfig = pgTable('client_config', {
 })
 
 export const clientNetcheck = pgTable('client_netcheck', {
-  client:     text('client').primaryKey(),
-  portSocks5: integer('port_socks5'),
-  portHttp:   integer('port_http'),
-  reportedAt: timestamp('reported_at', { withTimezone: true }).notNull().defaultNow(),
+  client:           text('client').primaryKey(),
+  portSocks5:       integer('port_socks5'),
+  portHttp:         integer('port_http'),
+  mode:             text('mode'),              // 'portable' | 'proxy' | 'vpn' (node-build variant)
+  advertisedRoutes: text('advertised_routes'),  // vd "10.0.0.0/8" (chỉ node proxy)
+  reportedAt:       timestamp('reported_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 /** Cấu hình runtime per-node (load từ dashboard lúc client khởi động).

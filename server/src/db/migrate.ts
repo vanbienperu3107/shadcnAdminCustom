@@ -167,6 +167,12 @@ export async function migrate(): Promise<void> {
       reported_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `)
+  await db.execute(sql`
+    ALTER TABLE client_netcheck ADD COLUMN IF NOT EXISTS mode TEXT
+  `)
+  await db.execute(sql`
+    ALTER TABLE client_netcheck ADD COLUMN IF NOT EXISTS advertised_routes TEXT
+  `)
 
   // Cấu hình runtime per-node (load từ dashboard lúc client boot). Key = MAC.
   await db.execute(sql`

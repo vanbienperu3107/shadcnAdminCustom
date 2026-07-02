@@ -11,6 +11,8 @@ export type ClientPort = {
   client: string
   portSocks5: number | null
   portHttp: number | null
+  mode: string | null
+  advertisedRoutes: string | null
   reportedAt: string
 }
 
