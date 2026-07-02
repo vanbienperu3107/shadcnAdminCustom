@@ -2,15 +2,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Main } from '@/components/layout/main'
 import { Acl } from '@/features/acl'
 import { ClientConfig } from '@/features/client-config'
+import { DnsSplit } from '@/features/dns-split'
 import { NodeRuntimePage } from '@/features/node-runtime'
 import { PacRulesPage } from '@/features/pac-rules'
 import { PreAuthKeys } from '@/features/preauth-keys'
 import { TailnetUsers } from '@/features/tailnet-users'
 
 /** Gộp từ: Users, ACL Policy, Pre-auth Keys, Node Runtime, PAC Rules, Client
- *  Config — cùng chủ đề "ai được vào tailnet + cấu hình client agent đi kèm".
- *  Radix Tabs chỉ mount TabsContent đang active nên mỗi tab tự lazy-load dữ
- *  liệu của nó khi được mở lần đầu, không gọi API của các tab còn lại. */
+ *  Config, Split DNS — cùng chủ đề "ai được vào tailnet + cấu hình client
+ *  agent đi kèm". Radix Tabs chỉ mount TabsContent đang active nên mỗi tab tự
+ *  lazy-load dữ liệu của nó khi được mở lần đầu, không gọi API tab khác. */
 export function TailnetAccess() {
   return (
     <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
@@ -29,6 +30,7 @@ export function TailnetAccess() {
           <TabsTrigger value='runtime'>Node Runtime</TabsTrigger>
           <TabsTrigger value='pac'>PAC Rules</TabsTrigger>
           <TabsTrigger value='global'>Client Config</TabsTrigger>
+          <TabsTrigger value='dns'>Split DNS</TabsTrigger>
         </TabsList>
 
         <TabsContent value='users' className='mt-4'>
@@ -48,6 +50,9 @@ export function TailnetAccess() {
         </TabsContent>
         <TabsContent value='global' className='mt-4'>
           <ClientConfig />
+        </TabsContent>
+        <TabsContent value='dns' className='mt-4'>
+          <DnsSplit />
         </TabsContent>
       </Tabs>
     </Main>

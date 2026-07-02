@@ -54,7 +54,9 @@ export async function migrate(): Promise<void> {
     )
   `)
 
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`)
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`
+  )
 
   // Bảng đơn dòng lưu Headscale API key (auto-refresh 24h).
   await db.execute(sql`
@@ -209,7 +211,9 @@ export async function migrate(): Promise<void> {
       created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `)
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_pac_rules_scope_mac ON pac_rules(scope, mac)`)
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS idx_pac_rules_scope_mac ON pac_rules(scope, mac)`
+  )
 
   // Seed pac_rules từ PAC tĩnh hiện tại (chỉ khi bảng rỗng) — bitel/viettel + dải LAN.
   await db.execute(sql`
@@ -222,5 +226,20 @@ export async function migrate(): Promise<void> {
       ('global', 'subnet', '192.168.0.0/16', 'PROXY 127.0.0.1:8888', 200)
     ) AS v(scope, kind, pattern, proxy_target, priority)
     WHERE NOT EXISTS (SELECT 1 FROM pac_rules)
+  `)
+
+  // Split-DNS: domain nội bộ -> nameserver nội bộ. headscale (Feature D) gọi
+  // GET /api/internal/dns-split, merge vào tailcfg.DNSConfig.Routes cho mọi
+  // node — sửa domain/nameserver ở đây, không cần sửa config.yaml + restart.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS dns_split_rules (
+      id           SERIAL PRIMARY KEY,
+      domain       TEXT NOT NULL UNIQUE,
+      nameservers  TEXT NOT NULL,
+      note         TEXT,
+      enabled      BOOLEAN NOT NULL DEFAULT true,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
   `)
 }
