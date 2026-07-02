@@ -2,8 +2,6 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MoreHorizontal, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +12,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -142,8 +142,8 @@ function DeleteDialog({
           </AlertDialogTitle>
           <AlertDialogDescription>
             <b>{row?.givenName || row?.name}</b> sẽ bị xóa hẳn khỏi headscale.
-            Thiết bị này sẽ mất kết nối tailnet ngay lập tức và phải đăng ký
-            lại (auth URL mới) để dùng lại. Hành động không thể hoàn tác.
+            Thiết bị này sẽ mất kết nối tailnet ngay lập tức và phải đăng ký lại
+            (auth URL mới) để dùng lại. Hành động không thể hoàn tác.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -191,9 +191,9 @@ function ExpireDialog({
           <AlertDialogTitle>Thu hồi key thiết bị?</AlertDialogTitle>
           <AlertDialogDescription>
             <b>{row?.givenName || row?.name}</b> vẫn còn trong headscale nhưng
-            node key hết hạn ngay — thiết bị phải mở lại link đăng nhập để
-            dùng lại tailnet. Dùng khi nghi ngờ máy bị lộ key, không muốn xóa
-            hẳn thiết bị.
+            node key hết hạn ngay — thiết bị phải mở lại link đăng nhập để dùng
+            lại tailnet. Dùng khi nghi ngờ máy bị lộ key, không muốn xóa hẳn
+            thiết bị.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -258,7 +258,12 @@ function MachineRow({
       <TableCell className='text-end'>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant='ghost' size='icon' className='size-8' disabled={!n.id}>
+            <Button
+              variant='ghost'
+              size='icon'
+              className='size-8'
+              disabled={!n.id}
+            >
               <MoreHorizontal className='size-4' />
             </Button>
           </DropdownMenuTrigger>
