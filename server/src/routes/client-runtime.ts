@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { and, eq, or } from 'drizzle-orm'
+import { and, eq, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/client.js'
 import { clientConfig, nodeRuntimeConfig, pacRules } from '../db/schema.js'
@@ -113,6 +113,26 @@ export async function clientRuntimeRoutes(app: FastifyInstance): Promise<void> {
   // ----- node_runtime_config -----
   app.get('/api/node-runtime', async () => {
     return db.select().from(nodeRuntimeConfig).orderBy(nodeRuntimeConfig.mac)
+  })
+
+  // Danh sách thiết bị ĐANG ONLINE (report metrics trong 5 phút gần nhất, có MAC)
+  // — nguồn cho dialog "Thêm node" chọn thay vì gõ tay MAC dễ sai. 1 dòng/hostname
+  // (MAC + lần report mới nhất), suy từ latency_samples (được /api/metrics/report
+  // ghi mỗi 60s bởi chính node). Loại trừ hostname đã có override sẵn.
+  app.get('/api/node-runtime/online', async () => {
+    const rows = await db.execute(sql`
+      SELECT src_hostname AS hostname, mac, MAX(reported_at) AS last_seen
+      FROM latency_samples
+      WHERE mac IS NOT NULL AND mac <> ''
+        AND reported_at > now() - interval '5 minutes'
+      GROUP BY src_hostname, mac
+      ORDER BY src_hostname
+    `)
+    const configured = new Set(
+      (await db.select({ mac: nodeRuntimeConfig.mac }).from(nodeRuntimeConfig)).map((r) => r.mac)
+    )
+    return (rows as unknown as { hostname: string; mac: string; last_seen: string }[])
+      .map((r) => ({ ...r, configured: configured.has(r.mac) }))
   })
 
   app.put('/api/node-runtime/:mac', async (req, reply) => {
