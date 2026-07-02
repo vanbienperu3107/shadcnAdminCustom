@@ -4,7 +4,7 @@ import { getApiKey } from './apikey-manager.js'
 /** Gọi headscale HTTP API bằng Bearer API key (đọc từ DB, fallback env). */
 export async function hsApi<T = unknown>(
   path: string,
-  init?: Omit<RequestInit, 'headers' | 'signal'>,
+  init?: Omit<RequestInit, 'headers' | 'signal'>
 ): Promise<T> {
   const key = await getApiKey()
   if (!key) throw new Error('no_headscale_key')
@@ -18,7 +18,14 @@ export async function hsApi<T = unknown>(
     signal: AbortSignal.timeout(8000),
   })
   if (!res.ok) {
-    const err = new Error(`headscale ${res.status}`) as Error & { status: number }
+    // Giữ lại body lỗi thật của headscale (vd "invalid node name") — trước đây
+    // bị nuốt mất, chỉ còn "headscale 500" khiến không biết vì sao thất bại.
+    const bodyText = await res.text().catch(() => '')
+    const err = new Error(
+      `headscale ${res.status}${bodyText ? `: ${bodyText}` : ''}`
+    ) as Error & {
+      status: number
+    }
     err.status = res.status
     throw err
   }

@@ -1,5 +1,5 @@
-import type { FastifyInstance } from 'fastify'
 import { sql } from 'drizzle-orm'
+import type { FastifyInstance } from 'fastify'
 import { requireAuth } from '../auth/middleware.js'
 import { db } from '../db/client.js'
 import { latencySamples } from '../db/schema.js'
@@ -22,7 +22,9 @@ type MetricsBody = {
 }
 
 /** Public — không cần auth. Nhận báo cáo từ metrics-report.ps1 trên các client. */
-export async function headscalePublicRoutes(app: FastifyInstance): Promise<void> {
+export async function headscalePublicRoutes(
+  app: FastifyInstance
+): Promise<void> {
   app.post('/api/metrics/report', async (req, reply) => {
     const secret = env.METRICS_SHARED_SECRET
     if (secret && req.headers['x-metrics-secret'] !== secret) {
@@ -30,7 +32,9 @@ export async function headscalePublicRoutes(app: FastifyInstance): Promise<void>
     }
 
     const body = req.body as MetricsBody
-    const srcHostname = String(body.hostname ?? '').toLowerCase().trim()
+    const srcHostname = String(body.hostname ?? '')
+      .toLowerCase()
+      .trim()
     if (!srcHostname || !Array.isArray(body.samples)) {
       return reply.code(400).send({ error: 'hostname and samples[] required' })
     }
@@ -39,7 +43,9 @@ export async function headscalePublicRoutes(app: FastifyInstance): Promise<void>
       .filter((s) => s.dst)
       .map((s) => ({
         srcHostname,
-        dstHostname: String(s.dst ?? '').toLowerCase().trim(),
+        dstHostname: String(s.dst ?? '')
+          .toLowerCase()
+          .trim(),
         srcIp: body.ipv4 != null ? String(body.ipv4) : null,
         mac: body.mac != null ? String(body.mac) : null,
         rttMs: typeof s.rtt_ms === 'number' ? s.rtt_ms : null,
@@ -57,11 +63,11 @@ export async function headscalePublicRoutes(app: FastifyInstance): Promise<void>
       .onConflictDoUpdate({
         target: [latencySamples.srcHostname, latencySamples.dstHostname],
         set: {
-          srcIp:      sql`EXCLUDED.src_ip`,
-          mac:        sql`EXCLUDED.mac`,
-          rttMs:      sql`EXCLUDED.rtt_ms`,
-          path:       sql`EXCLUDED.path`,
-          ok:         sql`EXCLUDED.ok`,
+          srcIp: sql`EXCLUDED.src_ip`,
+          mac: sql`EXCLUDED.mac`,
+          rttMs: sql`EXCLUDED.rtt_ms`,
+          path: sql`EXCLUDED.path`,
+          ok: sql`EXCLUDED.ok`,
           reportedAt: sql`EXCLUDED.reported_at`,
         },
       })
@@ -80,16 +86,21 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
       const d = await hsApi<{ nodes?: unknown[] }>('/api/v1/node')
       return { configured: true, nodes: d.nodes ?? [] }
     } catch (e) {
-      return reply.code(502).send({ configured: true, error: String(e), nodes: [] })
+      return reply
+        .code(502)
+        .send({ configured: true, error: String(e), nodes: [] })
     }
   })
 
   // DELETE /api/machines/:id — xóa hẳn thiết bị khỏi headscale.
   app.delete('/api/machines/:id', async (req, reply) => {
     const { id } = req.params as { id: string }
-    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'headscale not configured' })
+    if (!(await isHsConfigured()))
+      return reply.code(503).send({ error: 'headscale not configured' })
     try {
-      await hsApi(`/api/v1/node/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      await hsApi(`/api/v1/node/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      })
       return { ok: true }
     } catch (e) {
       return reply.code(502).send({ error: String(e) })
@@ -102,11 +113,15 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
     const body = req.body as { name?: unknown }
     const name = typeof body?.name === 'string' ? body.name.trim() : ''
     if (!name) return reply.code(400).send({ error: 'name required' })
-    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'headscale not configured' })
+    if (!(await isHsConfigured()))
+      return reply.code(503).send({ error: 'headscale not configured' })
     try {
-      const d = await hsApi(`/api/v1/node/${encodeURIComponent(id)}/rename/${encodeURIComponent(name)}`, {
-        method: 'POST',
-      })
+      const d = await hsApi(
+        `/api/v1/node/${encodeURIComponent(id)}/rename/${encodeURIComponent(name)}`,
+        {
+          method: 'POST',
+        }
+      )
       return d
     } catch (e) {
       return reply.code(502).send({ error: String(e) })
@@ -116,9 +131,12 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
   // POST /api/machines/:id/expire — thu hồi node key, buộc thiết bị đăng nhập lại.
   app.post('/api/machines/:id/expire', async (req, reply) => {
     const { id } = req.params as { id: string }
-    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'headscale not configured' })
+    if (!(await isHsConfigured()))
+      return reply.code(503).send({ error: 'headscale not configured' })
     try {
-      await hsApi(`/api/v1/node/${encodeURIComponent(id)}/expire`, { method: 'POST' })
+      await hsApi(`/api/v1/node/${encodeURIComponent(id)}/expire`, {
+        method: 'POST',
+      })
       return { ok: true }
     } catch (e) {
       return reply.code(502).send({ error: String(e) })
@@ -131,7 +149,9 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
       const d = await hsApi<{ users?: unknown[] }>('/api/v1/user')
       return { configured: true, users: d.users ?? [] }
     } catch (e) {
-      return reply.code(502).send({ configured: true, error: String(e), users: [] })
+      return reply
+        .code(502)
+        .send({ configured: true, error: String(e), users: [] })
     }
   })
 
@@ -164,25 +184,40 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
           prefix,
           enabled: approved.includes(prefix),
           isPrimary: subnet.includes(prefix),
-          node: { id: n.id, name: n.name, givenName: n.givenName, user: n.user, online: n.online },
+          node: {
+            id: n.id,
+            name: n.name,
+            givenName: n.givenName,
+            user: n.user,
+            online: n.online,
+          },
         }))
       })
       return { configured: true, routes }
     } catch (e) {
       if (isHsNotFound(e)) return { configured: true, routes: [] }
-      return reply.code(502).send({ configured: true, error: String(e), routes: [] })
+      return reply
+        .code(502)
+        .send({ configured: true, error: String(e), routes: [] })
     }
   })
 
   // Tách "<nodeId>|<prefix>" rồi set lại approvedRoutes (add khi enable, remove khi delete).
-  function parseRouteId(raw: string): { nodeId: string; prefix: string } | null {
+  function parseRouteId(
+    raw: string
+  ): { nodeId: string; prefix: string } | null {
     const id = decodeURIComponent(raw)
     const sep = id.indexOf('|')
     if (sep < 0) return null
     return { nodeId: id.slice(0, sep), prefix: id.slice(sep + 1) }
   }
-  async function setApproved(nodeId: string, mutate: (s: Set<string>) => void): Promise<void> {
-    const d = await hsApi<{ node?: HsNode }>(`/api/v1/node/${encodeURIComponent(nodeId)}`)
+  async function setApproved(
+    nodeId: string,
+    mutate: (s: Set<string>) => void
+  ): Promise<void> {
+    const d = await hsApi<{ node?: HsNode }>(
+      `/api/v1/node/${encodeURIComponent(nodeId)}`
+    )
     const set = new Set(d.node?.approvedRoutes ?? [])
     mutate(set)
     await hsApi(`/api/v1/node/${encodeURIComponent(nodeId)}/approve_routes`, {
@@ -192,7 +227,8 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
   }
 
   app.post('/api/routes/:id/enable', async (req, reply) => {
-    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'not configured' })
+    if (!(await isHsConfigured()))
+      return reply.code(503).send({ error: 'not configured' })
     const p = parseRouteId((req.params as { id: string }).id)
     if (!p) return reply.code(400).send({ error: 'bad route id' })
     try {
@@ -204,7 +240,8 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
   })
 
   app.delete('/api/routes/:id', async (req, reply) => {
-    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'not configured' })
+    if (!(await isHsConfigured()))
+      return reply.code(503).send({ error: 'not configured' })
     const p = parseRouteId((req.params as { id: string }).id)
     if (!p) return reply.code(400).send({ error: 'bad route id' })
     try {
@@ -224,16 +261,23 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
       return { configured: true, policy: d.policy ?? '' }
     } catch (e) {
       if (isHsNotFound(e)) return { configured: true, policy: '' }
-      return reply.code(502).send({ configured: true, error: String(e), policy: '' })
+      return reply
+        .code(502)
+        .send({ configured: true, error: String(e), policy: '' })
     }
   })
 
   app.post('/api/acl', async (req, reply) => {
-    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'not configured' })
+    if (!(await isHsConfigured()))
+      return reply.code(503).send({ error: 'not configured' })
     const { policy } = req.body as { policy?: string }
-    if (typeof policy !== 'string') return reply.code(400).send({ error: 'policy string required' })
+    if (typeof policy !== 'string')
+      return reply.code(400).send({ error: 'policy string required' })
     try {
-      await hsApi('/api/v1/policy', { method: 'PUT', body: JSON.stringify({ policy }) })
+      await hsApi('/api/v1/policy', {
+        method: 'PUT',
+        body: JSON.stringify({ policy }),
+      })
       return { ok: true }
     } catch (e) {
       return reply.code(isHsNotFound(e) ? 404 : 502).send({ error: String(e) })
@@ -248,10 +292,11 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
 
   async function resolveUserNumericID(name: string): Promise<string> {
     const d = await hsApi<{ users?: { id?: string; name?: string }[] }>(
-      `/api/v1/user?name=${encodeURIComponent(name)}`,
+      `/api/v1/user?name=${encodeURIComponent(name)}`
     )
     const id = d.users?.[0]?.id
-    if (!id) throw Object.assign(new Error(`user not found: ${name}`), { status: 404 })
+    if (!id)
+      throw Object.assign(new Error(`user not found: ${name}`), { status: 404 })
     return id
   }
 
@@ -261,17 +306,20 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
     try {
       const uid = await resolveUserNumericID(user)
       const d = await hsApi<{ preAuthKeys?: unknown[] }>(
-        `/api/v1/preauthkey?user=${encodeURIComponent(uid)}`,
+        `/api/v1/preauthkey?user=${encodeURIComponent(uid)}`
       )
       return { configured: true, preAuthKeys: d.preAuthKeys ?? [] }
     } catch (e) {
       if (isHsNotFound(e)) return { configured: true, preAuthKeys: [] }
-      return reply.code(502).send({ configured: true, error: String(e), preAuthKeys: [] })
+      return reply
+        .code(502)
+        .send({ configured: true, error: String(e), preAuthKeys: [] })
     }
   })
 
   app.post('/api/preauthkeys', async (req, reply) => {
-    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'not configured' })
+    if (!(await isHsConfigured()))
+      return reply.code(503).send({ error: 'not configured' })
     try {
       const body = req.body as { user?: string; [k: string]: unknown }
       const forwardBody: Record<string, unknown> = { ...body }
@@ -289,7 +337,8 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
   })
 
   app.post('/api/users/:user/preauthkeys/expire', async (req, reply) => {
-    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'not configured' })
+    if (!(await isHsConfigured()))
+      return reply.code(503).send({ error: 'not configured' })
     const { user } = req.params as { user: string }
     const { key } = req.body as { key?: string }
     if (!key) return reply.code(400).send({ error: 'key required' })
@@ -310,15 +359,15 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
     try {
       const rows = await db.select().from(latencySamples)
       const pairs = rows.map((r) => ({
-        src:         r.srcHostname,
-        dst:         r.dstHostname,
-        src_ip:      r.srcIp,
-        mac:         r.mac,
-        rtt_ms:      r.rttMs,
-        avg_ms:      r.rttMs,       // backward compat — frontend dùng avg_ms
-        path:        r.path,
-        last_path:   r.path,        // backward compat — frontend dùng last_path
-        ok:          r.ok,
+        src: r.srcHostname,
+        dst: r.dstHostname,
+        src_ip: r.srcIp,
+        mac: r.mac,
+        rtt_ms: r.rttMs,
+        avg_ms: r.rttMs, // backward compat — frontend dùng avg_ms
+        path: r.path,
+        last_path: r.path, // backward compat — frontend dùng last_path
+        ok: r.ok,
         reported_at: r.reportedAt,
       }))
       return { pairs }

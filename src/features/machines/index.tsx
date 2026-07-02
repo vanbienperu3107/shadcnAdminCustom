@@ -53,6 +53,20 @@ import {
   userName,
 } from '@/features/headscale/hs-api'
 
+/** Headscale node name = DNS label: chữ thường a-z0-9 và '-', không bắt đầu/kết
+ *  thúc bằng '-'. Bỏ dấu tiếng Việt, hạ chữ thường, thay ký tự lạ bằng '-'. */
+function slugifyNodeName(input: string): string {
+  return input
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // bỏ dấu (combining diacritical marks)
+    .toLowerCase()
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 63) // giới hạn DNS label
+}
+
 function RenameDialog({
   open,
   onOpenChange,
@@ -64,15 +78,19 @@ function RenameDialog({
 }) {
   const qc = useQueryClient()
   const [name, setName] = useState('')
+  const slug = slugifyNodeName(name)
 
   const mut = useMutation({
-    mutationFn: () => renameMachine(row!.id!, name.trim()),
+    mutationFn: () => renameMachine(row!.id!, slug),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: hsKeys.machines })
       toast.success('Đã đổi tên thiết bị')
       onOpenChange(false)
     },
-    onError: () => toast.error('Đổi tên thất bại'),
+    onError: (e) =>
+      toast.error(
+        `Đổi tên thất bại: ${e instanceof Error ? e.message : String(e)}`
+      ),
   })
 
   return (
@@ -88,7 +106,8 @@ function RenameDialog({
           <DialogTitle>Đổi tên thiết bị</DialogTitle>
           <DialogDescription>
             Đổi given name hiển thị trên tailnet cho{' '}
-            <b>{row?.givenName || row?.name}</b>.
+            <b>{row?.givenName || row?.name}</b>. Headscale chỉ chấp nhận chữ
+            thường, số và dấu gạch ngang — ký tự khác sẽ tự chuyển đổi.
           </DialogDescription>
         </DialogHeader>
         <Input
@@ -97,13 +116,18 @@ function RenameDialog({
           placeholder='ten-thiet-bi'
           autoFocus
         />
+        {name.trim() && (
+          <p className='text-xs text-muted-foreground'>
+            Sẽ đặt tên: <span className='font-mono'>{slug || '—'}</span>
+          </p>
+        )}
         <DialogFooter>
           <Button variant='outline' onClick={() => onOpenChange(false)}>
             Hủy
           </Button>
           <Button
             onClick={() => mut.mutate()}
-            disabled={!name.trim() || mut.isPending || !row?.id}
+            disabled={!slug || mut.isPending || !row?.id}
           >
             Lưu
           </Button>
