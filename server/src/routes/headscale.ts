@@ -84,6 +84,47 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
     }
   })
 
+  // DELETE /api/machines/:id — xóa hẳn thiết bị khỏi headscale.
+  app.delete('/api/machines/:id', async (req, reply) => {
+    const { id } = req.params as { id: string }
+    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'headscale not configured' })
+    try {
+      await hsApi(`/api/v1/node/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      return { ok: true }
+    } catch (e) {
+      return reply.code(502).send({ error: String(e) })
+    }
+  })
+
+  // POST /api/machines/:id/rename — đổi given name hiển thị của thiết bị.
+  app.post('/api/machines/:id/rename', async (req, reply) => {
+    const { id } = req.params as { id: string }
+    const body = req.body as { name?: unknown }
+    const name = typeof body?.name === 'string' ? body.name.trim() : ''
+    if (!name) return reply.code(400).send({ error: 'name required' })
+    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'headscale not configured' })
+    try {
+      const d = await hsApi(`/api/v1/node/${encodeURIComponent(id)}/rename/${encodeURIComponent(name)}`, {
+        method: 'POST',
+      })
+      return d
+    } catch (e) {
+      return reply.code(502).send({ error: String(e) })
+    }
+  })
+
+  // POST /api/machines/:id/expire — thu hồi node key, buộc thiết bị đăng nhập lại.
+  app.post('/api/machines/:id/expire', async (req, reply) => {
+    const { id } = req.params as { id: string }
+    if (!(await isHsConfigured())) return reply.code(503).send({ error: 'headscale not configured' })
+    try {
+      await hsApi(`/api/v1/node/${encodeURIComponent(id)}/expire`, { method: 'POST' })
+      return { ok: true }
+    } catch (e) {
+      return reply.code(502).send({ error: String(e) })
+    }
+  })
+
   app.get('/api/users', async (_req, reply) => {
     if (!(await isHsConfigured())) return { configured: false, users: [] }
     try {

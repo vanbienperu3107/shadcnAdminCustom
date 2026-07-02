@@ -51,3 +51,24 @@ export async function upsertNodeRuntime(
 export async function deleteNodeRuntime(mac: string): Promise<void> {
   await api.delete(`/node-runtime/${encodeURIComponent(mac)}`)
 }
+
+export type OnlineDevice = {
+  hostname: string
+  mac: string
+  lastSeen: string
+  configured: boolean
+}
+
+/** Thiết bị đang online (report metrics trong 5 phút gần nhất) — dùng để chọn
+ *  thay vì gõ tay MAC. `configured=true` = đã có dòng node_runtime_config. */
+export async function listOnlineDevices(): Promise<OnlineDevice[]> {
+  const { data } = await api.get<
+    { hostname: string; mac: string; last_seen: string; configured: boolean }[]
+  >('/node-runtime/online')
+  return data.map((d) => ({
+    hostname: d.hostname,
+    mac: d.mac,
+    lastSeen: d.last_seen,
+    configured: d.configured,
+  }))
+}

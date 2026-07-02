@@ -13,6 +13,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
   Table,
@@ -26,10 +33,12 @@ import { Main } from '@/components/layout/main'
 import {
   deleteNodeRuntime,
   listNodeRuntime,
+  listOnlineDevices,
   nodeRuntimeKeys,
   upsertNodeRuntime,
   type NodeRuntime,
   type NodeRuntimeInput,
+  type OnlineDevice,
 } from './data/node-runtime-api'
 
 type Draft = NodeRuntimeInput & { mac: string }
@@ -65,6 +74,14 @@ export function NodeRuntimePage() {
     isError,
   } = useQuery({ queryKey: nodeRuntimeKeys.all, queryFn: listNodeRuntime })
 
+  // Thiết bị đang online trong 5' gần nhất (report qua metrics) — nguồn chọn
+  // cho dialog "Thêm node" thay vì gõ tay MAC dễ sai. Chỉ query khi dialog mở.
+  const online = useQuery({
+    queryKey: ['node-runtime', 'online'],
+    queryFn: listOnlineDevices,
+    enabled: false,
+  })
+
   const invalidate = () =>
     void qc.invalidateQueries({ queryKey: nodeRuntimeKeys.all })
 
@@ -90,6 +107,13 @@ export function NodeRuntimePage() {
   function openNew() {
     setDraft({ ...EMPTY })
     setIsNew(true)
+    void online.refetch()
+  }
+
+  function pickOnline(d: OnlineDevice) {
+    setDraft((prev) =>
+      prev ? { ...prev, mac: d.mac, hostname: d.hostname } : prev
+    )
   }
   function openEdit(r: NodeRuntime) {
     setDraft({
@@ -247,6 +271,44 @@ export function NodeRuntimePage() {
           </DialogHeader>
           {draft && (
             <div className='grid gap-3 py-1'>
+              {isNew && (
+                <Field label='Chọn thiết bị đang online'>
+                  {online.isFetching ? (
+                    <p className='text-xs text-muted-foreground'>
+                      Đang tải danh sách…
+                    </p>
+                  ) : (online.data ?? []).length === 0 ? (
+                    <p className='text-xs text-muted-foreground'>
+                      Không có thiết bị nào report trong 5 phút gần đây. Bật
+                      node lên rồi thử lại, hoặc nhập MAC tay bên dưới.
+                    </p>
+                  ) : (
+                    <Select
+                      value={draft.mac || undefined}
+                      onValueChange={(mac) => {
+                        const d = (online.data ?? []).find((x) => x.mac === mac)
+                        if (d) pickOnline(d)
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder='— chọn thiết bị —' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(online.data ?? []).map((d) => (
+                          <SelectItem
+                            key={d.mac}
+                            value={d.mac}
+                            disabled={d.configured}
+                          >
+                            {d.hostname} · {d.mac}
+                            {d.configured ? ' (đã cấu hình)' : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </Field>
+              )}
               <Field label='MAC'>
                 <Input
                   className='font-mono'

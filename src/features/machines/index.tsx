@@ -1,5 +1,35 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { MoreHorizontal, Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -12,15 +42,186 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Main } from '@/components/layout/main'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
 import {
+  deleteMachine,
   derpNameSet,
+  expireMachine,
   fetchMachines,
   type HsMachine,
   hsKeys,
   isDerpNode,
+  renameMachine,
   userName,
 } from '@/features/headscale/hs-api'
 
-function MachineRow({ n }: { n: HsMachine }) {
+function RenameDialog({
+  open,
+  onOpenChange,
+  row,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  row: HsMachine | null
+}) {
+  const qc = useQueryClient()
+  const [name, setName] = useState('')
+
+  const mut = useMutation({
+    mutationFn: () => renameMachine(row!.id!, name.trim()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: hsKeys.machines })
+      toast.success('Đã đổi tên thiết bị')
+      onOpenChange(false)
+    },
+    onError: () => toast.error('Đổi tên thất bại'),
+  })
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        onOpenChange(o)
+        if (o) setName(row?.givenName || row?.name || '')
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Đổi tên thiết bị</DialogTitle>
+          <DialogDescription>
+            Đổi given name hiển thị trên tailnet cho{' '}
+            <b>{row?.givenName || row?.name}</b>.
+          </DialogDescription>
+        </DialogHeader>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder='ten-thiet-bi'
+          autoFocus
+        />
+        <DialogFooter>
+          <Button variant='outline' onClick={() => onOpenChange(false)}>
+            Hủy
+          </Button>
+          <Button
+            onClick={() => mut.mutate()}
+            disabled={!name.trim() || mut.isPending || !row?.id}
+          >
+            Lưu
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DeleteDialog({
+  open,
+  onOpenChange,
+  row,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  row: HsMachine | null
+}) {
+  const qc = useQueryClient()
+  const mut = useMutation({
+    mutationFn: () => deleteMachine(row!.id!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: hsKeys.machines })
+      toast.success('Đã xóa thiết bị')
+      onOpenChange(false)
+    },
+    onError: () => toast.error('Xóa thất bại'),
+  })
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className='text-destructive'>
+            Xóa thiết bị?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            <b>{row?.givenName || row?.name}</b> sẽ bị xóa hẳn khỏi headscale.
+            Thiết bị này sẽ mất kết nối tailnet ngay lập tức và phải đăng ký
+            lại (auth URL mới) để dùng lại. Hành động không thể hoàn tác.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Hủy</AlertDialogCancel>
+          <AlertDialogAction
+            className='bg-destructive text-white hover:bg-destructive/90'
+            onClick={(e) => {
+              e.preventDefault()
+              mut.mutate()
+            }}
+            disabled={mut.isPending || !row?.id}
+          >
+            Xóa
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+function ExpireDialog({
+  open,
+  onOpenChange,
+  row,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  row: HsMachine | null
+}) {
+  const qc = useQueryClient()
+  const mut = useMutation({
+    mutationFn: () => expireMachine(row!.id!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: hsKeys.machines })
+      toast.success('Đã thu hồi key — thiết bị cần đăng nhập lại')
+      onOpenChange(false)
+    },
+    onError: () => toast.error('Thu hồi thất bại'),
+  })
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Thu hồi key thiết bị?</AlertDialogTitle>
+          <AlertDialogDescription>
+            <b>{row?.givenName || row?.name}</b> vẫn còn trong headscale nhưng
+            node key hết hạn ngay — thiết bị phải mở lại link đăng nhập để
+            dùng lại tailnet. Dùng khi nghi ngờ máy bị lộ key, không muốn xóa
+            hẳn thiết bị.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Hủy</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => {
+              e.preventDefault()
+              mut.mutate()
+            }}
+            disabled={mut.isPending || !row?.id}
+          >
+            Thu hồi
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+type DialogKind = 'rename' | 'delete' | 'expire' | null
+
+function MachineRow({
+  n,
+  onAction,
+}: {
+  n: HsMachine
+  onAction: (kind: DialogKind, row: HsMachine) => void
+}) {
   return (
     <TableRow>
       <TableCell className='font-medium'>
@@ -54,11 +255,41 @@ function MachineRow({ n }: { n: HsMachine }) {
       <TableCell className='text-xs text-muted-foreground'>
         {n.lastSeen ? new Date(n.lastSeen).toLocaleString() : '—'}
       </TableCell>
+      <TableCell className='text-end'>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant='ghost' size='icon' className='size-8' disabled={!n.id}>
+              <MoreHorizontal className='size-4' />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align='end'>
+            <DropdownMenuItem onClick={() => onAction('rename', n)}>
+              <Pencil className='me-2 size-4' /> Đổi tên
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAction('expire', n)}>
+              <RotateCcw className='me-2 size-4' /> Thu hồi key
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant='destructive'
+              onClick={() => onAction('delete', n)}
+            >
+              <Trash2 className='me-2 size-4' /> Xóa
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
     </TableRow>
   )
 }
 
-function MachineTable({ rows }: { rows: HsMachine[] }) {
+function MachineTable({
+  rows,
+  onAction,
+}: {
+  rows: HsMachine[]
+  onAction: (kind: DialogKind, row: HsMachine) => void
+}) {
   return (
     <div className='overflow-hidden rounded-md border'>
       <Table>
@@ -69,20 +300,23 @@ function MachineTable({ rows }: { rows: HsMachine[] }) {
             <TableHead>IP</TableHead>
             <TableHead>Trạng thái</TableHead>
             <TableHead>Last seen</TableHead>
+            <TableHead className='text-end'>Hành động</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={5}
+                colSpan={6}
                 className='h-16 text-center text-muted-foreground'
               >
                 Không có node nào.
               </TableCell>
             </TableRow>
           ) : (
-            rows.map((n, i) => <MachineRow key={n.id ?? i} n={n} />)
+            rows.map((n, i) => (
+              <MachineRow key={n.id ?? i} n={n} onAction={onAction} />
+            ))
           )}
         </TableBody>
       </Table>
@@ -97,6 +331,13 @@ export function Machines() {
     refetchInterval: 30_000,
   })
   const derp = useQuery({ queryKey: derpKeys.all, queryFn: listDerp })
+
+  const [dialog, setDialog] = useState<DialogKind>(null)
+  const [currentRow, setCurrentRow] = useState<HsMachine | null>(null)
+  const onAction = (kind: DialogKind, row: HsMachine) => {
+    setCurrentRow(row)
+    setDialog(kind)
+  }
 
   const names = derpNameSet(derp.data ?? [])
   const nodes = data?.nodes ?? []
@@ -140,13 +381,29 @@ export function Machines() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value='users' className='mt-4'>
-            <MachineTable rows={userNodes} />
+            <MachineTable rows={userNodes} onAction={onAction} />
           </TabsContent>
           <TabsContent value='derp' className='mt-4'>
-            <MachineTable rows={derpNodes} />
+            <MachineTable rows={derpNodes} onAction={onAction} />
           </TabsContent>
         </Tabs>
       )}
+
+      <RenameDialog
+        open={dialog === 'rename'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        row={currentRow}
+      />
+      <DeleteDialog
+        open={dialog === 'delete'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        row={currentRow}
+      />
+      <ExpireDialog
+        open={dialog === 'expire'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        row={currentRow}
+      />
     </Main>
   )
 }

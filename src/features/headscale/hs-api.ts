@@ -58,6 +58,18 @@ export async function fetchMachines(): Promise<{
   return data
 }
 
+export async function deleteMachine(id: string): Promise<void> {
+  await api.delete(`/machines/${encodeURIComponent(id)}`)
+}
+
+export async function renameMachine(id: string, name: string): Promise<void> {
+  await api.post(`/machines/${encodeURIComponent(id)}/rename`, { name })
+}
+
+export async function expireMachine(id: string): Promise<void> {
+  await api.post(`/machines/${encodeURIComponent(id)}/expire`, {})
+}
+
 export async function fetchHsUsers(): Promise<{
   configured: boolean
   users: HsUser[]
