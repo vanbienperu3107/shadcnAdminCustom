@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Table,
@@ -11,13 +12,24 @@ import { homeDerpKeys, listHomeDerp } from './data/home-derp-api'
 
 const STALE_AFTER_MS = 30_000 // > 10x chu kỳ báo cáo (3s) coi như mất kết nối
 
+/** "Giờ hiện tại" dạng state, tick mỗi giây — tránh gọi Date.now() thẳng
+ *  trong render (impure, vi phạm react-hooks/purity). */
+function useNow(intervalMs = 1_000): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), intervalMs)
+    return () => clearInterval(id)
+  }, [intervalMs])
+  return now
+}
+
 function fmtMs(v: number | null): string {
   if (v == null) return '—'
   return `${Math.round(v * 10) / 10} ms`
 }
 
-function fmtAgo(iso: string): string {
-  const secs = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000))
+function fmtAgo(now: number, iso: string): string {
+  const secs = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000))
   if (secs < 2) return 'vừa xong'
   if (secs < 60) return `${secs}s trước`
   return `${Math.round(secs / 60)}p trước`
@@ -31,6 +43,7 @@ export function HomeDerp() {
     queryFn: listHomeDerp,
     refetchInterval: 3_000,
   })
+  const now = useNow()
 
   const rows = [...data].sort((a, b) => a.hostname.localeCompare(b.hostname))
 
@@ -71,8 +84,7 @@ export function HomeDerp() {
               ) : (
                 rows.map((r) => {
                   const stale =
-                    Date.now() - new Date(r.reportedAt).getTime() >
-                    STALE_AFTER_MS
+                    now - new Date(r.reportedAt).getTime() > STALE_AFTER_MS
                   return (
                     <TableRow key={r.mac} className={stale ? 'opacity-50' : ''}>
                       <TableCell className='font-medium'>
@@ -104,7 +116,7 @@ export function HomeDerp() {
                         {fmtMs(r.controllerLatencyMs)}
                       </TableCell>
                       <TableCell className='font-mono text-xs text-muted-foreground'>
-                        {fmtAgo(r.reportedAt)}
+                        {fmtAgo(now, r.reportedAt)}
                       </TableCell>
                     </TableRow>
                   )
