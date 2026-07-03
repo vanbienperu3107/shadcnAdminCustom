@@ -97,6 +97,36 @@ export const latencySamples = pgTable(
   (t) => [primaryKey({ columns: [t.srcHostname, t.dstHostname] })]
 )
 
+/** Home DERP hiện tại của từng client — client mod tự báo cáo mỗi 3s.
+ *  UPSERT theo mac, chỉ giữ bản mới nhất (không tích lũy lịch sử). */
+export const clientHomeDerp = pgTable('client_home_derp', {
+  mac: text('mac').primaryKey(),
+  hostname: text('hostname').notNull(),
+  homeRegionId: integer('home_region_id'),
+  homeRegionCode: text('home_region_code'),
+  controllerLatencyMs: real('controller_latency_ms'),
+  reportedAt: timestamp('reported_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
+/** Ping từ 1 client tới TỪNG DERP region — client mod tự báo cáo mỗi 30s.
+ *  UPSERT theo (client, region_id), chỉ giữ bản mới nhất mỗi cặp. */
+export const clientDerpPing = pgTable(
+  'client_derp_ping',
+  {
+    client: text('client').notNull(), // mac
+    regionId: integer('region_id').notNull(),
+    regionCode: text('region_code'),
+    rttMs: real('rtt_ms'),
+    ok: boolean('ok').notNull().default(true),
+    reportedAt: timestamp('reported_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.client, t.regionId] })]
+)
+
 /** Danh sách IP client bị ép đi qua một DERP cụ thể (quản lý iptables DERP-FORCE). */
 export const derpForceRoutes = pgTable('derp_force_routes', {
   id: serial('id').primaryKey(),
@@ -269,3 +299,5 @@ export type NodeRuntimeConfig = typeof nodeRuntimeConfig.$inferSelect
 export type NodeReloadRequest = typeof nodeReloadRequests.$inferSelect
 export type PacRule = typeof pacRules.$inferSelect
 export type DnsSplitRule = typeof dnsSplitRules.$inferSelect
+export type ClientHomeDerp = typeof clientHomeDerp.$inferSelect
+export type ClientDerpPing = typeof clientDerpPing.$inferSelect

@@ -273,6 +273,31 @@ export async function migrate(): Promise<void> {
   // Split-DNS: domain nội bộ -> nameserver nội bộ. headscale (Feature D) gọi
   // GET /api/internal/dns-split, merge vào tailcfg.DNSConfig.Routes cho mọi
   // node — sửa domain/nameserver ở đây, không cần sửa config.yaml + restart.
+  // Home DERP hien tai cua tung client — client mod tu bao cao moi 3s.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS client_home_derp (
+      mac                    TEXT PRIMARY KEY,
+      hostname               TEXT NOT NULL,
+      home_region_id         INTEGER,
+      home_region_code       TEXT,
+      controller_latency_ms  REAL,
+      reported_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+
+  // Ping tu 1 client toi tung DERP region — client mod tu bao cao moi 30s.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS client_derp_ping (
+      client       TEXT NOT NULL,
+      region_id    INTEGER NOT NULL,
+      region_code  TEXT,
+      rtt_ms       REAL,
+      ok           BOOLEAN NOT NULL DEFAULT true,
+      reported_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (client, region_id)
+    )
+  `)
+
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS dns_split_rules (
       id           SERIAL PRIMARY KEY,
