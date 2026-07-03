@@ -6,6 +6,7 @@ import { migrate } from './db/migrate.js'
 import { seedIfEmpty } from './db/seed.js'
 import { env, googleEnabled } from './env.js'
 import { seedFromEnv, startAutoRefresh } from './lib/apikey-manager.js'
+import { startDerpNodeHealthSweep } from './lib/derp-node-health.js'
 import { apikeyRoutes } from './routes/apikey.js'
 import { authRoutes } from './routes/auth.js'
 import { ciRoutes } from './routes/ci.js'
@@ -19,6 +20,7 @@ import {
 } from './routes/client-runtime.js'
 import { derpRoutes } from './routes/derp.js'
 import { derpmapRoutes } from './routes/derpmap.js'
+import { deviceIdentityPublicRoutes } from './routes/device-identity.js'
 import { dnsSplitPublicRoutes, dnsSplitRoutes } from './routes/dns-split.js'
 import { forceRouteRoutes } from './routes/force-routes.js'
 import { headscalePublicRoutes, headscaleRoutes } from './routes/headscale.js'
@@ -57,6 +59,7 @@ async function main() {
   await app.register(clientConfigRoutes)
   await app.register(dnsSplitPublicRoutes)
   await app.register(dnsSplitRoutes)
+  await app.register(deviceIdentityPublicRoutes)
 
   // SPA tĩnh (prod)
   if (env.CLIENT_DIST && existsSync(env.CLIENT_DIST)) {
@@ -84,6 +87,10 @@ async function main() {
   const seeded = await seedFromEnv()
   if (seeded) app.log.info('headscale apikey: seeded from env var')
   startAutoRefresh((msg) => app.log.info(msg))
+
+  // Probe nền cho các node đang "khóa cứng 1 DERP" — quyết định exclusive vs
+  // fallback (van an toàn 10 phút), tách khỏi request GET /api/internal/derp-map.
+  startDerpNodeHealthSweep()
 
   await app.listen({ host: '0.0.0.0', port: env.PORT })
   app.log.info(`DERP backend :${env.PORT} (public: ${env.PUBLIC_URL})`)

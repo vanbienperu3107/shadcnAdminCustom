@@ -125,6 +125,46 @@ export const derpNodeAssignments = pgTable(
   (t) => [primaryKey({ columns: [t.nodeKey, t.regionId] })]
 )
 
+/** Cờ "khóa cứng 1 DERP" theo node (tách bảng riêng vì exclusive là thuộc
+ *  tính của CẢ NODE, không phải của từng dòng gán — tránh phải đồng bộ N dòng
+ *  derp_node_assignments mỗi lần bật/tắt). exclusive=true → GET
+ *  /api/internal/derp-map/:nodeKey trả DERPMap CHỈ gồm region được gán (loại
+ *  hẳn, không phải chỉ phạt priority) — client không còn gì khác để tự chọn. */
+export const derpNodeOptions = pgTable('derp_node_options', {
+  nodeKey: text('node_key').primaryKey(),
+  exclusive: boolean('exclusive').notNull().default(false),
+})
+
+/** Trạng thái sức khỏe của region đang bị "khóa cứng" cho 1 node — cập nhật
+ *  bởi 1 tiến trình nền probe TLS định kỳ (KHÔNG probe trực tiếp trong request
+ *  GET /api/internal/derp-map, vì probe TLS có thể mất tới ~8s trong khi
+ *  headscale chỉ chờ 500ms rồi fail-open). status:
+ *   'ok'       — region khóa đang sống, phục vụ map exclusive bình thường.
+ *   'grace'    — region chết nhưng CHƯA quá 10 phút, vẫn phục vụ exclusive
+ *                (chờ xem có hồi phục không, tránh flap qua lại).
+ *   'fallback' — chết LIÊN TỤC ≥10 phút → van an toàn: tạm phục vụ map UNION
+ *                (như node bình thường) để client không bị kẹt cứng. Tự khóa
+ *                lại 'ok' ngay khi region sống trở lại. */
+export const derpNodeHealth = pgTable('derp_node_health', {
+  nodeKey:       text('node_key').primaryKey(),
+  status:        text('status').notNull().default('ok'),
+  lastHealthyAt: timestamp('last_healthy_at', { withTimezone: true }),
+  downSince:     timestamp('down_since', { withTimezone: true }),
+  updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Danh tính thiết bị theo MAC — "tên chuẩn" của 1 phần cứng, ổn định qua
+ *  nhiều lần cài lại (nodeKey đổi mỗi lần cài lại, MAC thì không). Lần đầu
+ *  thấy 1 MAC → hostname báo về trở thành tên chuẩn. Lần sau nếu node báo tên
+ *  khác (rebuild/rename hệ điều hành) → tự đổi node hiện tại về ĐÚNG tên
+ *  chuẩn này (không tạo tên mới) — xem POST /api/internal/device-register. */
+export const deviceIdentity = pgTable('device_identity', {
+  mac:       text('mac').primaryKey(),
+  hostname:  text('hostname').notNull(),
+  nodeKey:   text('node_key'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const clientConfig = pgTable('client_config', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),
@@ -220,6 +260,9 @@ export type HeadscaleApiKey = typeof headscaleApiKey.$inferSelect
 export type LatencySample = typeof latencySamples.$inferSelect
 export type DerpForceRoute = typeof derpForceRoutes.$inferSelect
 export type DerpNodeAssignment = typeof derpNodeAssignments.$inferSelect
+export type DerpNodeOptions = typeof derpNodeOptions.$inferSelect
+export type DerpNodeHealth = typeof derpNodeHealth.$inferSelect
+export type DeviceIdentity = typeof deviceIdentity.$inferSelect
 export type ClientConfig = typeof clientConfig.$inferSelect
 export type ClientNetcheck = typeof clientNetcheck.$inferSelect
 export type NodeRuntimeConfig = typeof nodeRuntimeConfig.$inferSelect

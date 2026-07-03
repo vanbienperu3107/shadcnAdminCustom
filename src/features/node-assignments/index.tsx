@@ -3,8 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CheckCircle2,
   Loader2,
+  Lock,
   Map as MapIcon,
   Pencil,
+  RotateCw,
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -19,6 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -37,9 +40,54 @@ import {
   assignmentKeys,
   deleteNodeAssignment,
   listNodeAssignments,
+  reloadDerpLock,
   setNodeAssignment,
+  type DerpLockStatus,
   type NodeAssignmentGroup,
 } from './data/assignments-api'
+
+function DerpLockBadge({
+  exclusive,
+  status,
+}: {
+  exclusive: boolean
+  status: DerpLockStatus
+}) {
+  if (!exclusive) {
+    return <span className='text-xs text-muted-foreground'>—</span>
+  }
+  if (status === 'fallback') {
+    return (
+      <Badge
+        variant='outline'
+        className='border-destructive/40 text-xs text-destructive'
+        title='Region khóa chết liên tục ≥10 phút — đang tạm dùng map bình thường để không kẹt client'
+      >
+        Fallback (chết &gt;10&apos;)
+      </Badge>
+    )
+  }
+  if (status === 'grace') {
+    return (
+      <Badge
+        variant='outline'
+        className='border-amber-500/40 text-xs text-amber-600 dark:text-amber-400'
+        title='Region khóa đang chết nhưng chưa quá 10 phút — vẫn giữ khóa, chờ hồi phục'
+      >
+        Chết, đang chờ (&lt;10&apos;)
+      </Badge>
+    )
+  }
+  return (
+    <Badge
+      variant='outline'
+      className='border-emerald-500/40 text-xs text-emerald-600 dark:text-emerald-400'
+    >
+      <Lock className='me-1 size-3' />
+      Khóa OK
+    </Badge>
+  )
+}
 
 function truncateKey(key: string | undefined): string {
   if (!key) return '—'
@@ -51,17 +99,26 @@ function truncateKey(key: string | undefined): string {
 type EditDialogProps = {
   machine: HsMachine
   current: number[]
+  currentExclusive: boolean
   open: boolean
   onClose: () => void
 }
 
-function EditDialog({ machine, current, open, onClose }: EditDialogProps) {
+function EditDialog({
+  machine,
+  current,
+  currentExclusive,
+  open,
+  onClose,
+}: EditDialogProps) {
   const qc = useQueryClient()
   const derps = useQuery({ queryKey: derpKeys.all, queryFn: listDerp })
   const [selected, setSelected] = useState<number[]>(current)
+  const [exclusive, setExclusive] = useState(currentExclusive)
 
   const mut = useMutation({
-    mutationFn: () => setNodeAssignment(machine.nodeKey ?? '', selected),
+    mutationFn: () =>
+      setNodeAssignment(machine.nodeKey ?? '', selected, exclusive),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: assignmentKeys.all })
       toast.success('Đã lưu node assignments')
@@ -109,6 +166,20 @@ function EditDialog({ machine, current, open, onClose }: EditDialogProps) {
         <p className='text-xs text-muted-foreground'>
           Khi không chọn region nào, node sẽ nhận DERPMap mặc định từ headscale.
         </p>
+        <div className='flex items-center justify-between rounded-md border p-3'>
+          <div>
+            <p className='text-sm font-medium'>
+              <Lock className='me-1 mb-0.5 inline size-3.5' />
+              Khóa cứng 1 DERP
+            </p>
+            <p className='text-xs text-muted-foreground'>
+              Loại hẳn region khác khỏi map — client không tự chuyển được.
+              Chết liên tục ≥10 phút thì tự fallback về bình thường (không kẹt
+              cứng).
+            </p>
+          </div>
+          <Switch checked={exclusive} onCheckedChange={setExclusive} />
+        </div>
         <DialogFooter>
           <Button variant='outline' onClick={onClose}>
             Hủy
@@ -151,6 +222,15 @@ export function NodeAssignments() {
     onError: () => toast.error('Xóa thất bại'),
   })
 
+  const reloadMut = useMutation({
+    mutationFn: reloadDerpLock,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: assignmentKeys.all })
+      toast.success('Đã gửi reload — đánh giá lại trong ≤30s')
+    },
+    onError: () => toast.error('Reload thất bại'),
+  })
+
   const assignmentMap = new Map<string, NodeAssignmentGroup>(
     (assignments.data ?? []).map((a) => [a.nodeKey, a])
   )
@@ -164,6 +244,9 @@ export function NodeAssignments() {
         .get(editMachine.nodeKey ?? '')
         ?.regions.map((r) => r.regionId) ?? [])
     : []
+  const editCurrentExclusive = editMachine
+    ? (assignmentMap.get(editMachine.nodeKey ?? '')?.exclusive ?? false)
+    : false
 
   return (
     <div className='flex flex-1 flex-col gap-6'>
@@ -190,6 +273,7 @@ export function NodeAssignments() {
                 <TableHead>IP</TableHead>
                 <TableHead>Node Key</TableHead>
                 <TableHead>DERP Regions</TableHead>
+                <TableHead>Trạng thái khóa</TableHead>
                 <TableHead className='text-end'>Sửa</TableHead>
               </TableRow>
             </TableHeader>
@@ -233,8 +317,26 @@ export function NodeAssignments() {
                         </span>
                       )}
                     </TableCell>
+                    <TableCell>
+                      <DerpLockBadge
+                        exclusive={asgn?.exclusive ?? false}
+                        status={asgn?.derpStatus ?? null}
+                      />
+                    </TableCell>
                     <TableCell className='text-end'>
                       <div className='flex justify-end gap-1'>
+                        {asgn?.exclusive && (
+                          <Button
+                            size='icon'
+                            variant='ghost'
+                            className='size-7'
+                            title='Reload — ép đánh giá lại khóa DERP ngay'
+                            disabled={reloadMut.isPending}
+                            onClick={() => reloadMut.mutate(key)}
+                          >
+                            <RotateCw className='size-3.5' />
+                          </Button>
+                        )}
                         <Button
                           size='icon'
                           variant='ghost'
@@ -299,6 +401,7 @@ export function NodeAssignments() {
         <EditDialog
           machine={editMachine}
           current={editCurrent}
+          currentExclusive={editCurrentExclusive}
           open={!!editMachine}
           onClose={() => setEditMachine(null)}
         />

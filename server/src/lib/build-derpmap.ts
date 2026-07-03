@@ -151,3 +151,23 @@ export function buildPerNodeDerpMap(
         )
   return buildDerpMap(adjusted)
 }
+
+/**
+ * DERPMap "khóa cứng" (exclusive lock) — khác hẳn buildPerNodeDerpMap (union +
+ * phạt priority): map CHỈ chứa đúng các region được gán, region khác bị LOẠI
+ * HẲN khỏi map (không phải chỉ bị phạt). Node vì vậy KHÔNG THỂ tự chuyển sang
+ * relay/home nào khác — kể cả khi region duy nhất chết, client không có option
+ * nào khác trong map để rơi về. Không cần sửa gì phía client (tailscale_mod):
+ * đây thuần là dữ liệu server gửi xuống.
+ *
+ * assignedRegionIds rỗng → coi là an toàn: KHÔNG khóa (trả về map đầy đủ như
+ * buildDerpMap), tránh gửi map rỗng làm node mất kết nối hoàn toàn.
+ */
+export function buildExclusiveDerpMap(
+  servers: DerpServerRow[],
+  assignedRegionIds: number[],
+): DerpMapJson {
+  if (assignedRegionIds.length === 0) return buildDerpMap(servers)
+  const assigned = new Set(assignedRegionIds)
+  return buildDerpMap(servers.filter((s) => assigned.has(s.regionId)))
+}
