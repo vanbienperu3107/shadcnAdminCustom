@@ -198,12 +198,13 @@ export async function expirePreAuthKey(
 }
 
 /**
- * Tập tên node hạ tầng DERP, suy từ `node_name` đã lưu trong derp_servers —
- * đây là field admin gõ tay khi tạo/sửa region, KHÔNG suy đoán từ hostname.
- * Trước đây suy từ `hostname.split('.')[0]` (vd "vpn5" từ "vpn5.hangocthanh.io.vn")
- * nên khi đổi tên/hostname region không theo đúng mẫu "vpnN...", node hạ tầng đó
- * rơi khỏi tập này và bị liệt vào "Thiết bị người dùng" — nodeName là nguồn
- * đúng vì nó chính là given name thật của node trên headscale.
+ * Tập tên node hạ tầng DERP — HỢP cả `node_name` (admin gõ tay khi tạo/sửa
+ * region trên derp_servers) và tên suy từ hostname (`vpn5.hangocthanh.io.vn`
+ * -> "vpn5"), không chọn 1 trong 2. Trước đây CHỈ suy từ hostname nên đổi
+ * hostname không theo mẫu "vpnN..." làm rớt khỏi tập. Đổi sang CHỈ ưu tiên
+ * node_name lại hỏng ngược — nếu node_name khác given-name thật trên headscale
+ * (vd để trống, gõ nhầm, hoặc là mã region thay vì tên node) thì cả 2 nguồn
+ * đều cần cộng dồn để không bỏ sót trường hợp nào.
  * 'collector' luôn có mặt (sidecar cho node-dedup, không phải 1 dòng derp_servers).
  */
 export function derpNameSet(
@@ -211,8 +212,10 @@ export function derpNameSet(
 ): Set<string> {
   const s = new Set<string>(['collector'])
   for (const d of derp) {
-    const name = (d.nodeName || d.hostname.split('.')[0])?.toLowerCase()
-    if (name) s.add(name)
+    const fromNodeName = d.nodeName?.toLowerCase().trim()
+    const fromHostname = d.hostname.split('.')[0]?.toLowerCase().trim()
+    if (fromNodeName) s.add(fromNodeName)
+    if (fromHostname) s.add(fromHostname)
   }
   return s
 }
