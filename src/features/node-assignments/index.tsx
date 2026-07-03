@@ -173,9 +173,8 @@ function EditDialog({
               Khóa cứng 1 DERP
             </p>
             <p className='text-xs text-muted-foreground'>
-              Loại hẳn region khác khỏi map — client không tự chuyển được.
-              Chết liên tục ≥10 phút thì tự fallback về bình thường (không kẹt
-              cứng).
+              Loại hẳn region khác khỏi map — client không tự chuyển được. Chết
+              liên tục ≥10 phút thì tự fallback về bình thường (không kẹt cứng).
             </p>
           </div>
           <Switch checked={exclusive} onCheckedChange={setExclusive} />
