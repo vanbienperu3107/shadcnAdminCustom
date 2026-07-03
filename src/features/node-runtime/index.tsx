@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, RotateCw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -34,6 +34,7 @@ import {
   listNodeRuntime,
   listOnlineDevices,
   nodeRuntimeKeys,
+  reloadNodeRuntime,
   upsertNodeRuntime,
   type NodeRuntime,
   type NodeRuntimeInput,
@@ -101,6 +102,13 @@ export function NodeRuntimePage() {
       invalidate()
       toast.success('Đã xóa override')
     },
+  })
+
+  const reload = useMutation({
+    mutationFn: (mac: string) => reloadNodeRuntime(mac),
+    onSuccess: () =>
+      toast.success('Đã gửi yêu cầu reload — client tự áp dụng trong ~30s'),
+    onError: () => toast.error('Gửi reload thất bại'),
   })
 
   function openNew() {
@@ -230,6 +238,15 @@ export function NodeRuntimePage() {
                     </TableCell>
                     <TableCell>
                       <div className='flex gap-1'>
+                        <Button
+                          size='icon'
+                          variant='ghost'
+                          title='Reload — client tự áp lại cấu hình ngay'
+                          disabled={reload.isPending}
+                          onClick={() => reload.mutate(r.mac)}
+                        >
+                          <RotateCw className='size-4' />
+                        </Button>
                         <Button
                           size='icon'
                           variant='ghost'

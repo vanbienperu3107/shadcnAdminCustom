@@ -52,6 +52,12 @@ export async function deleteNodeRuntime(mac: string): Promise<void> {
   await api.delete(`/node-runtime/${encodeURIComponent(mac)}`)
 }
 
+/** Yêu cầu client tự áp lại cấu hình ngay — node poll thấy dấu thời gian mới
+ *  hơn lần áp dụng gần nhất thì tự apply, không cần khởi động lại. */
+export async function reloadNodeRuntime(mac: string): Promise<void> {
+  await api.post(`/node-runtime/${encodeURIComponent(mac)}/reload`)
+}
+
 export type OnlineDevice = {
   hostname: string
   mac: string

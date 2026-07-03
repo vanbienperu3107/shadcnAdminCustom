@@ -197,6 +197,15 @@ export async function migrate(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_node_runtime_hostname ON node_runtime_config(hostname)
   `)
 
+  // "Bấm Reload" cho 1 client — node launcher poll thấy requested_at moi hon
+  // lan ap dung gan nhat thi tu ap lai cau hinh, khong can restart node.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS node_reload_requests (
+      mac          TEXT PRIMARY KEY,
+      requested_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+
   // Luật PAC động — render thành file PAC qua /api/client/pac.
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS pac_rules (

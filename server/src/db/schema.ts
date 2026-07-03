@@ -165,6 +165,18 @@ export const nodeRuntimeConfig = pgTable('node_runtime_config', {
     .defaultNow(),
 })
 
+/** "Bấm Reload" cho 1 client cụ thể (theo MAC). Node launcher poll định kỳ
+ *  GET /api/client/runtime, so requested_at với lần áp dụng gần nhất — khác
+ *  thì tự áp lại cấu hình ngay (không cần khởi động lại node). Không cần dòng
+ *  node_runtime_config tồn tại — reload áp dụng được cho cả node đang dùng
+ *  default/global. */
+export const nodeReloadRequests = pgTable('node_reload_requests', {
+  mac: text('mac').primaryKey(),
+  requestedAt: timestamp('requested_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
 /** Luật PAC động (render thành file PAC qua /api/client/pac).
  *  scope='global' áp cho mọi node; scope='node' chỉ áp cho node có mac trùng. */
 export const pacRules = pgTable('pac_rules', {
@@ -211,5 +223,6 @@ export type DerpNodeAssignment = typeof derpNodeAssignments.$inferSelect
 export type ClientConfig = typeof clientConfig.$inferSelect
 export type ClientNetcheck = typeof clientNetcheck.$inferSelect
 export type NodeRuntimeConfig = typeof nodeRuntimeConfig.$inferSelect
+export type NodeReloadRequest = typeof nodeReloadRequests.$inferSelect
 export type PacRule = typeof pacRules.$inferSelect
 export type DnsSplitRule = typeof dnsSplitRules.$inferSelect
