@@ -197,14 +197,22 @@ export async function expirePreAuthKey(
   await api.post(`/users/${user}/preauthkeys/expire`, { key })
 }
 
-/** Tập tên node hạ tầng DERP (vpn2..vpn6 + collector) suy từ danh sách DERP. */
+/**
+ * Tập tên node hạ tầng DERP, suy từ `node_name` đã lưu trong derp_servers —
+ * đây là field admin gõ tay khi tạo/sửa region, KHÔNG suy đoán từ hostname.
+ * Trước đây suy từ `hostname.split('.')[0]` (vd "vpn5" từ "vpn5.hangocthanh.io.vn")
+ * nên khi đổi tên/hostname region không theo đúng mẫu "vpnN...", node hạ tầng đó
+ * rơi khỏi tập này và bị liệt vào "Thiết bị người dùng" — nodeName là nguồn
+ * đúng vì nó chính là given name thật của node trên headscale.
+ * 'collector' luôn có mặt (sidecar cho node-dedup, không phải 1 dòng derp_servers).
+ */
 export function derpNameSet(
-  derp: { hostname: string; code: string }[]
+  derp: { nodeName?: string; hostname: string; code: string }[]
 ): Set<string> {
-  const s = new Set<string>(['collector', 'vpn2'])
+  const s = new Set<string>(['collector'])
   for (const d of derp) {
-    const short = d.hostname.split('.')[0]?.toLowerCase()
-    if (short) s.add(short)
+    const name = (d.nodeName || d.hostname.split('.')[0])?.toLowerCase()
+    if (name) s.add(name)
   }
   return s
 }
