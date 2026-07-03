@@ -136,6 +136,11 @@ export function Overview() {
     string,
     { region: string; rttMs: number | null; isHome: boolean }
   >()
+  // headscale's own `lastSeen` reflects control-plane keepalive cadence, which
+  // can lag well behind reality — the built-in reporter POSTs every 60s
+  // regardless, so the freshest of our own samples per client is a much more
+  // "live" signal. Take whichever is newer at render time (see clientRows).
+  const lastReportAt = new Map<string, number>()
   for (const p of pairs) {
     const src = String(p.src ?? '')
       .toLowerCase()
@@ -151,6 +156,11 @@ export function Overview() {
           ? p.rtt_ms
           : null
     if (!src) continue
+    const reportedAt = p.reported_at ? Date.parse(String(p.reported_at)) : NaN
+    if (!Number.isNaN(reportedAt)) {
+      const prev = lastReportAt.get(src)
+      if (!prev || reportedAt > prev) lastReportAt.set(src, reportedAt)
+    }
     const existing = clientDerpMap.get(src)
     if (path.startsWith('derp:')) {
       const isHome = regionCodes.has(dst)
@@ -348,9 +358,18 @@ export function Overview() {
                           )}
                         </TableCell>
                         <TableCell className='text-xs text-muted-foreground'>
-                          {n.lastSeen
-                            ? new Date(n.lastSeen).toLocaleString()
-                            : '—'}
+                          {(() => {
+                            const hsSeen = n.lastSeen
+                              ? Date.parse(n.lastSeen)
+                              : NaN
+                            const reportSeen = lastReportAt.get(
+                              (n.givenName || n.name || '').toLowerCase()
+                            )
+                            const best = [hsSeen, reportSeen]
+                              .filter((t) => !Number.isNaN(t) && t != null)
+                              .sort((a, b) => (b as number) - (a as number))[0]
+                            return best ? new Date(best).toLocaleString() : '—'
+                          })()}
                         </TableCell>
                       </TableRow>
                     )
