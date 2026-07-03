@@ -130,6 +130,39 @@ export async function migrate(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_node_assignments_node ON derp_node_assignments(node_key)
   `)
 
+  // Co "khoa cung 1 DERP" theo node — tach bang rieng (thuoc tinh cua ca node,
+  // khong phai tung dong gan). exclusive=true -> DERPMap CHI gom region duoc
+  // gan (loai han, khong phai chi phat priority).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS derp_node_options (
+      node_key  TEXT PRIMARY KEY,
+      exclusive BOOLEAN NOT NULL DEFAULT false
+    )
+  `)
+
+  // Trang thai suc khoe region dang khoa cung cho 1 node — cap nhat boi tien
+  // trinh nen (khong probe trong request GET /api/internal/derp-map).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS derp_node_health (
+      node_key        TEXT PRIMARY KEY,
+      status          TEXT NOT NULL DEFAULT 'ok',
+      last_healthy_at TIMESTAMPTZ,
+      down_since      TIMESTAMPTZ,
+      updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+
+  // Danh tinh thiet bi theo MAC — "ten chuan" on dinh qua nhieu lan cai lai
+  // (khac nodeKey, doi moi lan cai lai). Xem POST /api/internal/device-register.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS device_identity (
+      mac        TEXT PRIMARY KEY,
+      hostname   TEXT NOT NULL,
+      node_key   TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+
   // Client config — shared with api-center (cùng DB hoặc tạo lại nếu DB riêng)
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS client_config (

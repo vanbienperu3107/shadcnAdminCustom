@@ -5,6 +5,7 @@ import { db } from '../db/client.js'
 import { latencySamples } from '../db/schema.js'
 import { env } from '../env.js'
 import { hsApi, isHsConfigured, isHsNotFound } from '../lib/headscale.js'
+import { cascadeDeleteNodeData } from '../lib/node-cascade-delete.js'
 
 type MetricsSample = {
   dst?: unknown
@@ -92,15 +93,35 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
     }
   })
 
-  // DELETE /api/machines/:id — xóa hẳn thiết bị khỏi headscale.
+  // DELETE /api/machines/:id — xóa hẳn thiết bị khỏi headscale + cascade xóa
+  // mọi bảng per-node/per-mac liên quan (Node Runtime, DERP-lock, reload,
+  // netcheck, latency) — tránh để lại rác khi 1 thiết bị bị xóa hẳn.
   app.delete('/api/machines/:id', async (req, reply) => {
     const { id } = req.params as { id: string }
     if (!(await isHsConfigured()))
       return reply.code(503).send({ error: 'headscale not configured' })
     try {
+      // Lấy nodeKey/hostname TRƯỚC khi xóa — sau khi xóa headscale không còn
+      // biết node này là ai nữa nên không cascade đúng bảng được.
+      let nodeKey: string | undefined
+      let hostname: string | undefined
+      try {
+        const info = await hsApi<{ node?: { nodeKey?: string; givenName?: string; name?: string } }>(
+          `/api/v1/node/${encodeURIComponent(id)}`
+        )
+        nodeKey = info.node?.nodeKey
+        hostname = info.node?.givenName || info.node?.name
+      } catch {
+        // Không lấy được info thì vẫn xóa ở headscale — chỉ là không cascade
+        // được sạch (tốt hơn là chặn hẳn thao tác xóa).
+      }
+
       await hsApi(`/api/v1/node/${encodeURIComponent(id)}`, {
         method: 'DELETE',
       })
+
+      await cascadeDeleteNodeData({ nodeKey, hostname }).catch(() => {})
+
       return { ok: true }
     } catch (e) {
       return reply.code(502).send({ error: String(e) })
