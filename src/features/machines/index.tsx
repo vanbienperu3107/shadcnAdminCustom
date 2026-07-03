@@ -42,7 +42,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Main } from '@/components/layout/main'
 import { Derp } from '@/features/derp'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
+import { DerpPing } from '@/features/derp-ping'
 import { ForceRoutes } from '@/features/force-routes'
+import { HomeDerp } from '@/features/home-derp'
 import {
   deleteMachine,
   derpNameSet,
@@ -413,6 +415,8 @@ export function Machines() {
           <TabsTrigger value='force'>Force Routes</TabsTrigger>
           <TabsTrigger value='assign'>Node Assignments</TabsTrigger>
           <TabsTrigger value='latency'>Latency</TabsTrigger>
+          <TabsTrigger value='home-derp'>Home DERP</TabsTrigger>
+          <TabsTrigger value='ping-derp'>Ping DERP</TabsTrigger>
         </TabsList>
 
         <TabsContent value='users' className='mt-4'>
@@ -451,6 +455,12 @@ export function Machines() {
         </TabsContent>
         <TabsContent value='latency' className='mt-4'>
           <Latency />
+        </TabsContent>
+        <TabsContent value='home-derp' className='mt-4'>
+          <HomeDerp />
+        </TabsContent>
+        <TabsContent value='ping-derp' className='mt-4'>
+          <DerpPing />
         </TabsContent>
       </Tabs>
 

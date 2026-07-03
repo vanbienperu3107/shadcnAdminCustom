@@ -29,6 +29,7 @@ import {
   nodeAssignmentsPublicRoutes,
   nodeAssignmentsRoutes,
 } from './routes/node-assignments.js'
+import { telemetryPublicRoutes, telemetryRoutes } from './routes/telemetry.js'
 
 async function main() {
   const app = Fastify({ logger: { level: 'info' } })
@@ -60,6 +61,8 @@ async function main() {
   await app.register(dnsSplitPublicRoutes)
   await app.register(dnsSplitRoutes)
   await app.register(deviceIdentityPublicRoutes)
+  await app.register(telemetryPublicRoutes)
+  await app.register(telemetryRoutes)
 
   // SPA tĩnh (prod)
   if (env.CLIENT_DIST && existsSync(env.CLIENT_DIST)) {
