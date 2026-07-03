@@ -41,10 +41,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Main } from '@/components/layout/main'
 import { Derp } from '@/features/derp'
-import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
 import { DerpPing } from '@/features/derp-ping'
+import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
 import { ForceRoutes } from '@/features/force-routes'
-import { HomeDerp } from '@/features/home-derp'
 import {
   deleteMachine,
   derpNameSet,
@@ -56,6 +55,7 @@ import {
   renameMachine,
   userName,
 } from '@/features/headscale/hs-api'
+import { HomeDerp } from '@/features/home-derp'
 import { HsRoutes } from '@/features/hs-routes'
 import { Latency } from '@/features/latency'
 import { NodeAssignments } from '@/features/node-assignments'

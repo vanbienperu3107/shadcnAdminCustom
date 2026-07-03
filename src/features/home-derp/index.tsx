@@ -38,7 +38,11 @@ function fmtAgo(now: number, iso: string): string {
 /** Tab "Home DERP" trong Machines — client tự báo cáo home DERP + latency
  *  tới controller mỗi 3s (xem cmd/tailscaled/homederpreport.go). */
 export function HomeDerp() {
-  const { data = [], isLoading, isError } = useQuery({
+  const {
+    data = [],
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: homeDerpKeys.all,
     queryFn: listHomeDerp,
     refetchInterval: 3_000,
@@ -50,8 +54,8 @@ export function HomeDerp() {
   return (
     <div className='flex flex-1 flex-col gap-4 sm:gap-6'>
       <p className='text-sm text-muted-foreground'>
-        Home DERP hiện tại của từng client + latency tới controller. Tự làm
-        mới mỗi 3s.
+        Home DERP hiện tại của từng client + latency tới controller. Tự làm mới
+        mỗi 3s.
       </p>
 
       {isError ? (

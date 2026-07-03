@@ -10,7 +10,8 @@ import { derpPingKeys, listDerpPing } from './data/derp-ping-api'
 function cellClass(rttMs: number | null, ok: boolean): string {
   if (!ok) return 'bg-destructive/10 text-destructive'
   if (rttMs == null) return 'bg-muted text-muted-foreground'
-  if (rttMs < 80) return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+  if (rttMs < 80)
+    return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
   if (rttMs < 150) return 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
   return 'bg-destructive/10 text-destructive'
 }
