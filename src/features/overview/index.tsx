@@ -120,10 +120,21 @@ export function Overview() {
   // Build per-client DERP info from latency pairs.
   // pairs shape: { src, dst, last_path, avg_ms } — src populated after Feature L migration.
   // Until then columns show "—" gracefully.
+  //
+  // The built-in reporter (metricsreport.go) sends its OWN home DERP region as
+  // a dedicated sample where dst == region code (e.g. "vpn4-vn") — added first
+  // in the batch precisely so this page can show the real home region instead
+  // of "whichever peer's path happened to be picked". A per-peer sample's path
+  // can legitimately go through a DIFFERENT relay (the peer's own home) even
+  // when this node's own home is fine — so that must NOT override the
+  // dedicated home-region sample once found.
+  const regionCodes = new Set(
+    regions.map((r) => r.code?.toLowerCase()).filter(Boolean)
+  )
   const pairs = lat.data?.pairs ?? []
   const clientDerpMap = new Map<
     string,
-    { region: string; rttMs: number | null }
+    { region: string; rttMs: number | null; isHome: boolean }
   >()
   for (const p of pairs) {
     const src = String(p.src ?? '')
@@ -140,9 +151,18 @@ export function Overview() {
           ? p.rtt_ms
           : null
     if (!src) continue
-    // Capture home DERP region from outgoing relay path
-    if (path.startsWith('derp:') && !clientDerpMap.has(src)) {
-      clientDerpMap.set(src, { region: path.slice(5), rttMs: null })
+    const existing = clientDerpMap.get(src)
+    if (path.startsWith('derp:')) {
+      const isHome = regionCodes.has(dst)
+      // Dedicated home-region sample always wins; otherwise first "derp:"
+      // path seen fills the gap until a dedicated sample shows up.
+      if (isHome || !existing || !existing.isHome) {
+        clientDerpMap.set(src, {
+          region: path.slice(5),
+          rttMs: existing?.rttMs ?? null,
+          isHome,
+        })
+      }
     }
     // Capture RTT to DERP server when dst is a DERP node
     if (names.has(dst) && rtt !== null) {
@@ -150,7 +170,7 @@ export function Overview() {
       if (info) {
         if (info.rttMs === null) info.rttMs = rtt
       } else {
-        clientDerpMap.set(src, { region: '', rttMs: rtt })
+        clientDerpMap.set(src, { region: '', rttMs: rtt, isHome: false })
       }
     }
   }
