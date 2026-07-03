@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { desc, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { requireAuth } from '../auth/middleware.js'
 import { db } from '../db/client.js'
@@ -375,10 +375,19 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
     }
   })
 
-  /** Latency từ Neon DB (Feature L). Format pairs tương thích với hs-api.ts fetchLatency(). */
+  /**
+   * Latency từ Neon DB (Feature L). Format pairs tương thích với hs-api.ts
+   * fetchLatency(). ORDER BY reported_at DESC — bắt buộc, vì frontend
+   * (overview) chỉ lấy dòng ĐẦU TIÊN gặp mỗi src làm "DERP đang dùng"; không
+   * sắp xếp thì Postgres trả thứ tự dòng không đảm bảo (đổi giữa các lần
+   * query dù dữ liệu không đổi), khiến cột đó trông như client tự nhảy relay.
+   */
   app.get('/api/latency', async (_req, reply) => {
     try {
-      const rows = await db.select().from(latencySamples)
+      const rows = await db
+        .select()
+        .from(latencySamples)
+        .orderBy(desc(latencySamples.reportedAt))
       const pairs = rows.map((r) => ({
         src: r.srcHostname,
         dst: r.dstHostname,

@@ -127,6 +127,15 @@ function EditDialog({
     onError: (e: Error) => toast.error(e.message),
   })
 
+  const reloadMut = useMutation({
+    mutationFn: reloadDerpLock,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: assignmentKeys.all })
+      toast.success('Đã gửi reload — client áp lại khóa DERP ngay')
+    },
+    onError: () => toast.error('Reload thất bại'),
+  })
+
   const toggle = (id: number) => {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -177,9 +186,23 @@ function EditDialog({
               liên tục ≥10 phút thì tự fallback về bình thường (không kẹt cứng).
             </p>
           </div>
-          <Switch checked={exclusive} onCheckedChange={setExclusive} />
+          <div className='flex items-center gap-1'>
+            {currentExclusive && (
+              <Button
+                size='icon'
+                variant='ghost'
+                className='size-7'
+                title='Reload — ép client áp lại khóa DERP ngay'
+                disabled={reloadMut.isPending || !machine.nodeKey}
+                onClick={() => reloadMut.mutate(machine.nodeKey ?? '')}
+              >
+                <RotateCw className='size-3.5' />
+              </Button>
+            )}
+            <Switch checked={exclusive} onCheckedChange={setExclusive} />
+          </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className='sm:justify-center'>
           <Button variant='outline' onClick={onClose}>
             Hủy
           </Button>
