@@ -23,7 +23,6 @@ flowchart TD
 
     Root --> AuthG["(auth) — pathless"]
     AuthG --> SI["/sign-in"]
-    AuthG --> SI2["/sign-in-2"]
     AuthG --> SU["/sign-up"]
     AuthG --> FP["/forgot-password"]
     AuthG --> OTP["/otp"]
