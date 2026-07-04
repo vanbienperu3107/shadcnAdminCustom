@@ -37,24 +37,40 @@ export function NavGroup({ title, items }: NavGroupProps) {
   const { state, isMobile } = useSidebar()
   const href = useLocation({ select: (location) => location.href })
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>{title}</SidebarGroupLabel>
-      <SidebarMenu>
-        {items.map((item) => {
-          const key = `${item.title}-${item.url}`
+    // Nhóm nav gập/mở được: bấm tiêu đề để thu nhỏ/mở lại danh sách mục.
+    <Collapsible defaultOpen className='group/nav-group'>
+      <SidebarGroup>
+        <SidebarGroupLabel asChild>
+          <CollapsibleTrigger className='flex w-full items-center gap-1 hover:text-foreground'>
+            {title}
+            <ChevronRight className='ms-auto transition-transform duration-200 group-data-[state=open]/nav-group:rotate-90 rtl:rotate-180' />
+          </CollapsibleTrigger>
+        </SidebarGroupLabel>
+        <CollapsibleContent>
+          <SidebarMenu>
+            {items.map((item) => {
+              const key = `${item.title}-${item.url}`
 
-          if (!item.items)
-            return <SidebarMenuLink key={key} item={item} href={href} />
+              if (!item.items)
+                return <SidebarMenuLink key={key} item={item} href={href} />
 
-          if (state === 'collapsed' && !isMobile)
-            return (
-              <SidebarMenuCollapsedDropdown key={key} item={item} href={href} />
-            )
+              if (state === 'collapsed' && !isMobile)
+                return (
+                  <SidebarMenuCollapsedDropdown
+                    key={key}
+                    item={item}
+                    href={href}
+                  />
+                )
 
-          return <SidebarMenuCollapsible key={key} item={item} href={href} />
-        })}
-      </SidebarMenu>
-    </SidebarGroup>
+              return (
+                <SidebarMenuCollapsible key={key} item={item} href={href} />
+              )
+            })}
+          </SidebarMenu>
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
   )
 }
 
