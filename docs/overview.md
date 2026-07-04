@@ -23,7 +23,10 @@ Dự án **không phải** một backend — dữ liệu hiện tại là *mock 
 - 🔍 **Global search** (Command Menu — `Ctrl/Cmd + K`).
 - 🌐 **RTL support** (hỗ trợ ngôn ngữ phải-sang-trái — một số component đã được tuỳ biến).
 - 🧩 **10+ trang**: Dashboard, Tasks, Apps, Chats, Users, Settings, Auth, Errors, Help Center.
-- 🔐 **Clerk auth** (tích hợp tuỳ chọn, tách biệt hoàn toàn trong `src/routes/clerk`).
+- 🔐 **Đăng nhập Google OAuth** (duy nhất một luồng auth thật — xem
+  [derp-management.md](derp-management.md)); chỉ email trong `ALLOWED_EMAILS` (server) mới
+  vào được. **Clerk** vẫn còn trong repo như tích hợp **tuỳ chọn, tách biệt hoàn toàn**
+  trong `src/routes/clerk`, không liên quan tới luồng đăng nhập chính.
 
 ## 1.3. Tech stack
 
@@ -51,8 +54,8 @@ mindmap
       React Hook Form + Zod
       axios
     Auth
+      Google OAuth (session cookie httpOnly, server-side)
       Clerk tuỳ chọn
-      Token store nội bộ
     Chất lượng
       ESLint 10
       Prettier
@@ -73,13 +76,14 @@ mindmap
 | Routing | **TanStack Router** | file-based, `autoCodeSplitting`, sinh `routeTree.gen.ts` |
 | Data fetching | **TanStack Query** | QueryClient cấu hình retry + global error handling |
 | Bảng | **TanStack Table** | wrapper tái sử dụng trong `src/components/data-table` |
-| State toàn cục | **Zustand** | `src/stores/auth-store.ts` (token lưu cookie) |
+| State toàn cục | **Zustand** | `src/stores/auth-store.ts` (chỉ giữ `user`, không giữ token) |
 | State theo phạm vi | **React Context** | theme, font, direction, layout, search, và per-feature |
 | Form | **React Hook Form + Zod** | validate bằng `@hookform/resolvers` |
 | Icons | **Lucide** + **Tabler** | Tabler chỉ dùng brand icons |
 | Charts | **Recharts** | dùng ở Dashboard |
 | Toast | **Sonner** | `Toaster` đặt ở root route |
-| Auth | **Clerk** | tuỳ chọn, bật bằng `VITE_CLERK_PUBLISHABLE_KEY` |
+| Auth | **Google OAuth** (backend) | luồng đăng nhập chính — session cookie `httpOnly`, gác cổng qua `GET /auth/me` |
+| Auth (tuỳ chọn) | **Clerk** | tách rời, bật bằng `VITE_CLERK_PUBLISHABLE_KEY`, không dùng cho luồng chính |
 | Test | **Vitest** (browser mode) | chạy thật trên Chromium qua Playwright |
 | Lint / Format | **ESLint 10**, **Prettier** | + **Knip** phát hiện code/deps thừa |
 | Package manager | **pnpm** | CI dùng `--frozen-lockfile` |

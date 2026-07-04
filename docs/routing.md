@@ -70,9 +70,13 @@ cập React Query client.
 
 ## 4.4. Nhóm route
 
-### `(auth)` — trang xác thực (UI mẫu)
-Sign In, Sign In (2 cột), Sign Up, Forgot Password, OTP. Đây là **giao diện mẫu** dùng
-React Hook Form + Zod; logic auth thật tuỳ bạn nối vào (hoặc dùng Clerk).
+### `(auth)` — trang xác thực
+Chỉ còn **một** route thật: `/sign-in` — [`src/features/auth/sign-in/index.tsx`](../src/features/auth/sign-in/index.tsx).
+Không còn form email/password hay tài khoản giả lập: trang chỉ có một nút
+**"Đăng nhập với Google"** gọi `googleLoginUrl()` ([`src/lib/auth-api.ts`](../src/lib/auth-api.ts)),
+full-reload sang backend `GET /auth/google/login`. Sign Up, Forgot Password, OTP vẫn là
+**giao diện mẫu** (chưa nối logic thật). Route mock 2 cột `/sign-in-2` (form email/password
+giả lập) đã bị **xoá hoàn toàn** khỏi codebase.
 
 ### `(errors)` — trang lỗi
 `401`, `403`, `404`, `500`, `503` map tới các component trong `src/features/errors/`.
@@ -80,9 +84,11 @@ React Hook Form + Zod; logic auth thật tuỳ bạn nối vào (hoặc dùng Cl
 
 ### `_authenticated` — khu vực dashboard
 Layout route gắn `AuthenticatedLayout` (sidebar + header). Mọi trang chính (Dashboard,
-Tasks, Apps, Chats, Users, Settings, Help Center) nằm dưới đây. Lưu ý: bản gốc **chưa cài
-guard chặn truy cập** — nếu cần bảo vệ thật, thêm `beforeLoad` kiểm tra token trong
-`_authenticated/route.tsx` rồi `redirect` về `/sign-in`.
+Tasks, Apps, Chats, Users, Settings, Help Center) nằm dưới đây. Guard thật nằm trong
+[`_authenticated/route.tsx`](../src/routes/_authenticated/route.tsx): `beforeLoad` gọi
+`fetchMe()` → `GET /auth/me` (cookie session `httpOnly` do backend set, gửi kèm qua
+`withCredentials`); nếu trả về `null` (401/chưa đăng nhập) thì `redirect` về `/sign-in`.
+Đây là kiểm tra **phía server** — không dựa vào bất kỳ token hay state nào lưu ở client.
 
 ### `clerk/*` — tích hợp Clerk tách rời
 `clerk/route.tsx` bọc `ClerkProvider`; nếu thiếu publishable key sẽ hiển thị trang hướng dẫn.

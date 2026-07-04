@@ -9,7 +9,7 @@ flowchart TD
         RQ["TanStack Query<br/>(cache + retry + error)"]
     end
     subgraph Global["State toàn cục (client)"]
-        Z["Zustand<br/>auth-store (token)"]
+        Z["Zustand<br/>auth-store (user only)"]
         CtxTheme["ThemeProvider"]
         CtxFont["FontProvider"]
         CtxDir["DirectionProvider"]
@@ -49,25 +49,29 @@ Cấu hình tập trung trong [`src/main.tsx`](../src/main.tsx):
 
 ## 5.2. Zustand — auth store
 
-[`src/stores/auth-store.ts`](../src/stores/auth-store.ts) giữ thông tin xác thực:
+[`src/stores/auth-store.ts`](../src/stores/auth-store.ts) chỉ giữ **thông tin hiển thị**
+của user hiện tại — không giữ token:
 
 ```ts
 interface AuthUser { accountNo: string; email: string; role: string[]; exp: number }
 
 auth: {
   user, setUser,
-  accessToken, setAccessToken,   // ghi cookie khi set
-  resetAccessToken,              // xoá cookie
-  reset,                         // xoá user + token
+  reset,   // xoá user (gọi lúc sign-out / khi /auth/me trả 401)
 }
 ```
 
-- Token được **đọc từ cookie lúc khởi tạo store** và **ghi cookie mỗi khi `setAccessToken`**.
-- Tên cookie token hiện là chuỗi placeholder `'thisisjustarandomstring'`.
+`accessToken`/`setAccessToken`/`resetAccessToken` và cookie `ACCESS_TOKEN` đã bị **xoá khỏi
+store** (dead code + rủi ro bảo mật tiềm ẩn — tránh việc sau này ai đó gắn
+`Authorization: Bearer` từ store rồi vô tình mở lại đường bỏ qua auth).
 
-> ⚠️ **Bảo mật**: lưu access token trong cookie không `HttpOnly` (JS đọc được) phù hợp cho
-> demo. Khi đưa lên production thật, cân nhắc cookie `HttpOnly`/`Secure` do backend set, hoặc
-> luồng auth của Clerk.
+> **Phiên đăng nhập THẬT** là cookie session `httpOnly` do backend Fastify set khi đăng nhập
+> Google thành công — client không đọc/ghi được cookie này. Mọi kiểm tra "đã đăng nhập chưa"
+> phải đi qua `GET /auth/me` (xem [`_authenticated/route.tsx`](../src/routes/_authenticated/route.tsx)),
+> **không** dựa vào `auth-store`. Đăng xuất gọi `logout()` ([`src/lib/auth-api.ts`](../src/lib/auth-api.ts))
+> → `POST /auth/logout` để backend huỷ session, sau đó mới `auth.reset()` để xoá `user` khỏi
+> store. Chỉ email trong `ALLOWED_EMAILS` (cấu hình phía server) mới đăng nhập được — xem
+> [derp-management.md](derp-management.md).
 
 ## 5.3. React Context — providers
 
@@ -114,10 +118,11 @@ Tiện ích `src/lib/cookies.ts` (`getCookie`/`setCookie`/`removeCookie`) thao t
 
 Liên quan tới **state & dữ liệu** khi đổi server:
 
-- **Cookie gắn theo domain**: đổi domain → người dùng mất theme/layout/token đã lưu (sẽ về
+- **Cookie gắn theo domain**: đổi domain → người dùng mất theme/layout đã lưu (sẽ về
   mặc định). Không ảnh hưởng chức năng; chỉ là reset preference.
-- **Token & phiên đăng nhập**: nếu auth thật do backend cấp, đảm bảo backend mới set cookie
-  đúng domain/`SameSite`/`Secure`. Với Clerk, cập nhật **allowed origins** trong Clerk Dashboard.
+- **Phiên đăng nhập**: session cookie `httpOnly` do backend cấp khi đăng nhập Google — đảm
+  bảo backend mới set cookie đúng domain/`SameSite`/`Secure`, và cập nhật **redirect URI**
+  của Google OAuth client sang domain mới (xem [derp-management.md](derp-management.md)).
 - **Endpoint API** (base URL của axios) thường đến từ biến `VITE_*` → **build lại** khi đổi
   server/API; không sửa được lúc runtime.
 - **Mock data** nằm trong bundle (không phải DB) → không cần migrate gì khi đổi host.

@@ -75,7 +75,7 @@ flowchart TD
 | Bảng dữ liệu | TanStack Table |
 | State | Zustand (auth) + React Context (theme/layout/search/feature) |
 | Form | React Hook Form + Zod |
-| Auth | Clerk (tuỳ chọn) + token store nội bộ (cookie) |
+| Auth | Google OAuth (session cookie httpOnly, server-side) + Clerk (tuỳ chọn, tách rời) |
 | Charts | Recharts |
 | Toast | Sonner |
 | Test | Vitest (browser mode, Playwright/Chromium) |
