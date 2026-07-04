@@ -177,15 +177,17 @@ flowchart LR
         LV["layout_variant (7 ngày)"]
         LC["layout_collapsible (7 ngày)"]
         SB["sidebar_state"]
-        TOK["access token<br/>(auth-store)"]
     end
 
     ThemeProvider --> T
     LayoutProvider --> LV
     LayoutProvider --> LC
     SidebarProvider --> SB
-    AuthStore["Zustand auth-store"] --> TOK
 ```
+
+> Phiên đăng nhập **không** nằm trong nhóm cookie này: đó là cookie session `httpOnly` do
+> backend set, JS phía client không đọc/ghi được. `auth-store` (Zustand) chỉ giữ `user`
+> trong bộ nhớ, không lưu token/cookie nào.
 
 ## 2.7. Tích hợp Clerk (tuỳ chọn, tách rời)
 
