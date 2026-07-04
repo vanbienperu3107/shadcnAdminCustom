@@ -185,8 +185,34 @@ export async function nodeAssignmentsRoutes(app: FastifyInstance): Promise<void>
   app.post<{ Params: { nodeKey: string } }>(
     '/api/node-assignments/:nodeKey/reload-derp',
     async (req) => {
-      await db.delete(derpNodeHealth).where(eq(derpNodeHealth.nodeKey, req.params.nodeKey))
-      return { ok: true }
+      const { nodeKey } = req.params
+      await db.delete(derpNodeHealth).where(eq(derpNodeHealth.nodeKey, nodeKey))
+      // Poke headscale: xóa cache override 30s của node + broadcast DERPSet để
+      // node re-poll ngay (thay vì chờ hết cache). Best-effort — nếu headscale
+      // không tới được thì health đã clear vẫn có tác dụng ở lần probe kế tiếp.
+      const poked = await pokeHeadscaleDerp(nodeKey)
+      return { ok: true, poked }
     }
   )
+}
+
+/** Gọi POST {HEADSCALE_API_URL}/derp/poke?nodeKey=… (guard bằng dashboard secret). */
+async function pokeHeadscaleDerp(nodeKey: string): Promise<boolean> {
+  const base = env.HEADSCALE_API_URL.replace(/\/+$/, '')
+  if (!base) return false
+  try {
+    const res = await fetch(
+      `${base}/derp/poke?nodeKey=${encodeURIComponent(nodeKey)}`,
+      {
+        method: 'POST',
+        headers: env.HEADSCALE_DASHBOARD_SECRET
+          ? { 'X-Headscale-Secret': env.HEADSCALE_DASHBOARD_SECRET }
+          : {},
+        signal: AbortSignal.timeout(3000),
+      }
+    )
+    return res.ok
+  } catch {
+    return false
+  }
 }

@@ -400,69 +400,106 @@ export function Machines() {
       {/* Gộp từ: Machines, Routes, DERP Regions, Force Routes, Node
        *  Assignments, Latency. Mỗi tab tự lazy-load (Radix Tabs chỉ mount
        *  TabsContent đang active) — không gọi API của các tab chưa mở. */}
-      <Tabs defaultValue='users'>
+      {/* Gộp còn 6 menu: Thiết bị[Người dùng|Hạ tầng], Routes[Routes|Force],
+       *  Regions, Node Assignments, Giám sát DERP[Latency|Home DERP], Ping DERP.
+       *  Radix Tabs chỉ mount TabsContent đang active (kể cả sub-tab) — không
+       *  gọi API của các tab chưa mở. */}
+      <Tabs defaultValue='devices'>
         <TabsList className='flex h-auto flex-wrap justify-start'>
-          <TabsTrigger value='users'>
-            Thiết bị người dùng
+          <TabsTrigger value='devices'>
+            Thiết bị
             <span className='ms-1.5 text-muted-foreground'>
-              ({userNodes.length})
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value='derpnodes'>
-            Node DERP / hạ tầng
-            <span className='ms-1.5 text-muted-foreground'>
-              ({derpNodes.length})
+              ({userNodes.length + derpNodes.length})
             </span>
           </TabsTrigger>
           <TabsTrigger value='routes'>Routes</TabsTrigger>
           <TabsTrigger value='regions'>Regions</TabsTrigger>
-          <TabsTrigger value='force'>Force Routes</TabsTrigger>
           <TabsTrigger value='assign'>Node Assignments</TabsTrigger>
-          <TabsTrigger value='latency'>Latency</TabsTrigger>
-          <TabsTrigger value='home-derp'>Home DERP</TabsTrigger>
+          <TabsTrigger value='monitor'>Giám sát DERP</TabsTrigger>
           <TabsTrigger value='ping-derp'>Ping DERP</TabsTrigger>
         </TabsList>
 
-        <TabsContent value='users' className='mt-4'>
-          {isError ? (
-            <ErrorBox />
-          ) : isLoading ? (
-            <p className='text-sm text-muted-foreground'>Đang tải…</p>
-          ) : !data?.configured ? (
-            <NotConfigured />
-          ) : (
-            <MachineTable rows={userNodes} onAction={onAction} />
-          )}
+        {/* Thiết bị: 2 sub-tab (người dùng / hạ tầng DERP) — cùng 1 nguồn data */}
+        <TabsContent value='devices' className='mt-4'>
+          <Tabs defaultValue='users'>
+            <TabsList>
+              <TabsTrigger value='users'>
+                Người dùng
+                <span className='ms-1.5 text-muted-foreground'>
+                  ({userNodes.length})
+                </span>
+              </TabsTrigger>
+              <TabsTrigger value='derpnodes'>
+                Hạ tầng DERP
+                <span className='ms-1.5 text-muted-foreground'>
+                  ({derpNodes.length})
+                </span>
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value='users' className='mt-4'>
+              {isError ? (
+                <ErrorBox />
+              ) : isLoading ? (
+                <p className='text-sm text-muted-foreground'>Đang tải…</p>
+              ) : !data?.configured ? (
+                <NotConfigured />
+              ) : (
+                <MachineTable rows={userNodes} onAction={onAction} />
+              )}
+            </TabsContent>
+            <TabsContent value='derpnodes' className='mt-4'>
+              {isError ? (
+                <ErrorBox />
+              ) : isLoading ? (
+                <p className='text-sm text-muted-foreground'>Đang tải…</p>
+              ) : !data?.configured ? (
+                <NotConfigured />
+              ) : (
+                <MachineTable rows={derpNodes} onAction={onAction} />
+              )}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
-        <TabsContent value='derpnodes' className='mt-4'>
-          {isError ? (
-            <ErrorBox />
-          ) : isLoading ? (
-            <p className='text-sm text-muted-foreground'>Đang tải…</p>
-          ) : !data?.configured ? (
-            <NotConfigured />
-          ) : (
-            <MachineTable rows={derpNodes} onAction={onAction} />
-          )}
-        </TabsContent>
+
+        {/* Routes: 2 sub-tab (routes thường / force routes) — chung tính chất */}
         <TabsContent value='routes' className='mt-4'>
-          <HsRoutes />
+          <Tabs defaultValue='routes'>
+            <TabsList>
+              <TabsTrigger value='routes'>Routes</TabsTrigger>
+              <TabsTrigger value='force'>Force Routes</TabsTrigger>
+            </TabsList>
+            <TabsContent value='routes' className='mt-4'>
+              <HsRoutes />
+            </TabsContent>
+            <TabsContent value='force' className='mt-4'>
+              <ForceRoutes />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
+
         <TabsContent value='regions' className='mt-4'>
           <Derp />
-        </TabsContent>
-        <TabsContent value='force' className='mt-4'>
-          <ForceRoutes />
         </TabsContent>
         <TabsContent value='assign' className='mt-4'>
           <NodeAssignments />
         </TabsContent>
-        <TabsContent value='latency' className='mt-4'>
-          <Latency />
+
+        {/* Giám sát DERP: 2 sub-tab (latency node→DERP / home DERP) */}
+        <TabsContent value='monitor' className='mt-4'>
+          <Tabs defaultValue='latency'>
+            <TabsList>
+              <TabsTrigger value='latency'>Latency</TabsTrigger>
+              <TabsTrigger value='home-derp'>Home DERP</TabsTrigger>
+            </TabsList>
+            <TabsContent value='latency' className='mt-4'>
+              <Latency />
+            </TabsContent>
+            <TabsContent value='home-derp' className='mt-4'>
+              <HomeDerp />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
-        <TabsContent value='home-derp' className='mt-4'>
-          <HomeDerp />
-        </TabsContent>
+
         <TabsContent value='ping-derp' className='mt-4'>
           <DerpPing />
         </TabsContent>
