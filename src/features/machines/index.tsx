@@ -47,11 +47,13 @@ import { ForceRoutes } from '@/features/force-routes'
 import {
   deleteMachine,
   derpNameSet,
+  deviceTypeMap,
   expireMachine,
+  fetchDevices,
   fetchMachines,
   type HsMachine,
   hsKeys,
-  isDerpNode,
+  isDerpNodeV2,
   renameMachine,
   userName,
 } from '@/features/headscale/hs-api'
@@ -367,6 +369,7 @@ export function Machines() {
     refetchInterval: 30_000,
   })
   const derp = useQuery({ queryKey: derpKeys.all, queryFn: listDerp })
+  const devices = useQuery({ queryKey: ['devices'], queryFn: fetchDevices })
 
   const [dialog, setDialog] = useState<DialogKind>(null)
   const [currentRow, setCurrentRow] = useState<HsMachine | null>(null)
@@ -376,12 +379,13 @@ export function Machines() {
   }
 
   const names = derpNameSet(derp.data ?? [])
+  const typeByNodeKey = deviceTypeMap(devices.data ?? [])
   const nodes = data?.nodes ?? []
   const userNodes = nodes
-    .filter((n) => !isDerpNode(n.givenName || n.name, names))
+    .filter((n) => !isDerpNodeV2(n, typeByNodeKey, names))
     .sort((a, b) => Number(b.online) - Number(a.online))
   const derpNodes = nodes
-    .filter((n) => isDerpNode(n.givenName || n.name, names))
+    .filter((n) => isDerpNodeV2(n, typeByNodeKey, names))
     .sort((a, b) => Number(b.online) - Number(a.online))
 
   return (

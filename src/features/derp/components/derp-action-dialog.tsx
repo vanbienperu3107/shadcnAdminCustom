@@ -71,6 +71,7 @@ export function DerpActionDialog({ open, onOpenChange, currentRow }: Props) {
         stunPort: String(currentRow.stunPort),
         canPort80: currentRow.canPort80,
         priority: String(currentRow.priority),
+        tsNodeKey: currentRow.tsNodeKey ?? '',
       })
     } else {
       form.reset(DERP_FORM_DEFAULTS)
@@ -265,6 +266,26 @@ export function DerpActionDialog({ open, onOpenChange, currentRow }: Props) {
                   </FormControl>
                   <FormDescription>
                     Số nhỏ = ưu tiên cao (100 = trung tính).
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='tsNodeKey'
+              render={({ field }) => (
+                <FormItem className='col-span-2'>
+                  <FormLabel>
+                    Node key máy Tailscale hạ tầng (tùy chọn)
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder='nodekey:abc123...' {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Copy từ trang Machines — dùng để nhận diện đây là hạ tầng
+                    DERP thay vì đoán qua tên/hostname. Bỏ trống nếu chưa biết.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

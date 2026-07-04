@@ -32,6 +32,11 @@ export const derpServers = pgTable('derp_servers', {
   // SSH để quản lý firewall (Feature C)
   sshUser: text('ssh_user').default('root'),
   sshPort: integer('ssh_port').default(22),
+  // nodeKey của máy Tailscale sidecar chạy trên chính host DERP này (khác
+  // node_name — đó chỉ là label hiển thị trong DERPMap, không phải given-name
+  // thật). Dùng để đồng bộ bảng `device_identity` (device_type='derp_infra')
+  // thay vì đoán qua chuỗi tên — xem devices.ts.
+  tsNodeKey: text('ts_node_key'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -183,16 +188,35 @@ export const derpNodeHealth = pgTable('derp_node_health', {
   updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-/** Danh tính thiết bị theo MAC — "tên chuẩn" của 1 phần cứng, ổn định qua
- *  nhiều lần cài lại (nodeKey đổi mỗi lần cài lại, MAC thì không). Lần đầu
- *  thấy 1 MAC → hostname báo về trở thành tên chuẩn. Lần sau nếu node báo tên
- *  khác (rebuild/rename hệ điều hành) → tự đổi node hiện tại về ĐÚNG tên
- *  chuẩn này (không tạo tên mới) — xem POST /api/internal/device-register. */
+/**
+ * Danh tính thiết bị theo MAC — "tên chuẩn" của 1 phần cứng, ổn định qua
+ * nhiều lần cài lại (nodeKey đổi mỗi lần cài lại, MAC thì không). Lần đầu
+ * thấy 1 MAC → hostname báo về trở thành tên chuẩn. Lần sau nếu node báo tên
+ * khác (rebuild/rename hệ điều hành) → tự đổi node hiện tại về ĐÚNG tên
+ * chuẩn này (không tạo tên mới) — xem POST /api/internal/device-register.
+ *
+ * Đây cũng là bảng "device registry" hợp nhất: mọi thiết bị (client thật lẫn
+ * hạ tầng DERP) đều có 1 dòng, phân biệt bằng `deviceType` — KHÔNG đoán qua
+ * tên/hostname (xem lịch sử bug PR #16/#17). `deviceType='derp_infra'` được
+ * đồng bộ từ `derp_servers.ts_node_key` (routes/derp.ts); `deviceType='client'`
+ * được đồng bộ từ POST /api/internal/device-register. Xóa machine hay xóa
+ * DERP region đều phải xóa dòng tương ứng ở đây (xem node-cascade-delete.ts).
+ */
 export const deviceIdentity = pgTable('device_identity', {
-  mac:       text('mac').primaryKey(),
-  hostname:  text('hostname').notNull(),
-  nodeKey:   text('node_key'),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  // id tự sinh — KHÔNG dùng mac làm PK vì hạ tầng DERP (deviceType='derp_infra')
+  // không có MAC (không phải client của ta, không gọi device-register); khóa
+  // tự nhiên khác nhau theo loại: client neo theo `mac` (nodeKey đổi mỗi lần
+  // cài lại), derp_infra neo theo `nodeKey` (ổn định, admin gán tay 1 lần).
+  id:           serial('id').primaryKey(),
+  mac:          text('mac').unique(),      // null với derp_infra
+  hostname:     text('hostname').notNull(),
+  nodeKey:      text('node_key').unique(), // null cho tới khi biết (client) / luôn có (derp_infra)
+  managedUser:  text('managed_user'), // user quản lý (headscale user name/email)
+  deviceType:   text('device_type').notNull().default('client'), // 'client' | 'derp_infra'
+  deviceToken:  text('device_token'), // token riêng cho thiết bị, sinh lúc đăng ký lần đầu
+  lastIpv4:     text('last_ipv4'),    // IP tailnet gần nhất được báo cáo (tự động)
+  staticIpv4:   text('static_ipv4'),  // IP admin ép cố định (ưu tiên hơn lastIpv4)
+  updatedAt:    timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export const clientConfig = pgTable('client_config', {

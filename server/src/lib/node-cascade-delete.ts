@@ -7,7 +7,8 @@
  *
  * Khớp theo 2 khóa vì mỗi bảng dùng khóa khác nhau — không có 1 khóa chung:
  *  - nodeKey (headscale node key)  → derp_node_assignments, derp_node_options,
- *    derp_node_health.
+ *    derp_node_health, device_identity (device registry hợp nhất — cả client
+ *    lẫn derp_infra đều có node_key, xem lib/device-registry.ts).
  *  - hostname (case-insensitive)   → client_netcheck.client, node_runtime_config
  *    (hostname côt phụ, khớp CẢ theo mac suy ra từ đó), latency_samples
  *    (src/dst — xóa cả 2 chiều vì node không còn tồn tại để làm src lẫn dst).
@@ -20,6 +21,7 @@ import {
   derpNodeAssignments,
   derpNodeHealth,
   derpNodeOptions,
+  deviceIdentity,
   latencySamples,
   nodeReloadRequests,
   nodeRuntimeConfig,
@@ -35,6 +37,7 @@ export async function cascadeDeleteNodeData(opts: {
     await db.delete(derpNodeAssignments).where(eq(derpNodeAssignments.nodeKey, nodeKey))
     await db.delete(derpNodeOptions).where(eq(derpNodeOptions.nodeKey, nodeKey))
     await db.delete(derpNodeHealth).where(eq(derpNodeHealth.nodeKey, nodeKey))
+    await db.delete(deviceIdentity).where(eq(deviceIdentity.nodeKey, nodeKey))
   }
 
   if (hostname) {
@@ -60,6 +63,7 @@ export async function cascadeDeleteNodeData(opts: {
     if (macs.length > 0) {
       await db.delete(nodeRuntimeConfig).where(inArray(nodeRuntimeConfig.mac, macs))
       await db.delete(nodeReloadRequests).where(inArray(nodeReloadRequests.mac, macs))
+      await db.delete(deviceIdentity).where(inArray(deviceIdentity.mac, macs))
     }
     await db.delete(clientNetcheck).where(ilike(clientNetcheck.client, hostname))
     await db

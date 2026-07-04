@@ -21,6 +21,7 @@ import {
 import { derpRoutes } from './routes/derp.js'
 import { derpmapRoutes } from './routes/derpmap.js'
 import { deviceIdentityPublicRoutes } from './routes/device-identity.js'
+import { devicesRoutes } from './routes/devices.js'
 import { dnsSplitPublicRoutes, dnsSplitRoutes } from './routes/dns-split.js'
 import { forceRouteRoutes } from './routes/force-routes.js'
 import { headscalePublicRoutes, headscaleRoutes } from './routes/headscale.js'
@@ -61,6 +62,7 @@ async function main() {
   await app.register(dnsSplitPublicRoutes)
   await app.register(dnsSplitRoutes)
   await app.register(deviceIdentityPublicRoutes)
+  await app.register(devicesRoutes)
   await app.register(telemetryPublicRoutes)
   await app.register(telemetryRoutes)
 
