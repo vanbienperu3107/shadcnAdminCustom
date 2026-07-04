@@ -47,10 +47,20 @@ export const derpServers = pgTable('derp_servers', {
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
-  googleSub: text('google_sub').notNull().unique(),
+  // googleSub nullable: user đăng nhập bằng username/password không có google_sub.
+  googleSub: text('google_sub').unique(),
   email: text('email').notNull(),
   name: text('name'),
   picture: text('picture'),
+  // Đăng nhập nội bộ bằng username + mật khẩu (tùy chọn, song song Google).
+  username: text('username').unique(),
+  passwordHash: text('password_hash'),
+  // 2FA TOTP: secret (base32) + cờ đã bật. totpSecret có thể tồn tại ở trạng
+  // thái "đang cài đặt, chưa xác minh" — chỉ coi là bật khi totpEnabled=true.
+  totpSecret: text('totp_secret'),
+  totpEnabled: boolean('totp_enabled').notNull().default(false),
+  // Counter TOTP đã dùng gần nhất — chống replay: từ chối mã có counter <= giá trị này.
+  totpLastCounter: integer('totp_last_counter'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -65,6 +75,11 @@ export const sessions = pgTable('sessions', {
   refreshToken: text('refresh_token'),
   idToken: text('id_token'),
   tokenExpiry: timestamp('token_expiry', { withTimezone: true }),
+  // Session đang chờ bước 2FA: đã xác thực mật khẩu nhưng CHƯA qua TOTP.
+  // getSessionUser/requireAuth coi như chưa đăng nhập cho tới khi promote.
+  pending2fa: boolean('pending_2fa').notNull().default(false),
+  // Số lần nhập sai mã 2FA cho session pending này — khóa khi vượt ngưỡng.
+  mfaAttempts: integer('mfa_attempts').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

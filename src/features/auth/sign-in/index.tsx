@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { AuthLayout } from '../auth-layout'
+import { PasswordForm } from './components/password-form'
 
 const ERROR_MESSAGES: Record<string, string> = {
   not_allowed: 'Email của bạn không nằm trong danh sách được phép.',
@@ -34,11 +35,23 @@ export function SignIn() {
         <CardHeader>
           <CardTitle className='text-lg tracking-tight'>Đăng nhập</CardTitle>
           <CardDescription>
-            Headscale Admin — dùng tài khoản Google được cấp quyền để tiếp tục.
+            Headscale Admin — dùng tài khoản nội bộ (có 2FA) hoặc Google.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className='grid gap-4'>
+          <PasswordForm />
+
+          <div className='relative'>
+            <div className='absolute inset-0 flex items-center'>
+              <span className='w-full border-t' />
+            </div>
+            <div className='relative flex justify-center text-xs uppercase'>
+              <span className='bg-card px-2 text-muted-foreground'>hoặc</span>
+            </div>
+          </div>
+
           <Button
+            variant='outline'
             className='w-full'
             onClick={() => {
               window.location.href = googleLoginUrl()
@@ -50,9 +63,8 @@ export function SignIn() {
         </CardContent>
         <CardFooter>
           <p className='px-4 text-center text-xs text-muted-foreground'>
-            Chỉ các email trong danh sách{' '}
-            <span className='font-mono'>ALLOWED_EMAILS</span> mới đăng nhập
-            được.
+            Tài khoản Google chỉ đăng nhập được nếu email nằm trong{' '}
+            <span className='font-mono'>ALLOWED_EMAILS</span>.
           </p>
         </CardFooter>
       </Card>

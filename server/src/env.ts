@@ -45,6 +45,12 @@ const schema = z.object({
     .default('vanbienperu3107/shadcnAdminCustom,vanbienperu3107/deployHeadscale'),
   // 'true' = bỏ qua đăng nhập (CHỈ dev/local để xem UI khi chưa cấu hình Google).
   AUTH_OPTIONAL: z.string().default('false'),
+  // Bootstrap tài khoản admin nội bộ (username/password) lúc khởi động. Để trống
+  // = không tạo. Idempotent: chỉ tạo nếu username chưa tồn tại (không ghi đè
+  // mật khẩu/2FA đã đổi). Sau khi tạo xong nên xóa 2 biến này khỏi môi trường.
+  ADMIN_USERNAME: z.string().default(''),
+  ADMIN_PASSWORD: z.string().default(''),
+  ADMIN_EMAIL: z.string().default(''),
   NODE_ENV: z.string().default('development'),
 })
 

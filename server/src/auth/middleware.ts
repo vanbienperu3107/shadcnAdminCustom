@@ -13,6 +13,8 @@ export const DEV_USER: SessionUser = {
   email: 'dev@local',
   name: 'Dev (AUTH_OPTIONAL)',
   picture: null,
+  username: 'dev',
+  totpEnabled: false,
 }
 
 /** preHandler: chặn nếu chưa đăng nhập (401). Gắn req.user nếu hợp lệ. */
