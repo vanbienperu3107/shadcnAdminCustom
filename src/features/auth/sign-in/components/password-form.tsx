@@ -50,7 +50,15 @@ export function PasswordForm({ className, ...props }: PasswordFormProps) {
   })
 
   function goToApp() {
-    const target = redirect && redirect.startsWith('/') ? redirect : '/'
+    // SPA chạy dưới base path (prod: '/app/', dev: '/'). redirect từ route guard
+    // là đường dẫn ĐÃ strip base (vd '/overview') nên phải ghép lại base, nếu
+    // không sẽ nhảy về root và trúng 404 của headscale.
+    const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '') // '/app' | ''
+    const path =
+      redirect && redirect.startsWith('/') && !redirect.startsWith('//')
+        ? redirect
+        : '/'
+    const target = base && path.startsWith(base + '/') ? path : `${base}${path}`
     // Full reload để route guard chạy lại fetchMe() với cookie mới.
     window.location.assign(target)
   }
