@@ -103,4 +103,28 @@ export async function deviceIdentityPublicRoutes(
       return reply.code(502).send({ error: String(e) })
     }
   })
+
+  // Public — gọi bởi headscale fork lúc đăng ký node MỚI (state.go, ngay
+  // trước ipAlloc.Next()), đọc Hostinfo.WoLMACs[0] client gửi lên làm MAC
+  // hint. Trả IP nên dùng (ưu tiên staticIpv4 admin gán tay, sau đó lastIpv4
+  // lịch sử tự động) — headscale tự quyết định fallback nếu IP đã bị chiếm
+  // hoặc endpoint này lỗi/timeout, KHÔNG chặn đăng ký trong mọi trường hợp.
+  app.get('/api/internal/reserved-ip', async (req, reply) => {
+    if (!checkSecret(req, reply)) return
+    const q = req.query as { mac?: string }
+    const mac = typeof q.mac === 'string' ? q.mac.trim().toLowerCase() : ''
+    if (!mac) return reply.code(400).send({ error: 'mac required' })
+    try {
+      const [row] = await db
+        .select({
+          staticIpv4: deviceIdentity.staticIpv4,
+          lastIpv4: deviceIdentity.lastIpv4,
+        })
+        .from(deviceIdentity)
+        .where(eq(deviceIdentity.mac, mac))
+      return { ipv4: row?.staticIpv4 || row?.lastIpv4 || null }
+    } catch (e) {
+      return reply.code(502).send({ error: String(e) })
+    }
+  })
 }
