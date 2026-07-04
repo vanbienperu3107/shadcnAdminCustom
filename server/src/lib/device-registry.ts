@@ -21,6 +21,20 @@ function generateToken(): string {
   return randomBytes(24).toString('base64url')
 }
 
+/**
+ * Chuẩn hóa nodeKey về đúng 1 định dạng (`nodekey:<hex>`) trước khi lưu/so
+ * sánh — headscale's API trả về CÓ tiền tố, nhưng admin gõ tay vào form DERP
+ * (ts_node_key) có thể chỉ dán phần hex, KHÔNG có tiền tố. Nếu không chuẩn
+ * hóa, so sánh chuỗi sẽ coi 2 giá trị này là 2 nodeKey khác nhau -> tạo trùng
+ * dòng device_identity cho cùng 1 node (đã xảy ra thật, xem lịch sử sự cố).
+ */
+export function normalizeNodeKey(key: string | null | undefined): string | null {
+  if (!key) return null
+  const trimmed = key.trim().toLowerCase()
+  if (!trimmed) return null
+  return trimmed.startsWith('nodekey:') ? trimmed : `nodekey:${trimmed}`
+}
+
 /** Upsert theo mac — dùng bởi POST /api/internal/device-register (client thật). */
 export async function upsertClientDevice(opts: {
   mac: string
@@ -28,7 +42,8 @@ export async function upsertClientDevice(opts: {
   nodeKey: string | null
   ipv4?: string | null
 }): Promise<void> {
-  const { mac, hostname, nodeKey, ipv4 } = opts
+  const { mac, hostname, ipv4 } = opts
+  const nodeKey = normalizeNodeKey(opts.nodeKey)
   const [existing] = await db
     .select()
     .from(deviceIdentity)
@@ -62,24 +77,27 @@ export async function upsertDerpInfraDevice(opts: {
   nodeKey: string
   hostname: string
 }): Promise<void> {
-  const { nodeKey, hostname } = opts
+  const nodeKey = normalizeNodeKey(opts.nodeKey)
+  if (!nodeKey) return
   await db
     .insert(deviceIdentity)
     .values({
       mac: null,
-      hostname,
+      hostname: opts.hostname,
       nodeKey,
       deviceType: 'derp_infra',
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: deviceIdentity.nodeKey,
-      set: { hostname, deviceType: 'derp_infra', updatedAt: new Date() },
+      set: { hostname: opts.hostname, deviceType: 'derp_infra', updatedAt: new Date() },
     })
 }
 
 export async function deleteDeviceByNodeKey(nodeKey: string): Promise<void> {
-  await db.delete(deviceIdentity).where(eq(deviceIdentity.nodeKey, nodeKey))
+  const normalized = normalizeNodeKey(nodeKey)
+  if (!normalized) return
+  await db.delete(deviceIdentity).where(eq(deviceIdentity.nodeKey, normalized))
 }
 
 export async function deleteDeviceByMac(mac: string): Promise<void> {
@@ -151,21 +169,24 @@ export async function backfillDeviceRegistry(): Promise<{
     (
       await db.select({ nodeKey: deviceIdentity.nodeKey }).from(deviceIdentity)
     )
-      .map((r) => r.nodeKey)
+      .map((r) => normalizeNodeKey(r.nodeKey))
       .filter((k): k is string => !!k)
   )
 
   let clientsBackfilled = 0
-  const leftover = allNodes.filter(
-    (n) => n.nodeKey && !allKnown.has(n.nodeKey)
-  )
+  const leftover = allNodes.filter((n) => {
+    const normalized = normalizeNodeKey(n.nodeKey)
+    return normalized && !allKnown.has(normalized)
+  })
   for (const n of leftover) {
+    const nodeKey = normalizeNodeKey(n.nodeKey)
+    if (!nodeKey) continue
     await db
       .insert(deviceIdentity)
       .values({
         mac: null,
         hostname: n.givenName || n.name || 'unknown',
-        nodeKey: n.nodeKey!,
+        nodeKey,
         managedUser: userLabel(n.user),
         deviceType: 'client',
         updatedAt: new Date(),
