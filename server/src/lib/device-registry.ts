@@ -35,7 +35,51 @@ export function normalizeNodeKey(key: string | null | undefined): string | null 
   return trimmed.startsWith('nodekey:') ? trimmed : `nodekey:${trimmed}`
 }
 
-/** Upsert theo mac — dùng bởi POST /api/internal/device-register (client thật). */
+/**
+ * Upsert 1 client thật — dùng bởi POST /api/internal/device-register.
+ *
+ * Bảng device_identity có 2 khóa UNIQUE độc lập: `mac` VÀ `node_key`. Bản cũ
+ * chỉ tra theo `mac` rồi INSERT thẳng — nếu `node_key` đã tồn tại ở 1 DÒNG
+ * KHÁC (rất hay gặp: dòng do backfillDeviceRegistry() tạo với mac=null từ
+ * headscale, hoặc client đổi primaryMAC giữa các lần khởi động) thì INSERT vi
+ * phạm `device_identity_node_key_unique` → route trả 502 (đúng lỗi đã thấy).
+ * Nhánh UPDATE cũ (`nodeKey ?? existing.nodeKey`) cũng vi phạm tương tự nếu
+ * node báo lại 1 node_key đang thuộc dòng khác. Vì vậy reconcile theo CẢ hai
+ * khóa, trong 1 transaction (postgres-js hỗ trợ) để tránh cả race select→insert.
+ */
+/**
+ * Quyết định thao tác DB thuần (không I/O) từ 2 dòng tra được theo `mac` và
+ * theo `node_key`. Tách riêng để unit-test được nhánh dễ sai này — nguyên nhân
+ * gốc của lỗi 502 duplicate node_key. Quy ước: `node_key` là danh tính mạnh
+ * hơn (tailscale identity), nên khi node_key đã có dòng thì neo mac vào đó.
+ */
+export type ClientDeviceAction =
+  | { kind: 'insert' }
+  | { kind: 'update-by-mac'; id: number }
+  | { kind: 'adopt-node-key'; keyRowId: number; clearMacFromId: number | null }
+
+export function resolveClientDeviceAction(
+  byMac: { id: number } | undefined,
+  byKey: { id: number } | undefined
+): ClientDeviceAction {
+  // node_key đã tồn tại ở 1 dòng KHÁC dòng-theo-mac (dòng backfill mac=null,
+  // hoặc client đổi primaryMAC): gán mac vào ĐÚNG dòng node_key đó thay vì
+  // INSERT dòng mới (sẽ vi phạm node_key_unique — chính là lỗi 502 đã thấy).
+  if (byKey && (!byMac || byMac.id !== byKey.id)) {
+    return {
+      kind: 'adopt-node-key',
+      keyRowId: byKey.id,
+      // mac đang thuộc 1 dòng khác → phải gỡ mac khỏi dòng cũ trước, nếu không
+      // sẽ vi phạm mac_unique khi gán sang dòng node_key.
+      clearMacFromId: byMac && byMac.id !== byKey.id ? byMac.id : null,
+    }
+  }
+  if (!byMac) return { kind: 'insert' }
+  // Có dòng theo mac (và nếu có dòng theo node_key thì cùng dòng) → node_key
+  // mới (nếu có) chắc chắn chưa thuộc dòng khác nên update không đụng unique.
+  return { kind: 'update-by-mac', id: byMac.id }
+}
+
 export async function upsertClientDevice(opts: {
   mac: string
   hostname: string
@@ -44,32 +88,63 @@ export async function upsertClientDevice(opts: {
 }): Promise<void> {
   const { mac, hostname, ipv4 } = opts
   const nodeKey = normalizeNodeKey(opts.nodeKey)
-  const [existing] = await db
-    .select()
-    .from(deviceIdentity)
-    .where(eq(deviceIdentity.mac, mac))
 
-  if (!existing) {
-    await db.insert(deviceIdentity).values({
-      mac,
-      hostname,
-      nodeKey,
-      deviceType: 'client',
-      deviceToken: generateToken(),
-      lastIpv4: ipv4 ?? null,
-      updatedAt: new Date(),
-    })
-    return
-  }
+  // 1 transaction (postgres-js hỗ trợ) bao select→ghi để tránh race register.
+  await db.transaction(async (tx) => {
+    const [byMac] = await tx
+      .select()
+      .from(deviceIdentity)
+      .where(eq(deviceIdentity.mac, mac))
+    const [byKey] = nodeKey
+      ? await tx
+          .select()
+          .from(deviceIdentity)
+          .where(eq(deviceIdentity.nodeKey, nodeKey))
+      : []
 
-  await db
-    .update(deviceIdentity)
-    .set({
-      nodeKey: nodeKey ?? existing.nodeKey,
-      lastIpv4: ipv4 ?? existing.lastIpv4,
-      updatedAt: new Date(),
-    })
-    .where(eq(deviceIdentity.mac, mac))
+    const action = resolveClientDeviceAction(byMac, byKey)
+
+    if (action.kind === 'insert') {
+      await tx.insert(deviceIdentity).values({
+        mac,
+        hostname,
+        nodeKey,
+        deviceType: 'client',
+        deviceToken: generateToken(),
+        lastIpv4: ipv4 ?? null,
+        updatedAt: new Date(),
+      })
+      return
+    }
+
+    if (action.kind === 'update-by-mac') {
+      await tx
+        .update(deviceIdentity)
+        .set({
+          nodeKey: nodeKey ?? byMac.nodeKey,
+          lastIpv4: ipv4 ?? byMac.lastIpv4,
+          updatedAt: new Date(),
+        })
+        .where(eq(deviceIdentity.id, action.id))
+      return
+    }
+
+    // adopt-node-key: giữ hostname chuẩn cũ trên dòng node_key, neo mac vào đó.
+    if (action.clearMacFromId !== null) {
+      await tx
+        .update(deviceIdentity)
+        .set({ mac: null, updatedAt: new Date() })
+        .where(eq(deviceIdentity.id, action.clearMacFromId))
+    }
+    await tx
+      .update(deviceIdentity)
+      .set({
+        mac,
+        lastIpv4: ipv4 ?? byKey?.lastIpv4 ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(deviceIdentity.id, action.keyRowId))
+  })
 }
 
 /** Upsert theo nodeKey — dùng bởi routes/derp.ts khi admin gán ts_node_key cho 1 region. */
