@@ -6,7 +6,7 @@ import { derpServers } from '../db/schema.js'
 import { requireAuth } from '../auth/middleware.js'
 import { nextRegionId } from '../lib/region-id.js'
 import { probeHost } from '../lib/probe.js'
-import { deleteDeviceByNodeKey, upsertDerpInfraDevice } from '../lib/device-registry.js'
+import { deleteDeviceByNodeKey, normalizeNodeKey, upsertDerpInfraDevice } from '../lib/device-registry.js'
 
 const createSchema = z.object({
   code: z.string().min(1).max(64),
@@ -85,10 +85,14 @@ export async function derpRoutes(app: FastifyInstance): Promise<void> {
     if (!parsed.success) return reply.code(400).send({ error: 'invalid', details: parsed.error.flatten() })
     const used = await db.select({ regionId: derpServers.regionId }).from(derpServers)
     const regionId = nextRegionId(used.map((r) => r.regionId))
+    // Chuẩn hóa nodeKey trước khi lưu — admin dán tay dễ thiếu tiền tố
+    // "nodekey:" so với API headscale trả về, gây so sánh chuỗi sai lệch
+    // (xem lib/device-registry.ts normalizeNodeKey).
+    const tsNodeKey = normalizeNodeKey(parsed.data.tsNodeKey)
     try {
       const [row] = await db
         .insert(derpServers)
-        .values({ ...parsed.data, regionId, embedded: false })
+        .values({ ...parsed.data, tsNodeKey, regionId, embedded: false })
         .returning()
       if (row.tsNodeKey) {
         await upsertDerpInfraDevice({
@@ -134,7 +138,7 @@ export async function derpRoutes(app: FastifyInstance): Promise<void> {
     if (parsed.data.paused !== undefined)      setData.paused      = parsed.data.paused
     if (parsed.data.maintenance !== undefined) setData.maintenance = parsed.data.maintenance
     if (parsed.data.priority !== undefined)    setData.priority    = parsed.data.priority
-    if (parsed.data.tsNodeKey !== undefined)   setData.tsNodeKey   = parsed.data.tsNodeKey ?? null
+    if (parsed.data.tsNodeKey !== undefined)   setData.tsNodeKey   = normalizeNodeKey(parsed.data.tsNodeKey)
     req.log.info({ regionId, setKeys: Object.keys(setData), priority: setData.priority }, 'PATCH /api/derp setData')
     try {
       const [row] = await db
