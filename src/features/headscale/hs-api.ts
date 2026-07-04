@@ -233,3 +233,68 @@ export function isDerpNode(
   }
   return false
 }
+
+// ── Device registry (bảng device_identity hợp nhất) ─────────────────────────
+
+export type Device = {
+  id: number
+  mac: string | null
+  nodeKey: string | null
+  hostname: string
+  managedUser: string | null
+  deviceType: 'client' | 'derp_infra' | string
+  lastIpv4: string | null
+  staticIpv4: string | null
+  updatedAt: string
+}
+
+export async function fetchDevices(): Promise<Device[]> {
+  const { data } = await api.get<Device[]>('/devices')
+  return data
+}
+
+export async function updateDevice(
+  id: number,
+  patch: { managedUser?: string | null; staticIpv4?: string | null }
+): Promise<Device> {
+  const { data } = await api.patch<Device>(`/devices/${id}`, patch)
+  return data
+}
+
+export async function backfillDevices(): Promise<{
+  derpMatched: number
+  derpUnmatched: string[]
+  clientsBackfilled: number
+}> {
+  const { data } = await api.post('/devices/backfill')
+  return data
+}
+
+/**
+ * Map nodeKey -> deviceType, dùng để phân loại machine ƯU TIÊN qua dữ liệu
+ * tường minh (bảng device_identity) thay vì đoán tên. Machine chưa có trong
+ * bảng (chưa backfill/chưa gán ts_node_key) → không có trong map, caller nên
+ * fallback sang derpNameSet/isDerpNode.
+ */
+export function deviceTypeMap(devices: Device[]): Map<string, string> {
+  const m = new Map<string, string>()
+  for (const d of devices) {
+    if (d.nodeKey) m.set(d.nodeKey, d.deviceType)
+  }
+  return m
+}
+
+/**
+ * Phân loại machine: ưu tiên tra `deviceTypeMap` theo nodeKey (nguồn đúng,
+ * không đoán); machine chưa có trong bảng thì rơi về cách đoán tên cũ
+ * (derpNameSet/isDerpNode) làm lưới an toàn tạm thời.
+ */
+export function isDerpNodeV2(
+  machine: { nodeKey?: string; givenName?: string; name?: string },
+  typeByNodeKey: Map<string, string>,
+  fallbackNames: Set<string>
+): boolean {
+  const known = machine.nodeKey ? typeByNodeKey.get(machine.nodeKey) : undefined
+  if (known) return known === 'derp_infra'
+  return isDerpNode(machine.givenName || machine.name, fallbackNames)
+}

@@ -104,6 +104,12 @@ export async function migrate(): Promise<void> {
   await db.execute(sql`
     ALTER TABLE derp_servers ADD COLUMN IF NOT EXISTS ssh_port INTEGER DEFAULT 22
   `)
+
+  // nodeKey cua may Tailscale sidecar tren host DERP nay — dong bo vao
+  // device_identity (device_type='derp_infra'), xem routes/derp.ts + devices.ts.
+  await db.execute(sql`
+    ALTER TABLE derp_servers ADD COLUMN IF NOT EXISTS ts_node_key TEXT
+  `)
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS derp_force_routes (
       id          SERIAL PRIMARY KEY,
@@ -161,6 +167,43 @@ export async function migrate(): Promise<void> {
       node_key   TEXT,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
+  `)
+
+  // Nang cap device_identity thanh "device registry" hop nhat (client + derp
+  // infra, phan biet boi device_type) — mac khong the tiep tuc la PK vi
+  // derp_infra khong co MAC. Doi PK sang id serial, mac/node_key thanh UNIQUE
+  // rieng (cho phep null). Boc trong kiem tra idempotent vi PK chi doi 1 lan.
+  await db.execute(sql`
+    ALTER TABLE device_identity ADD COLUMN IF NOT EXISTS id SERIAL
+  `)
+  await db.execute(sql`
+    ALTER TABLE device_identity ADD COLUMN IF NOT EXISTS managed_user TEXT
+  `)
+  await db.execute(sql`
+    ALTER TABLE device_identity ADD COLUMN IF NOT EXISTS device_type TEXT NOT NULL DEFAULT 'client'
+  `)
+  await db.execute(sql`
+    ALTER TABLE device_identity ADD COLUMN IF NOT EXISTS device_token TEXT
+  `)
+  await db.execute(sql`
+    ALTER TABLE device_identity ADD COLUMN IF NOT EXISTS last_ipv4 TEXT
+  `)
+  await db.execute(sql`
+    ALTER TABLE device_identity ADD COLUMN IF NOT EXISTS static_ipv4 TEXT
+  `)
+  await db.execute(sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'device_identity_id_pkey'
+      ) THEN
+        ALTER TABLE device_identity DROP CONSTRAINT device_identity_pkey;
+        ALTER TABLE device_identity ALTER COLUMN mac DROP NOT NULL;
+        ALTER TABLE device_identity ADD CONSTRAINT device_identity_mac_unique UNIQUE (mac);
+        ALTER TABLE device_identity ADD CONSTRAINT device_identity_id_pkey PRIMARY KEY (id);
+        ALTER TABLE device_identity ADD CONSTRAINT device_identity_node_key_unique UNIQUE (node_key);
+      END IF;
+    END $$;
   `)
 
   // Client config — shared with api-center (cùng DB hoặc tạo lại nếu DB riêng)

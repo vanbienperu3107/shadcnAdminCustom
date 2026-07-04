@@ -43,6 +43,7 @@ function toPayload(values: DerpFormValues) {
     stunPort: Number(values.stunPort),
     canPort80: values.canPort80,
     priority: Number(values.priority),
+    tsNodeKey: values.tsNodeKey ? values.tsNodeKey : null,
   }
 }
 

@@ -22,6 +22,9 @@ export type DerpServer = {
   priority: number
   sshUser: string | null
   sshPort: number | null
+  // nodeKey của máy Tailscale sidecar trên host này — dùng để đồng bộ bảng
+  // device_identity (device_type='derp_infra'), thay đoán tên (xem hs-api.ts).
+  tsNodeKey: string | null
   createdAt: string
   updatedAt: string
 }
@@ -59,6 +62,7 @@ export const derpFormSchema = z.object({
   stunPort: intField(-1, 65535, 'STUN port'),
   canPort80: z.boolean(),
   priority: intField(1, 1000, 'Độ ưu tiên'),
+  tsNodeKey: z.string(),
 })
 
 export type DerpFormValues = z.infer<typeof derpFormSchema>
@@ -73,4 +77,5 @@ export const DERP_FORM_DEFAULTS: DerpFormValues = {
   stunPort: '3478',
   canPort80: false,
   priority: '100',
+  tsNodeKey: '',
 }

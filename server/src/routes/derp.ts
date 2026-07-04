@@ -6,12 +6,14 @@ import { derpServers } from '../db/schema.js'
 import { requireAuth } from '../auth/middleware.js'
 import { nextRegionId } from '../lib/region-id.js'
 import { probeHost } from '../lib/probe.js'
+import { deleteDeviceByNodeKey, upsertDerpInfraDevice } from '../lib/device-registry.js'
 
 const createSchema = z.object({
   code: z.string().min(1).max(64),
   name: z.string().min(1).max(128),
   nodeName: z.string().min(1).max(64),
   hostname: z.string().min(1).max(255),
+  tsNodeKey: z.string().max(255).nullish(),
   ipv4: z.string().max(45).nullish(),
   ipv6: z.string().max(45).nullish(),
   derpPort: z.number().int().min(1).max(65535).default(443),
@@ -88,6 +90,12 @@ export async function derpRoutes(app: FastifyInstance): Promise<void> {
         .insert(derpServers)
         .values({ ...parsed.data, regionId, embedded: false })
         .returning()
+      if (row.tsNodeKey) {
+        await upsertDerpInfraDevice({
+          nodeKey: row.tsNodeKey,
+          hostname: row.nodeName,
+        })
+      }
       return reply.code(201).send(row)
     } catch (err) {
       if (isUniqueViolation(err)) {
@@ -126,6 +134,7 @@ export async function derpRoutes(app: FastifyInstance): Promise<void> {
     if (parsed.data.paused !== undefined)      setData.paused      = parsed.data.paused
     if (parsed.data.maintenance !== undefined) setData.maintenance = parsed.data.maintenance
     if (parsed.data.priority !== undefined)    setData.priority    = parsed.data.priority
+    if (parsed.data.tsNodeKey !== undefined)   setData.tsNodeKey   = parsed.data.tsNodeKey ?? null
     req.log.info({ regionId, setKeys: Object.keys(setData), priority: setData.priority }, 'PATCH /api/derp setData')
     try {
       const [row] = await db
@@ -135,6 +144,14 @@ export async function derpRoutes(app: FastifyInstance): Promise<void> {
         .returning()
       req.log.info({ regionId, resultPriority: row?.priority, rowExists: !!row }, 'PATCH /api/derp result')
       if (!row) return reply.code(500).send({ error: 'update_returned_no_rows' })
+      // Đồng bộ devices theo tsNodeKey — đổi sang node khác thì xóa dòng cũ
+      // trước để không để lại rác (khóa của devices là nodeKey, không phải region).
+      if (existing.tsNodeKey && existing.tsNodeKey !== row.tsNodeKey) {
+        await deleteDeviceByNodeKey(existing.tsNodeKey)
+      }
+      if (row.tsNodeKey) {
+        await upsertDerpInfraDevice({ nodeKey: row.tsNodeKey, hostname: row.nodeName })
+      }
       return row
     } catch (err) {
       req.log.error({ regionId, err: String(err) }, 'PATCH /api/derp error')
@@ -173,6 +190,9 @@ export async function derpRoutes(app: FastifyInstance): Promise<void> {
     if (!existing) return reply.code(404).send({ error: 'not_found' })
     if (existing.embedded) return reply.code(403).send({ error: 'embedded_readonly' })
     await db.delete(derpServers).where(eq(derpServers.regionId, regionId))
+    if (existing.tsNodeKey) {
+      await deleteDeviceByNodeKey(existing.tsNodeKey)
+    }
     return reply.code(204).send()
   })
 }

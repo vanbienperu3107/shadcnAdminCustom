@@ -16,11 +16,13 @@ import { Main } from '@/components/layout/main'
 import { derpKeys, fetchHealth, listDerp } from '@/features/derp/data/derp-api'
 import {
   derpNameSet,
+  deviceTypeMap,
+  fetchDevices,
   fetchHsUsers,
   fetchLatency,
   fetchMachines,
   hsKeys,
-  isDerpNode,
+  isDerpNodeV2,
   userName,
 } from '@/features/headscale/hs-api'
 
@@ -88,6 +90,7 @@ export function Overview() {
     queryFn: fetchLatency,
     refetchInterval: 30_000,
   })
+  const devices = useQuery({ queryKey: ['devices'], queryFn: fetchDevices })
 
   const regions = derp.data ?? []
   const activeRegions = regions.filter((r) => r.enabled && !r.paused).length
@@ -95,9 +98,10 @@ export function Overview() {
   const healthDown = (health.data ?? []).filter((h) => !h.up).length
 
   const names = derpNameSet(regions)
+  const typeByNodeKey = deviceTypeMap(devices.data ?? [])
   const allNodes = machines.data?.nodes ?? []
   const realNodes = allNodes.filter(
-    (n) => !isDerpNode(n.givenName || n.name, names)
+    (n) => !isDerpNodeV2(n, typeByNodeKey, names)
   )
   const realOnline = realNodes.filter((n) => n.online).length
   const hsOk = !!machines.data?.configured

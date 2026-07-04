@@ -12,10 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
 import {
   derpNameSet,
+  deviceTypeMap,
+  fetchDevices,
   fetchLatency,
   fetchMachines,
   hsKeys,
-  isDerpNode,
+  isDerpNodeV2,
   userName,
 } from '@/features/headscale/hs-api'
 
@@ -51,6 +53,7 @@ function RelayBadge({ path }: { path: string }) {
 
 type RowData = {
   id?: string
+  nodeKey?: string
   name: string
   user: string
   ip: string
@@ -141,8 +144,10 @@ export function Latency() {
     refetchInterval: 30_000,
   })
   const derp = useQuery({ queryKey: derpKeys.all, queryFn: listDerp })
+  const devices = useQuery({ queryKey: ['devices'], queryFn: fetchDevices })
 
   const names = derpNameSet(derp.data ?? [])
+  const typeByNodeKey = deviceTypeMap(devices.data ?? [])
   const pairs = lat.data?.pairs ?? []
 
   // Src-based lookup: for each client, find its home DERP region and RTT.
@@ -185,6 +190,7 @@ export function Latency() {
     const info = clientDerpMap.get(key)
     return {
       id: n.id,
+      nodeKey: n.nodeKey,
       name: n.givenName || n.name || '—',
       user: userName(n.user),
       ip: n.ipAddresses?.[0] ?? '—',
@@ -196,10 +202,19 @@ export function Latency() {
   })
 
   const clientRows = allRows
-    .filter((r) => !isDerpNode(r.name, names))
+    .filter(
+      (r) =>
+        !isDerpNodeV2(
+          { nodeKey: r.nodeKey, name: r.name },
+          typeByNodeKey,
+          names
+        )
+    )
     .sort((a, b) => Number(b.online) - Number(a.online))
   const infraRows = allRows
-    .filter((r) => isDerpNode(r.name, names))
+    .filter((r) =>
+      isDerpNodeV2({ nodeKey: r.nodeKey, name: r.name }, typeByNodeKey, names)
+    )
     .sort((a, b) => Number(b.online) - Number(a.online))
 
   const ready = mac.data?.configured && !lat.data?.error

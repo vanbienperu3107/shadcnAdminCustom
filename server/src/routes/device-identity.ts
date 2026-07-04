@@ -4,6 +4,7 @@ import { db } from '../db/client.js'
 import { deviceIdentity } from '../db/schema.js'
 import { env } from '../env.js'
 import { hsApi, isHsConfigured } from '../lib/headscale.js'
+import { upsertClientDevice } from '../lib/device-registry.js'
 
 function checkSecret(req: FastifyRequest, reply: FastifyReply): boolean {
   if (!env.HEADSCALE_DASHBOARD_SECRET) return true
@@ -37,12 +38,14 @@ export async function deviceIdentityPublicRoutes(
       mac?: unknown
       hostname?: unknown
       node_key?: unknown
+      ipv4?: unknown
     }
     const mac = typeof body.mac === 'string' ? body.mac.trim().toLowerCase() : ''
     const hostname =
       typeof body.hostname === 'string' ? body.hostname.trim() : ''
     const nodeKey =
       typeof body.node_key === 'string' ? body.node_key.trim() : ''
+    const ipv4 = typeof body.ipv4 === 'string' ? body.ipv4.trim() : ''
     if (!mac || !hostname) {
       return reply.code(400).send({ error: 'mac and hostname required' })
     }
@@ -53,22 +56,18 @@ export async function deviceIdentityPublicRoutes(
         .from(deviceIdentity)
         .where(eq(deviceIdentity.mac, mac))
 
-      if (!existing) {
-        await db.insert(deviceIdentity).values({
-          mac,
-          hostname,
-          nodeKey: nodeKey || null,
-          updatedAt: new Date(),
-        })
-        return { ok: true, canonicalHostname: hostname, renamed: false }
-      }
+      // upsertClientDevice() chỉ set hostname lúc INSERT lần đầu — nếu đã có
+      // dòng cũ, hostname (tên chuẩn) không bị ghi đè, chỉ nodeKey/lastIpv4
+      // được cập nhật (xem lib/device-registry.ts).
+      await upsertClientDevice({
+        mac,
+        hostname,
+        nodeKey: nodeKey || null,
+        ipv4: ipv4 || null,
+      })
 
-      // MAC đã biết — cập nhật nodeKey mới nhất (đổi mỗi lần cài lại).
-      if (existing.nodeKey !== nodeKey) {
-        await db
-          .update(deviceIdentity)
-          .set({ nodeKey: nodeKey || null, updatedAt: new Date() })
-          .where(eq(deviceIdentity.mac, mac))
+      if (!existing) {
+        return { ok: true, canonicalHostname: hostname, renamed: false }
       }
 
       // Tên khớp tên chuẩn — không cần làm gì thêm.
