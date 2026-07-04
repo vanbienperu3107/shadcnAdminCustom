@@ -58,6 +58,37 @@ export async function migrate(): Promise<void> {
     sql`CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`
   )
 
+  // Đăng nhập nội bộ username/password + 2FA TOTP (song song Google OAuth).
+  // google_sub phải nullable vì user nội bộ không có; giữ UNIQUE cho phép nhiều NULL.
+  await db.execute(sql`ALTER TABLE users ALTER COLUMN google_sub DROP NOT NULL`)
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT`)
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT`)
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT`)
+  await db.execute(
+    sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT false`
+  )
+  await db.execute(
+    sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_last_counter INTEGER`
+  )
+  await db.execute(sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'users_username_unique'
+      ) THEN
+        ALTER TABLE users ADD CONSTRAINT users_username_unique UNIQUE (username);
+      END IF;
+    END $$;
+  `)
+
+  // Session chờ bước 2FA (đã qua mật khẩu, chưa qua TOTP).
+  await db.execute(
+    sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS pending_2fa BOOLEAN NOT NULL DEFAULT false`
+  )
+  await db.execute(
+    sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS mfa_attempts INTEGER NOT NULL DEFAULT 0`
+  )
+
   // Bảng đơn dòng lưu Headscale API key (auto-refresh 24h).
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS headscale_api_keys (

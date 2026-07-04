@@ -1,10 +1,12 @@
 import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
 import Fastify from 'fastify'
 import { existsSync } from 'node:fs'
 import { migrate } from './db/migrate.js'
 import { seedIfEmpty } from './db/seed.js'
 import { env, googleEnabled } from './env.js'
+import { bootstrapAdmin } from './lib/admin-bootstrap.js'
 import { seedFromEnv, startAutoRefresh } from './lib/apikey-manager.js'
 import { startDerpNodeHealthSweep } from './lib/derp-node-health.js'
 import { apikeyRoutes } from './routes/apikey.js'
@@ -36,6 +38,9 @@ async function main() {
   const app = Fastify({ logger: { level: 'info' } })
 
   await app.register(cookie, { secret: env.SESSION_SECRET })
+  // Rate limit global:false — chỉ áp cho route bật config.rateLimit (đăng nhập,
+  // verify-2fa) để tránh throttle traffic API bình thường (telemetry 3s…).
+  await app.register(rateLimit, { global: false })
   if (env.CORS_ORIGIN) {
     await app.register(cors, {
       origin: env.CORS_ORIGIN.split(','),
@@ -87,6 +92,10 @@ async function main() {
   await migrate()
   const seed = await seedIfEmpty()
   app.log.info({ seed, googleEnabled }, 'db ready')
+
+  // Tạo admin nội bộ (username/password) từ env nếu cấu hình — idempotent.
+  const adminCreated = await bootstrapAdmin()
+  if (adminCreated) app.log.info('admin bootstrap: created internal admin user')
 
   // Headscale API key: seed từ env (chỉ nếu DB chưa có), rồi bắt đầu auto-refresh 24h
   const seeded = await seedFromEnv()
