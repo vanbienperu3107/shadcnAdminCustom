@@ -1,4 +1,11 @@
-import { LayoutDashboard, Network, Rocket, Server, Users } from 'lucide-react'
+import {
+  LayoutDashboard,
+  Network,
+  Rocket,
+  Server,
+  ShieldCheck,
+  Users,
+} from 'lucide-react'
 import { type SidebarData } from '../types'
 
 export const sidebarData: SidebarData = {
@@ -26,6 +33,16 @@ export const sidebarData: SidebarData = {
         { title: 'Tailnet Access', url: '/tailnet-access', icon: Users },
         { title: 'Machines', url: '/machines', icon: Server },
         { title: 'Deploy & CI', url: '/deploy', icon: Rocket },
+      ],
+    },
+    {
+      title: 'Tài khoản',
+      items: [
+        {
+          title: 'Bảo mật (2FA)',
+          url: '/settings/security',
+          icon: ShieldCheck,
+        },
       ],
     },
   ],
