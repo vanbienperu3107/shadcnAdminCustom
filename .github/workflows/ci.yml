@@ -49,6 +49,10 @@ jobs:
   backend:
     name: DERP backend (test + build)
     runs-on: ubuntu-latest
+    # env.ts validates process.env lúc import (Zod). Unit test chỉ chạy hàm
+    # thuần, postgres-js kết nối lazy nên URL giả là đủ để qua bước parse.
+    env:
+      DATABASE_URL: postgres://ci:ci@localhost:5432/ci
     defaults:
       run:
         working-directory: server

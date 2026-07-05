@@ -4,13 +4,13 @@ import { KeyRound, RefreshCw, Terminal } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { ClientAutoUpdateCard } from '@/features/client-update'
 import {
   apiKeyRefresh,
   fetchApiKeyStatus,
   hsKeys,
   type ApiKeyStatus,
 } from '@/features/headscale/hs-api'
-import { ClientAutoUpdateCard } from '@/features/client-update'
 
 function fmt(iso: string | null | undefined): string {
   if (!iso) return '—'

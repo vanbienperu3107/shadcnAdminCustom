@@ -64,8 +64,8 @@ export function ClientAutoUpdateCard() {
       <div className='flex flex-col gap-1.5 rounded-md border p-3'>
         <label className='text-sm font-medium'>Ghim build (rollback)</label>
         <p className='text-xs text-muted-foreground'>
-          Mặc định “Mới nhất”. Chọn 1 build để đóng băng — client sẽ cập nhật (kể
-          cả lùi) về đúng build đó.
+          Mặc định “Mới nhất”. Chọn 1 build để đóng băng — client sẽ cập nhật
+          (kể cả lùi) về đúng build đó.
         </p>
         <select
           className='mt-1 h-9 rounded-md border bg-transparent px-2 text-sm disabled:opacity-50'
