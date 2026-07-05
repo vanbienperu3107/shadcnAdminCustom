@@ -239,7 +239,7 @@ export function Latency() {
       ) : (
         <>
           <Tabs defaultValue='clients'>
-            <TabsList>
+            <TabsList className='flex h-auto flex-wrap justify-start'>
               <TabsTrigger value='clients'>
                 Client
                 <span className='ms-1.5 text-muted-foreground'>

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
@@ -17,7 +18,16 @@ vi.mock('@/stores/auth-store', () => ({
 
 vi.mock('@/lib/auth-api', () => ({
   logout: () => logout(),
+  meQueryKey: ['auth', 'me'],
 }))
+
+// SignOutDialog dùng useQueryClient (xóa cache 'me' khi logout) -> cần provider.
+function renderWithClient(ui: React.ReactElement) {
+  const client = new QueryClient()
+  return render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+  )
+}
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-router')>()
@@ -34,7 +44,7 @@ describe('SignOutDialog', () => {
   })
 
   it('calls auth.reset and navigates to sign-in with current location as redirect', async () => {
-    const { getByRole } = await render(
+    const { getByRole } = await renderWithClient(
       <SignOutDialog open onOpenChange={vi.fn()} />
     )
 
@@ -51,7 +61,7 @@ describe('SignOutDialog', () => {
   })
 
   it('does not call reset or navigate when Cancel is clicked', async () => {
-    const { getByRole } = await render(
+    const { getByRole } = await renderWithClient(
       <SignOutDialog open onOpenChange={vi.fn()} />
     )
 

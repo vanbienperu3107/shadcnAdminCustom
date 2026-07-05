@@ -178,12 +178,14 @@ export function DerpTable({ data }: { data: DerpServer[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Region</TableHead>
-            <TableHead>Host</TableHead>
-            <TableHead>IP</TableHead>
-            <TableHead>Loại</TableHead>
+            <TableHead className='hidden md:table-cell'>Host</TableHead>
+            <TableHead className='hidden lg:table-cell'>IP</TableHead>
+            <TableHead className='hidden sm:table-cell'>Loại</TableHead>
             <TableHead>Trạng thái</TableHead>
             <TableHead>Health (live)</TableHead>
-            <TableHead className='text-center'>Ưu tiên</TableHead>
+            <TableHead className='hidden text-center sm:table-cell'>
+              Ưu tiên
+            </TableHead>
             <TableHead className='text-center'>Bật/Tắt</TableHead>
             <TableHead className='text-end'>Hành động</TableHead>
           </TableRow>
@@ -205,13 +207,13 @@ export function DerpTable({ data }: { data: DerpServer[] }) {
                   <span className='font-semibold'>{row.regionId}</span>
                   <span className='text-muted-foreground'> · {row.code}</span>
                 </TableCell>
-                <TableCell className='font-mono text-xs'>
+                <TableCell className='hidden font-mono text-xs md:table-cell'>
                   {row.hostname}
                 </TableCell>
-                <TableCell className='font-mono text-xs'>
+                <TableCell className='hidden font-mono text-xs lg:table-cell'>
                   {row.ipv4 ?? '—'}
                 </TableCell>
-                <TableCell>
+                <TableCell className='hidden sm:table-cell'>
                   <Badge variant='secondary'>
                     {row.embedded ? 'embedded' : 'derper'}
                   </Badge>
@@ -222,7 +224,7 @@ export function DerpTable({ data }: { data: DerpServer[] }) {
                 <TableCell>
                   <HealthCell row={row} health={health} />
                 </TableCell>
-                <TableCell className='text-center font-mono'>
+                <TableCell className='hidden text-center font-mono sm:table-cell'>
                   {row.priority}
                 </TableCell>
                 <TableCell className='text-center'>

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchMe } from '@/lib/auth-api'
+import { meQueryOptions } from '@/lib/auth-api'
 import { useLayout } from '@/context/layout-provider'
 import {
   Sidebar,
@@ -16,7 +16,7 @@ import { NavUser } from './nav-user'
 export function AppSidebar() {
   const { collapsible, variant } = useLayout()
   // Hiện đúng tài khoản Google đang đăng nhập (thay user demo).
-  const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+  const { data: me } = useQuery(meQueryOptions)
   const user = me
     ? {
         name: me.name ?? me.email,

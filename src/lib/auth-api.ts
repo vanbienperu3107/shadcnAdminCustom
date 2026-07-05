@@ -19,6 +19,22 @@ export async function fetchMe(): Promise<Me | null> {
   }
 }
 
+/**
+ * queryKey + option dùng chung cho phiên đăng nhập hiện tại.
+ * Dùng qua queryClient.ensureQueryData trong beforeLoad để KHÔNG gọi lại
+ * /auth/me (network + Postgres JOIN) mỗi lần điều hướng — chỉ refetch sau
+ * khi hết staleTime. Đây là fix chính cho "click trang load chậm".
+ */
+export const meQueryKey = ['auth', 'me'] as const
+
+export const meQueryOptions = {
+  queryKey: meQueryKey,
+  queryFn: fetchMe,
+  // Trong cửa sổ này mọi navigation dùng lại cache, không đụng mạng.
+  staleTime: 30_000,
+  gcTime: 5 * 60_000,
+} as const
+
 /** URL bắt đầu đăng nhập Google (full reload sang backend). */
 export function googleLoginUrl(): string {
   return `${API_BASE}/auth/google/login`
