@@ -98,6 +98,10 @@ export function FolderSharesPage() {
     )
   }, [shares])
 
+  // Không setDraft(null) ở đây — nếu đóng ngay, khi handleSave còn phải lưu
+  // tiếp access-matrix (saveAccess) mà lưu đó fail thì dialog đã mất, admin
+  // không còn cách nào biết/thử lại. Đóng dialog do handleSave quyết định,
+  // sau khi CẢ hai bước xong (hoặc ngay nếu không có access nào cần lưu).
   const save = useMutation({
     mutationFn: (d: Draft) =>
       d.id
@@ -105,7 +109,6 @@ export function FolderSharesPage() {
         : createFolderShare(d as FolderShareInput),
     onSuccess: () => {
       invalidate()
-      setDraft(null)
       toast.success('Đã lưu thư mục chia sẻ')
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Lỗi lưu'),
@@ -171,9 +174,20 @@ export function FolderSharesPage() {
     }
     save.mutate(draft, {
       onSuccess: (row) => {
-        if (accessDraft.length > 0) {
-          saveAccess.mutate({ id: row.id, access: accessDraft })
+        if (accessDraft.length === 0) {
+          setDraft(null)
+          return
         }
+        saveAccess.mutate(
+          { id: row.id, access: accessDraft },
+          {
+            // Chỉ đóng dialog khi CẢ hai bước thành công — lưu share thất
+            // bại thì dialog đã đóng, admin còn cách mở lại sửa; lưu access
+            // thất bại thì giữ dialog mở để admin bấm "Lưu & áp dụng" lại
+            // (thay vì phải nhập lại toàn bộ ma trận từ đầu).
+            onSuccess: () => setDraft(null),
+          }
+        )
       },
     })
   }
@@ -473,8 +487,11 @@ export function FolderSharesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Folder browse dialog */}
+      {/* Folder browse dialog — key theo mac để React remount hẳn component
+          mỗi khi đổi máy duyệt, tránh state (đường dẫn đã chọn) của phiên
+          duyệt máy A còn sót lại khi admin mở duyệt sang máy B. */}
       <BrowseDialog
+        key={browseFor?.mac ?? 'none'}
         target={browseFor}
         onClose={() => setBrowseFor(null)}
         onPick={(path) => {
@@ -496,6 +513,7 @@ function BrowseDialog({
   onPick: (path: string) => void
 }) {
   const [path, setPath] = useState<string>('')
+  const qc = useQueryClient()
 
   const browse = useQuery({
     queryKey: ['folder-browse', target?.mac],
@@ -508,7 +526,14 @@ function BrowseDialog({
     if (!target || !entry.is_dir) return
     const next = `${base.replace(/[\\/]+$/, '')}\\${entry.name}`
     setPath(next)
-    void requestBrowse(target.mac, next)
+    // requestBrowse() flips server-side `pending` back to true, nhưng data
+    // đang cache trong query vẫn là kết quả CŨ (pending:false) — nếu không
+    // ép refetch ngay, refetchInterval ở trên sẽ không tự bật lại polling
+    // (nó chỉ đọc pending từ data đã cache), và admin bấm vào thư mục con sẽ
+    // không thấy gì cho tới khi đóng/mở lại dialog.
+    void requestBrowse(target.mac, next).then(() =>
+      qc.invalidateQueries({ queryKey: ['folder-browse', target.mac] })
+    )
   }
 
   const resPath = browse.data?.resPath ?? ''

@@ -180,20 +180,29 @@ export async function folderSharesPublicRoutes(app: FastifyInstance): Promise<vo
     return { path: pending ? r!.reqPath : null }
   })
 
-  // Client trả kết quả liệt kê thư mục con.
+  // Client trả kết quả liệt kê thư mục con. folder_browse chỉ có 1 dòng/mac
+  // (req_path và res_path chia sẻ dòng đó) — nếu admin đổi sang duyệt path B
+  // trong lúc client vẫn đang trả lời path A (đã hỏi trước đó), kết quả A tới
+  // SAU sẽ đè lên res_path và bị hiểu lầm là "đã có kết quả mới" cho request
+  // hiện tại (B). Chỉ chấp nhận kết quả khi path khớp đúng req_path đang chờ;
+  // kết quả trễ/lạc (path khác) bị âm thầm bỏ qua.
   app.post('/api/internal/browse-result', async (req, reply) => {
     if (!checkSecret(req, reply)) return
     const parsed = browseResultSchema.safeParse(req.body)
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() })
     const { mac, path, entries } = parsed.data
+    const [row] = await db
+      .select({ reqPath: folderBrowse.reqPath })
+      .from(folderBrowse)
+      .where(eq(folderBrowse.mac, mac))
+    if (!row || row.reqPath !== path) {
+      return { ok: true, stale: true }
+    }
     const now = new Date()
     await db
-      .insert(folderBrowse)
-      .values({ mac, resPath: path, entries: JSON.stringify(entries), resultAt: now })
-      .onConflictDoUpdate({
-        target: folderBrowse.mac,
-        set: { resPath: path, entries: JSON.stringify(entries), resultAt: now },
-      })
+      .update(folderBrowse)
+      .set({ resPath: path, entries: JSON.stringify(entries), resultAt: now })
+      .where(eq(folderBrowse.mac, mac))
     return { ok: true }
   })
 }
@@ -205,13 +214,20 @@ const shareSchema = z.object({
   // Tên share Taildrive — khớp ĐÚNG validShareName() của gói drive (tailscale):
   // chỉ a-z 0-9 _ ( ) và khoảng trắng; client tự lowercase + trim trước khi
   // gọi `drive share`, nên chuẩn hoá luôn ở đây để hiển thị/so khớp nhất quán
-  // (tránh 2 dòng khác hoa/thường tưởng là 2 share khác nhau).
+  // (tránh 2 dòng khác hoa/thường tưởng là 2 share khác nhau). .pipe() chạy
+  // min/max/regex SAU transform — nếu validate trước (như .transform() nối
+  // trực tiếp) thì " " (toàn khoảng trắng) qua được min(1) rồi mới bị trim
+  // thành "", lọt validation với giá trị rỗng.
   shareName: z
     .string()
-    .min(1)
-    .max(64)
-    .regex(/^[a-zA-Z0-9_() ]+$/, 'Chỉ dùng chữ, số, dấu gạch dưới, ngoặc đơn hoặc khoảng trắng')
-    .transform((s) => s.trim().toLowerCase()),
+    .transform((s) => s.trim().toLowerCase())
+    .pipe(
+      z
+        .string()
+        .min(1, 'Tên chia sẻ không được để trống')
+        .max(64)
+        .regex(/^[a-zA-Z0-9_() ]+$/, 'Chỉ dùng chữ, số, dấu gạch dưới, ngoặc đơn hoặc khoảng trắng')
+    ),
   localPath: z.string().min(1),
   enabled: z.boolean().default(true),
 })
@@ -264,11 +280,14 @@ export async function folderSharesRoutes(app: FastifyInstance): Promise<void> {
     return row
   })
 
-  // Sửa share (tên/đường dẫn/bật-tắt). MAC owner không đổi.
+  // Sửa share (tên/đường dẫn/bật-tắt). MAC owner không đổi — loại ownerMac
+  // khỏi schema (không chỉ khỏi doc-comment) để không thể vô tình repoint 1
+  // share sang PC khác qua endpoint này (access grants vẫn khoá theo share_id
+  // cũ, nên đổi owner mà giữ access sẽ cấp nhầm quyền vào máy khác).
   app.put('/api/folder-shares/:id', async (req, reply) => {
     const id = Number((req.params as { id: string }).id)
     if (!Number.isFinite(id)) return reply.code(400).send({ error: 'bad id' })
-    const parsed = shareSchema.partial().safeParse(req.body)
+    const parsed = shareSchema.omit({ ownerMac: true }).partial().safeParse(req.body)
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() })
     const [row] = await db
       .update(folderShares)
