@@ -4,7 +4,6 @@ import {
   Rocket,
   Server,
   ShieldCheck,
-  Users,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -30,7 +29,6 @@ export const sidebarData: SidebarData = {
       title: 'DERP-Controller',
       items: [
         { title: 'Overview', url: '/overview', icon: LayoutDashboard },
-        { title: 'Tailnet Access', url: '/tailnet-access', icon: Users },
         { title: 'Machines', url: '/machines', icon: Server },
         { title: 'Deploy & CI', url: '/deploy', icon: Rocket },
       ],
