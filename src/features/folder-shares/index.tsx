@@ -178,13 +178,19 @@ export function FolderSharesPage() {
           setDraft(null)
           return
         }
+        // Chuyển draft sang "đang sửa" (id đã có, isNew=false) TRƯỚC khi lưu
+        // access-matrix — nếu bước này fail và admin bấm lưu lại từ cùng
+        // dialog, handleSave phải đi qua nhánh update (draft.id đã set), chứ
+        // không lặp lại create (sẽ vi phạm UNIQUE(owner_mac, share_name) vì
+        // dòng đã được tạo ở lần thử trước, khiến MỌI lần retry đều lỗi).
+        setDraft((d) => (d ? { ...d, id: row.id } : d))
+        setIsNew(false)
         saveAccess.mutate(
           { id: row.id, access: accessDraft },
           {
-            // Chỉ đóng dialog khi CẢ hai bước thành công — lưu share thất
-            // bại thì dialog đã đóng, admin còn cách mở lại sửa; lưu access
-            // thất bại thì giữ dialog mở để admin bấm "Lưu & áp dụng" lại
-            // (thay vì phải nhập lại toàn bộ ma trận từ đầu).
+            // Chỉ đóng dialog khi CẢ hai bước thành công — lưu access thất
+            // bại thì giữ dialog mở để admin bấm "Lưu & áp dụng" lại (thay vì
+            // phải nhập lại toàn bộ ma trận từ đầu).
             onSuccess: () => setDraft(null),
           }
         )
