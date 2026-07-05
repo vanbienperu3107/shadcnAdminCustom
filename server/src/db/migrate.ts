@@ -409,4 +409,60 @@ export async function migrate(): Promise<void> {
   await db.execute(sql`
     ALTER TABLE device_identity ADD COLUMN IF NOT EXISTS client_build INTEGER
   `)
+
+  // Chia sẻ thư mục theo từng PC qua Taildrive. folder_shares = thư mục 1 PC
+  // (owner_mac) xuất ra; folder_share_access = ai được truy cập + quyền +
+  // auto-mount. headscale gọi GET /api/internal/taildrive/:nodeKey để lấy
+  // node-attr + CapGrant tương ứng (Feature: Taildrive per-PC).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS folder_shares (
+      id             SERIAL PRIMARY KEY,
+      owner_mac      TEXT NOT NULL,
+      owner_hostname TEXT,
+      share_name     TEXT NOT NULL,
+      local_path     TEXT NOT NULL,
+      enabled        BOOLEAN NOT NULL DEFAULT true,
+      created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(
+    sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_folder_shares_owner_name ON folder_shares(owner_mac, share_name)`
+  )
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS idx_folder_shares_owner ON folder_shares(owner_mac)`
+  )
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS folder_share_access (
+      id               SERIAL PRIMARY KEY,
+      share_id         INTEGER NOT NULL REFERENCES folder_shares(id) ON DELETE CASCADE,
+      grantee_mac      TEXT NOT NULL,
+      grantee_hostname TEXT,
+      access           TEXT NOT NULL DEFAULT 'rw',
+      auto_mount       BOOLEAN NOT NULL DEFAULT false,
+      mount_drive      TEXT,
+      enabled          BOOLEAN NOT NULL DEFAULT true,
+      created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(
+    sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_folder_access_share_grantee ON folder_share_access(share_id, grantee_mac)`
+  )
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS idx_folder_access_grantee ON folder_share_access(grantee_mac)`
+  )
+
+  // Phiên duyệt cây thư mục (folder picker): admin đặt req_path, client liệt kê
+  // rồi ghi entries (JSON) về đây; admin UI poll đọc kết quả.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS folder_browse (
+      mac          TEXT PRIMARY KEY,
+      req_path     TEXT,
+      requested_at TIMESTAMPTZ,
+      res_path     TEXT,
+      entries      TEXT,
+      result_at    TIMESTAMPTZ
+    )
+  `)
 }

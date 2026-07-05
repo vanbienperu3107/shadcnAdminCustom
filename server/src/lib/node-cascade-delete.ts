@@ -22,6 +22,9 @@ import {
   derpNodeHealth,
   derpNodeOptions,
   deviceIdentity,
+  folderBrowse,
+  folderShareAccess,
+  folderShares,
   latencySamples,
   nodeReloadRequests,
   nodeRuntimeConfig,
@@ -63,6 +66,11 @@ export async function cascadeDeleteNodeData(opts: {
     if (macs.length > 0) {
       await db.delete(nodeRuntimeConfig).where(inArray(nodeRuntimeConfig.mac, macs))
       await db.delete(nodeReloadRequests).where(inArray(nodeReloadRequests.mac, macs))
+      // Folder-share: xóa share do các MAC này sở hữu (CASCADE tự xóa access
+      // của share đó), access nơi các MAC này là grantee, và phiên browse.
+      await db.delete(folderShares).where(inArray(folderShares.ownerMac, macs))
+      await db.delete(folderShareAccess).where(inArray(folderShareAccess.granteeMac, macs))
+      await db.delete(folderBrowse).where(inArray(folderBrowse.mac, macs))
       await db.delete(deviceIdentity).where(inArray(deviceIdentity.mac, macs))
     }
     await db.delete(clientNetcheck).where(ilike(clientNetcheck.client, hostname))

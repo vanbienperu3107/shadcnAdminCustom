@@ -332,6 +332,46 @@ export const dnsSplitRules = pgTable('dns_split_rules', {
     .defaultNow(),
 })
 
+/** Thư mục 1 PC (owner) chia sẻ ra tailnet qua Taildrive. Key theo MAC owner
+ *  (ổn định qua cài lại); share_name = tên Taildrive đã chuẩn hoá.
+ *  UNIQUE(owner_mac, share_name) đặt ở migrate.ts. */
+export const folderShares = pgTable('folder_shares', {
+  id: serial('id').primaryKey(),
+  ownerMac: text('owner_mac').notNull(),
+  ownerHostname: text('owner_hostname'),
+  shareName: text('share_name').notNull(),
+  localPath: text('local_path').notNull(),
+  enabled: boolean('enabled').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Ai (grantee PC) được truy cập 1 share, quyền gì, có auto-mount ổ đĩa không.
+ *  share_id -> folder_shares(id) ON DELETE CASCADE (ở migrate.ts).
+ *  UNIQUE(share_id, grantee_mac) ở migrate.ts. access = 'ro' | 'rw'. */
+export const folderShareAccess = pgTable('folder_share_access', {
+  id: serial('id').primaryKey(),
+  shareId: integer('share_id').notNull(),
+  granteeMac: text('grantee_mac').notNull(),
+  granteeHostname: text('grantee_hostname'),
+  access: text('access').notNull().default('rw'),
+  autoMount: boolean('auto_mount').notNull().default(false),
+  mountDrive: text('mount_drive'), // vd 'Z:'; null = auto chọn ổ trống
+  enabled: boolean('enabled').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Phiên "duyệt cây thư mục" của 1 PC (theo MAC). Admin đặt req_path; client
+ *  poll GET /api/client/browse-request, liệt kê rồi POST kết quả về entries. */
+export const folderBrowse = pgTable('folder_browse', {
+  mac: text('mac').primaryKey(),
+  reqPath: text('req_path'),
+  requestedAt: timestamp('requested_at', { withTimezone: true }),
+  resPath: text('res_path'),
+  entries: text('entries'), // JSON: [{ name, is_dir }]
+  resultAt: timestamp('result_at', { withTimezone: true }),
+})
+
 export type DerpServer = typeof derpServers.$inferSelect
 export type NewDerpServer = typeof derpServers.$inferInsert
 export type User = typeof users.$inferSelect
@@ -350,4 +390,7 @@ export type NodeReloadRequest = typeof nodeReloadRequests.$inferSelect
 export type PacRule = typeof pacRules.$inferSelect
 export type DnsSplitRule = typeof dnsSplitRules.$inferSelect
 export type ClientHomeDerp = typeof clientHomeDerp.$inferSelect
+export type FolderShare = typeof folderShares.$inferSelect
+export type FolderShareAccess = typeof folderShareAccess.$inferSelect
+export type FolderBrowse = typeof folderBrowse.$inferSelect
 export type ClientDerpPing = typeof clientDerpPing.$inferSelect

@@ -5,6 +5,8 @@ import { requireAuth } from '../auth/middleware.js'
 import { db } from '../db/client.js'
 import {
   clientConfig,
+  folderShareAccess,
+  folderShares,
   nodeReloadRequests,
   nodeRuntimeConfig,
   pacRules,
@@ -79,11 +81,49 @@ export async function clientRuntimePublicRoutes(
         reloadAt = r ? r.requestedAt.toISOString() : null
       }
 
+      // Folder-share (Taildrive): shares = thư mục node này XUẤT (client tự
+      // `drive share`); mounts = share node này được auto-mount thành ổ đĩa.
+      let shares: Array<{ name: string; path: string; enabled: boolean }> = []
+      let mounts: Array<{ machine: string; share: string; drive: string | null; access: string }> = []
+      if (q.mac) {
+        const ownRows = await db
+          .select({ name: folderShares.shareName, path: folderShares.localPath })
+          .from(folderShares)
+          .where(and(eq(folderShares.ownerMac, q.mac), eq(folderShares.enabled, true)))
+        shares = ownRows.map((r) => ({ name: r.name, path: r.path, enabled: true }))
+
+        const mountRows = await db
+          .select({
+            machine: folderShares.ownerHostname,
+            share: folderShares.shareName,
+            drive: folderShareAccess.mountDrive,
+            access: folderShareAccess.access,
+          })
+          .from(folderShareAccess)
+          .innerJoin(folderShares, eq(folderShareAccess.shareId, folderShares.id))
+          .where(
+            and(
+              eq(folderShareAccess.granteeMac, q.mac),
+              eq(folderShareAccess.enabled, true),
+              eq(folderShareAccess.autoMount, true),
+              eq(folderShares.enabled, true)
+            )
+          )
+        mounts = mountRows.map((r) => ({
+          machine: r.machine ?? '',
+          share: r.share,
+          drive: r.drive ?? null,
+          access: r.access === 'ro' ? 'ro' : 'rw',
+        }))
+      }
+
       return {
         ...cfg,
         pac_url: `${env.PUBLIC_URL}/api/client/pac${macQ}`,
         matched: node ? (node.mac === q.mac ? 'mac' : 'hostname') : 'default',
         reload_at: reloadAt,
+        shares,
+        mounts,
       }
     } catch (e) {
       return reply.code(502).send({ error: String(e) })
