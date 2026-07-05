@@ -5,6 +5,7 @@ import { requireAuth } from '../auth/middleware.js'
 import { db } from '../db/client.js'
 import {
   clientConfig,
+  deviceIdentity,
   folderShareAccess,
   folderShares,
   nodeReloadRequests,
@@ -83,8 +84,18 @@ export async function clientRuntimePublicRoutes(
 
       // Folder-share (Taildrive): shares = thư mục node này XUẤT (client tự
       // `drive share`); mounts = share node này được auto-mount thành ổ đĩa.
+      // owner_ip: client KHÔNG tin hostname tự báo (có thể lệch với tên
+      // Taildrive dùng trong đường dẫn WebDAV, vd trùng tên bị control plane
+      // hậu tố "-2") — client tự resolve tên ngắn qua `tailscale status --json`
+      // khớp theo IP này, đáng tin hơn nhiều so với truyền thẳng hostname.
       let shares: Array<{ name: string; path: string; enabled: boolean }> = []
-      let mounts: Array<{ machine: string; share: string; drive: string | null; access: string }> = []
+      let mounts: Array<{
+        machine: string
+        owner_ip: string | null
+        share: string
+        drive: string | null
+        access: string
+      }> = []
       if (q.mac) {
         const ownRows = await db
           .select({ name: folderShares.shareName, path: folderShares.localPath })
@@ -95,12 +106,15 @@ export async function clientRuntimePublicRoutes(
         const mountRows = await db
           .select({
             machine: folderShares.ownerHostname,
+            ownerStaticIp: deviceIdentity.staticIpv4,
+            ownerLastIp: deviceIdentity.lastIpv4,
             share: folderShares.shareName,
             drive: folderShareAccess.mountDrive,
             access: folderShareAccess.access,
           })
           .from(folderShareAccess)
           .innerJoin(folderShares, eq(folderShareAccess.shareId, folderShares.id))
+          .leftJoin(deviceIdentity, eq(deviceIdentity.mac, folderShares.ownerMac))
           .where(
             and(
               eq(folderShareAccess.granteeMac, q.mac),
@@ -111,6 +125,7 @@ export async function clientRuntimePublicRoutes(
           )
         mounts = mountRows.map((r) => ({
           machine: r.machine ?? '',
+          owner_ip: r.ownerStaticIp || r.ownerLastIp || null,
           share: r.share,
           drive: r.drive ?? null,
           access: r.access === 'ro' ? 'ro' : 'rw',
