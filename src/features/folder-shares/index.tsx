@@ -343,11 +343,11 @@ export function FolderSharesPage() {
                 </Field>
               )}
               <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-                <Field label='Tên chia sẻ'>
+                <Field label='Tên chia sẻ (chữ, số, dấu gạch dưới)'>
                   <Input
                     className='font-mono'
                     value={draft.shareName}
-                    placeholder='du-lieu-chung'
+                    placeholder='du_lieu_chung'
                     onChange={(e) => setDraft({ ...draft, shareName: e.target.value })}
                   />
                 </Field>

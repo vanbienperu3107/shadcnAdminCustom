@@ -202,8 +202,16 @@ export async function folderSharesPublicRoutes(app: FastifyInstance): Promise<vo
 const shareSchema = z.object({
   ownerMac: z.string().min(1),
   ownerHostname: z.string().nullish(),
-  // Tên share Taildrive: chữ/số/._- (không khoảng trắng, dấu /).
-  shareName: z.string().min(1).max(64).regex(/^[a-zA-Z0-9._-]+$/),
+  // Tên share Taildrive — khớp ĐÚNG validShareName() của gói drive (tailscale):
+  // chỉ a-z 0-9 _ ( ) và khoảng trắng; client tự lowercase + trim trước khi
+  // gọi `drive share`, nên chuẩn hoá luôn ở đây để hiển thị/so khớp nhất quán
+  // (tránh 2 dòng khác hoa/thường tưởng là 2 share khác nhau).
+  shareName: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-zA-Z0-9_() ]+$/, 'Chỉ dùng chữ, số, dấu gạch dưới, ngoặc đơn hoặc khoảng trắng')
+    .transform((s) => s.trim().toLowerCase()),
   localPath: z.string().min(1),
   enabled: z.boolean().default(true),
 })
