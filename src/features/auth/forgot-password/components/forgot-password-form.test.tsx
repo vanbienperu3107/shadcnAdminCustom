@@ -15,6 +15,16 @@ vi.mock('@/lib/utils', async (orig) => ({
   sleep: vi.fn(() => Promise.resolve()),
 }))
 
+// sonner toast.promise không chạy success callback ổn định trong browser CI
+// (không có <Toaster/> mounted) -> navigate không được gọi -> test flaky/đỏ.
+// Mock để success chạy tất định ngay khi promise (sleep đã mock) resolve.
+vi.mock('sonner', () => ({
+  toast: {
+    promise: (promise: Promise<unknown>, opts: { success?: () => unknown }) =>
+      Promise.resolve(promise).then(() => opts?.success?.()),
+  },
+}))
+
 describe('ForgotPasswordForm', () => {
   let screen: RenderResult
   let emailInput: Locator
