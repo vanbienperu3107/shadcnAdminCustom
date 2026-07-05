@@ -7,6 +7,7 @@ import { ClientAutoUpdateCard } from '@/features/client-update'
 import { Derp } from '@/features/derp'
 import { DerpPing } from '@/features/derp-ping'
 import { DnsSplit } from '@/features/dns-split'
+import { FolderSharesPage } from '@/features/folder-shares'
 import { ForceRoutes } from '@/features/force-routes'
 import { HomeDerp } from '@/features/home-derp'
 import { HsRoutes } from '@/features/hs-routes'
@@ -59,6 +60,11 @@ const GROUPS: Record<MachineGroup, Leaf[]> = {
       render: () => <NodeRuntimePage />,
     },
     { key: 'pac', label: 'PAC Rule', render: () => <PacRulesPage /> },
+    {
+      key: 'folder-shares',
+      label: 'Chia sẻ thư mục',
+      render: () => <FolderSharesPage />,
+    },
     { key: 'client', label: 'Client config', render: () => <ClientConfig /> },
     { key: 'dns', label: 'Split DNS', render: () => <DnsSplit /> },
     {
