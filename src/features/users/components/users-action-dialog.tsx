@@ -222,7 +222,9 @@ export function UsersActionDialog({
                 name='email'
                 render={({ field }) => (
                   <FormItem className='grid grid-cols-1 items-center space-y-0 gap-x-4 gap-y-1 sm:grid-cols-6'>
-                    <FormLabel className='sm:col-span-2 sm:text-end'>Email</FormLabel>
+                    <FormLabel className='sm:col-span-2 sm:text-end'>
+                      Email
+                    </FormLabel>
                     <FormControl>
                       <Input
                         placeholder='john.doe@gmail.com'
@@ -258,7 +260,9 @@ export function UsersActionDialog({
                 name='role'
                 render={({ field }) => (
                   <FormItem className='grid grid-cols-1 items-center space-y-0 gap-x-4 gap-y-1 sm:grid-cols-6'>
-                    <FormLabel className='sm:col-span-2 sm:text-end'>Role</FormLabel>
+                    <FormLabel className='sm:col-span-2 sm:text-end'>
+                      Role
+                    </FormLabel>
                     <SelectDropdown
                       defaultValue={field.value}
                       onValueChange={field.onChange}

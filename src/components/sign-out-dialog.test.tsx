@@ -24,9 +24,7 @@ vi.mock('@/lib/auth-api', () => ({
 // SignOutDialog dùng useQueryClient (xóa cache 'me' khi logout) -> cần provider.
 function renderWithClient(ui: React.ReactElement) {
   const client = new QueryClient()
-  return render(
-    <QueryClientProvider client={client}>{ui}</QueryClientProvider>
-  )
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
 }
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {

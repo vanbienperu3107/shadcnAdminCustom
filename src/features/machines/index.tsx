@@ -40,9 +40,12 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Main } from '@/components/layout/main'
+import { Acl } from '@/features/acl'
+import { ClientConfig } from '@/features/client-config'
 import { Derp } from '@/features/derp'
 import { DerpPing } from '@/features/derp-ping'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
+import { DnsSplit } from '@/features/dns-split'
 import { ForceRoutes } from '@/features/force-routes'
 import {
   deleteMachine,
@@ -61,13 +64,10 @@ import { HomeDerp } from '@/features/home-derp'
 import { HsRoutes } from '@/features/hs-routes'
 import { Latency } from '@/features/latency'
 import { NodeAssignments } from '@/features/node-assignments'
-import { Acl } from '@/features/acl'
 import { NodeRuntimePage } from '@/features/node-runtime'
 import { PacRulesPage } from '@/features/pac-rules'
-import { ClientConfig } from '@/features/client-config'
-import { DnsSplit } from '@/features/dns-split'
-import { Users } from '@/features/users'
 import { PreAuthKeys } from '@/features/preauth-keys'
+import { Users } from '@/features/users'
 
 /** Headscale node name = DNS label: chữ thường a-z0-9 và '-', không bắt đầu/kết
  *  thúc bằng '-'. Bỏ dấu tiếng Việt, hạ chữ thường, thay ký tự lạ bằng '-'. */

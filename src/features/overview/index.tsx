@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/table'
 import { Main } from '@/components/layout/main'
 import { derpKeys, fetchHealth, listDerp } from '@/features/derp/data/derp-api'
-import { homeDerpKeys, listHomeDerp } from '@/features/home-derp/data/home-derp-api'
 import {
   derpNameSet,
   deviceTypeMap,
@@ -27,6 +26,10 @@ import {
   isDerpNodeV2,
   userName,
 } from '@/features/headscale/hs-api'
+import {
+  homeDerpKeys,
+  listHomeDerp,
+} from '@/features/home-derp/data/home-derp-api'
 
 type StatTo = '/overview' | '/machines' | '/tailnet-access'
 
@@ -121,7 +124,9 @@ function useRealNodes({ poll = false }: { poll?: boolean } = {}) {
   const names = derpNameSet(derp.data ?? [])
   const typeByNodeKey = deviceTypeMap(devices.data ?? [])
   const allNodes = machines.data?.nodes ?? []
-  const realNodes = allNodes.filter((n) => !isDerpNodeV2(n, typeByNodeKey, names))
+  const realNodes = allNodes.filter(
+    (n) => !isDerpNodeV2(n, typeByNodeKey, names)
+  )
 
   return {
     derp,
@@ -133,8 +138,7 @@ function useRealNodes({ poll = false }: { poll?: boolean } = {}) {
     realOnline: realNodes.filter((n) => n.online).length,
     hsOk: !!machines.data?.configured,
     isLoading: machines.isPending || devices.isPending || derp.isPending,
-    isFetching:
-      machines.isFetching || devices.isFetching || derp.isFetching,
+    isFetching: machines.isFetching || devices.isFetching || derp.isFetching,
   }
 }
 
