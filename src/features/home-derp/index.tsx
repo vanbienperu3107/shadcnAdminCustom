@@ -48,15 +48,34 @@ export function HomeDerp() {
     refetchInterval: 3_000,
   })
   const now = useNow()
+  const [showOffline, setShowOffline] = useState(false)
 
-  const rows = [...data].sort((a, b) => a.hostname.localeCompare(b.hostname))
+  const allRows = [...data].sort((a, b) => a.hostname.localeCompare(b.hostname))
+  const isOnline = (r: (typeof allRows)[number]) =>
+    now - new Date(r.reportedAt).getTime() <= STALE_AFTER_MS
+  const offlineCount = allRows.filter((r) => !isOnline(r)).length
+  // Mặc định ẩn node offline (stale > 30s); có toggle để hiện lại khi cần.
+  const rows = showOffline ? allRows : allRows.filter(isOnline)
 
   return (
     <div className='flex flex-1 flex-col gap-4 sm:gap-6'>
-      <p className='text-sm text-muted-foreground'>
-        Home DERP hiện tại của từng client + latency tới controller. Tự làm mới
-        mỗi 3s.
-      </p>
+      <div className='flex flex-wrap items-center justify-between gap-2'>
+        <p className='text-sm text-muted-foreground'>
+          Home DERP hiện tại của từng client + latency tới controller. Tự làm
+          mới mỗi 3s.
+        </p>
+        {offlineCount > 0 && (
+          <button
+            type='button'
+            onClick={() => setShowOffline((v) => !v)}
+            className='text-xs text-muted-foreground underline-offset-2 hover:underline'
+          >
+            {showOffline
+              ? `Ẩn ${offlineCount} node offline`
+              : `Hiện ${offlineCount} node offline`}
+          </button>
+        )}
+      </div>
 
       {isError ? (
         <div className='rounded-md border border-destructive/40 p-4 text-sm text-destructive'>

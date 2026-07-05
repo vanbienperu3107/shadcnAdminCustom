@@ -113,6 +113,8 @@ function EditDialog({
 }: EditDialogProps) {
   const qc = useQueryClient()
   const derps = useQuery({ queryKey: derpKeys.all, queryFn: listDerp })
+  // Bỏ region 999 (embedded/controller) khỏi danh sách gán được.
+  const regions = (derps.data ?? []).filter((d) => !d.embedded)
   const [selected, setSelected] = useState<number[]>(current)
   const [exclusive, setExclusive] = useState(currentExclusive)
 
@@ -154,9 +156,21 @@ function EditDialog({
           nodeKey: {machine.nodeKey ?? '—'}
         </p>
         <div className='space-y-2 py-2'>
-          {(derps.data ?? [])
-            .filter((d) => !d.embedded)
-            .map((d) => (
+          {derps.isLoading ? (
+            <p className='text-sm text-muted-foreground'>
+              <Loader2 className='me-1.5 mb-0.5 inline size-3.5 animate-spin' />
+              Đang tải danh sách DERP region…
+            </p>
+          ) : derps.isError ? (
+            <p className='text-sm text-destructive'>
+              Không tải được danh sách DERP region (`/api/derp`).
+            </p>
+          ) : regions.length === 0 ? (
+            <p className='text-sm text-muted-foreground'>
+              Chưa có DERP region nào để gán. Tạo region ở tab “Regions” trước.
+            </p>
+          ) : (
+            regions.map((d) => (
               <div key={d.regionId} className='flex items-center gap-2'>
                 <Checkbox
                   id={`r-${d.regionId}`}
@@ -170,7 +184,8 @@ function EditDialog({
                   </span>
                 </Label>
               </div>
-            ))}
+            ))
+          )}
         </div>
         <p className='text-xs text-muted-foreground'>
           Khi không chọn region nào, node sẽ nhận DERPMap mặc định từ headscale.

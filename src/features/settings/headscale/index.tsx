@@ -4,6 +4,7 @@ import { KeyRound, RefreshCw, Terminal } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { ClientAutoUpdateCard } from '@/features/client-update'
 import {
   apiKeyRefresh,
   fetchApiKeyStatus,
@@ -161,6 +162,9 @@ export function SettingsHeadscale() {
             Không lấy được trạng thái API key.
           </p>
         )}
+
+        <Separator className='my-6' />
+        <ClientAutoUpdateCard />
       </div>
     </div>
   )

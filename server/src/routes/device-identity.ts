@@ -39,6 +39,8 @@ export async function deviceIdentityPublicRoutes(
       hostname?: unknown
       node_key?: unknown
       ipv4?: unknown
+      version?: unknown
+      build?: unknown
     }
     const mac = typeof body.mac === 'string' ? body.mac.trim().toLowerCase() : ''
     const hostname =
@@ -46,6 +48,12 @@ export async function deviceIdentityPublicRoutes(
     const nodeKey =
       typeof body.node_key === 'string' ? body.node_key.trim() : ''
     const ipv4 = typeof body.ipv4 === 'string' ? body.ipv4.trim() : ''
+    const version =
+      typeof body.version === 'string' ? body.version.trim() : ''
+    const build =
+      typeof body.build === 'number' && Number.isFinite(body.build)
+        ? Math.trunc(body.build)
+        : null
     if (!mac || !hostname) {
       return reply.code(400).send({ error: 'mac and hostname required' })
     }
@@ -64,6 +72,8 @@ export async function deviceIdentityPublicRoutes(
         hostname,
         nodeKey: nodeKey || null,
         ipv4: ipv4 || null,
+        clientVersion: version || null,
+        clientBuild: build,
       })
 
       if (!existing) {

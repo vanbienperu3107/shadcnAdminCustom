@@ -30,6 +30,8 @@ export async function devicesRoutes(app: FastifyInstance): Promise<void> {
         deviceType: deviceIdentity.deviceType,
         lastIpv4: deviceIdentity.lastIpv4,
         staticIpv4: deviceIdentity.staticIpv4,
+        clientVersion: deviceIdentity.clientVersion,
+        clientBuild: deviceIdentity.clientBuild,
         updatedAt: deviceIdentity.updatedAt,
       })
       .from(deviceIdentity)

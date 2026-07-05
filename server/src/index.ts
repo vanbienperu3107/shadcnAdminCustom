@@ -17,6 +17,10 @@ import {
   clientPublicRoutes,
 } from './routes/client-config.js'
 import {
+  clientUpdatePublicRoutes,
+  clientUpdateRoutes,
+} from './routes/client-update.js'
+import {
   clientRuntimePublicRoutes,
   clientRuntimeRoutes,
 } from './routes/client-runtime.js'
@@ -70,6 +74,8 @@ async function main() {
   await app.register(devicesRoutes)
   await app.register(telemetryPublicRoutes)
   await app.register(telemetryRoutes)
+  await app.register(clientUpdatePublicRoutes)
+  await app.register(clientUpdateRoutes)
 
   // SPA tĩnh (prod)
   if (env.CLIENT_DIST && existsSync(env.CLIENT_DIST)) {
