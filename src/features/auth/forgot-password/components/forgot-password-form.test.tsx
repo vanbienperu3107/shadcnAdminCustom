@@ -35,8 +35,12 @@ describe('ForgotPasswordForm', () => {
 
   it('shows validation when submitting empty form', async () => {
     await userEvent.click(continueButton)
+    // Validation qua zodResolver là async; browser CI chậm hơn local nên cho
+    // retry rộng hơn mặc định để tránh flaky.
     await expect
-      .element(screen.getByText(/^Please enter your email\.$/i))
+      .element(screen.getByText(/^Please enter your email\.$/i), {
+        timeout: 5000,
+      })
       .toBeInTheDocument()
   })
 
@@ -44,11 +48,14 @@ describe('ForgotPasswordForm', () => {
     await userEvent.fill(emailInput, 'a@b.com')
     await userEvent.click(continueButton)
 
-    await vi.waitFor(() =>
-      expect(navigateMock).toHaveBeenCalledWith({ to: '/otp' })
+    // navigate chạy trong success callback của toast.promise(sleep) — trên CI
+    // cần chờ lâu hơn 1s mặc định.
+    await vi.waitFor(
+      () => expect(navigateMock).toHaveBeenCalledWith({ to: '/otp' }),
+      { timeout: 5000 }
     )
 
     // Form should reset on success
-    await expect.element(emailInput).toHaveValue('')
+    await expect.element(emailInput, { timeout: 5000 }).toHaveValue('')
   })
 })
