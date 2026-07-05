@@ -80,7 +80,10 @@ const router = createRouter({
   routeTree,
   context: { queryClient },
   defaultPreload: 'intent',
-  defaultPreloadStaleTime: 0,
+  // 0 khiến match đã preload khi hover bị coi là stale và bị bỏ ngay lúc click
+  // -> beforeLoad/loader chạy lại từ đầu (mất công preload). Để 30s cho match
+  // preload còn "tươi" khi click, dùng lại kết quả thay vì tải lại.
+  defaultPreloadStaleTime: 30_000,
   basepath: routerBasepath,
 })
 

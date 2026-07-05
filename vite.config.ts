@@ -24,6 +24,26 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Tách vendor nặng thành chunk riêng, ổn định giữa các lần deploy để
+        // trình duyệt cache lâu dài (đổi feature không làm mất cache thư viện).
+        // recharts chỉ nạp khi vào trang có biểu đồ (dashboard/analytics).
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('/recharts/') || id.includes('/d3-')) return 'charts'
+          if (id.includes('/@tanstack/')) return 'tanstack'
+          if (
+            id.includes('/react/') ||
+            id.includes('/react-dom/') ||
+            id.includes('/scheduler/')
+          )
+            return 'react'
+        },
+      },
+    },
+  },
   server: {
     // Dev: chuyển tiếp API + derpmap sang backend Fastify (server/) chạy ở :8787
     proxy: {

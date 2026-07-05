@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchMe } from '@/lib/auth-api'
+import { meQueryOptions } from '@/lib/auth-api'
 import useDialogState from '@/hooks/use-dialog-state'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,7 @@ import { SignOutDialog } from '@/components/sign-out-dialog'
 export function ProfileDropdown() {
   const [open, setOpen] = useDialogState()
   // Tam thoi chi lay thong tin Google de hien thi.
-  const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+  const { data: me } = useQuery(meQueryOptions)
   const name = me?.name ?? me?.email ?? 'Người dùng'
   const email = me?.email ?? ''
   const avatar = me?.picture ?? ''

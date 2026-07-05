@@ -45,7 +45,9 @@ export function HomeDerp() {
   } = useQuery({
     queryKey: homeDerpKeys.all,
     queryFn: listHomeDerp,
-    refetchInterval: 3_000,
+    // 3s là quá dày (ngưỡng cũ đánh giá staleness ở 30s). 15s đủ tươi mà giảm
+    // mạnh tải nền/mạng khi tab mở lâu.
+    refetchInterval: 15_000,
   })
   const now = useNow()
   const [showOffline, setShowOffline] = useState(false)

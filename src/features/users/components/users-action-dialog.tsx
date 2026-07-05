@@ -162,19 +162,19 @@ export function UsersActionDialog({
                 control={form.control}
                 name='firstName'
                 render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>
+                  <FormItem className='grid grid-cols-1 items-center space-y-0 gap-x-4 gap-y-1 sm:grid-cols-6'>
+                    <FormLabel className='sm:col-span-2 sm:text-end'>
                       First Name
                     </FormLabel>
                     <FormControl>
                       <Input
                         placeholder='John'
-                        className='col-span-4'
+                        className='sm:col-span-4'
                         autoComplete='off'
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage className='col-span-4 col-start-3' />
+                    <FormMessage className='sm:col-span-4 sm:col-start-3' />
                   </FormItem>
                 )}
               />
@@ -182,19 +182,19 @@ export function UsersActionDialog({
                 control={form.control}
                 name='lastName'
                 render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>
+                  <FormItem className='grid grid-cols-1 items-center space-y-0 gap-x-4 gap-y-1 sm:grid-cols-6'>
+                    <FormLabel className='sm:col-span-2 sm:text-end'>
                       Last Name
                     </FormLabel>
                     <FormControl>
                       <Input
                         placeholder='Doe'
-                        className='col-span-4'
+                        className='sm:col-span-4'
                         autoComplete='off'
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage className='col-span-4 col-start-3' />
+                    <FormMessage className='sm:col-span-4 sm:col-start-3' />
                   </FormItem>
                 )}
               />
@@ -202,18 +202,18 @@ export function UsersActionDialog({
                 control={form.control}
                 name='username'
                 render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>
+                  <FormItem className='grid grid-cols-1 items-center space-y-0 gap-x-4 gap-y-1 sm:grid-cols-6'>
+                    <FormLabel className='sm:col-span-2 sm:text-end'>
                       Username
                     </FormLabel>
                     <FormControl>
                       <Input
                         placeholder='john_doe'
-                        className='col-span-4'
+                        className='sm:col-span-4'
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage className='col-span-4 col-start-3' />
+                    <FormMessage className='sm:col-span-4 sm:col-start-3' />
                   </FormItem>
                 )}
               />
@@ -221,16 +221,16 @@ export function UsersActionDialog({
                 control={form.control}
                 name='email'
                 render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>Email</FormLabel>
+                  <FormItem className='grid grid-cols-1 items-center space-y-0 gap-x-4 gap-y-1 sm:grid-cols-6'>
+                    <FormLabel className='sm:col-span-2 sm:text-end'>Email</FormLabel>
                     <FormControl>
                       <Input
                         placeholder='john.doe@gmail.com'
-                        className='col-span-4'
+                        className='sm:col-span-4'
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage className='col-span-4 col-start-3' />
+                    <FormMessage className='sm:col-span-4 sm:col-start-3' />
                   </FormItem>
                 )}
               />
@@ -238,18 +238,18 @@ export function UsersActionDialog({
                 control={form.control}
                 name='phoneNumber'
                 render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>
+                  <FormItem className='grid grid-cols-1 items-center space-y-0 gap-x-4 gap-y-1 sm:grid-cols-6'>
+                    <FormLabel className='sm:col-span-2 sm:text-end'>
                       Phone Number
                     </FormLabel>
                     <FormControl>
                       <Input
                         placeholder='+123456789'
-                        className='col-span-4'
+                        className='sm:col-span-4'
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage className='col-span-4 col-start-3' />
+                    <FormMessage className='sm:col-span-4 sm:col-start-3' />
                   </FormItem>
                 )}
               />
@@ -257,8 +257,8 @@ export function UsersActionDialog({
                 control={form.control}
                 name='role'
                 render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>Role</FormLabel>
+                  <FormItem className='grid grid-cols-1 items-center space-y-0 gap-x-4 gap-y-1 sm:grid-cols-6'>
+                    <FormLabel className='sm:col-span-2 sm:text-end'>Role</FormLabel>
                     <SelectDropdown
                       defaultValue={field.value}
                       onValueChange={field.onChange}
@@ -269,7 +269,7 @@ export function UsersActionDialog({
                         value,
                       }))}
                     />
-                    <FormMessage className='col-span-4 col-start-3' />
+                    <FormMessage className='sm:col-span-4 sm:col-start-3' />
                   </FormItem>
                 )}
               />
@@ -277,18 +277,18 @@ export function UsersActionDialog({
                 control={form.control}
                 name='password'
                 render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>
+                  <FormItem className='grid grid-cols-1 items-center space-y-0 gap-x-4 gap-y-1 sm:grid-cols-6'>
+                    <FormLabel className='sm:col-span-2 sm:text-end'>
                       Password
                     </FormLabel>
                     <FormControl>
                       <PasswordInput
                         placeholder='e.g., S3cur3P@ssw0rd'
-                        className='col-span-4'
+                        className='sm:col-span-4'
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage className='col-span-4 col-start-3' />
+                    <FormMessage className='sm:col-span-4 sm:col-start-3' />
                   </FormItem>
                 )}
               />
@@ -296,19 +296,19 @@ export function UsersActionDialog({
                 control={form.control}
                 name='confirmPassword'
                 render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>
+                  <FormItem className='grid grid-cols-1 items-center space-y-0 gap-x-4 gap-y-1 sm:grid-cols-6'>
+                    <FormLabel className='sm:col-span-2 sm:text-end'>
                       Confirm Password
                     </FormLabel>
                     <FormControl>
                       <PasswordInput
                         disabled={!isPasswordTouched}
                         placeholder='e.g., S3cur3P@ssw0rd'
-                        className='col-span-4'
+                        className='sm:col-span-4'
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage className='col-span-4 col-start-3' />
+                    <FormMessage className='sm:col-span-4 sm:col-start-3' />
                   </FormItem>
                 )}
               />

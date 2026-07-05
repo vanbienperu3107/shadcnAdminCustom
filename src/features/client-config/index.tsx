@@ -81,7 +81,7 @@ export function ClientConfig() {
       </p>
 
       <Tabs defaultValue='config'>
-        <TabsList>
+        <TabsList className='flex h-auto flex-wrap justify-start'>
           <TabsTrigger value='config'>Config</TabsTrigger>
           <TabsTrigger value='ports'>Ports</TabsTrigger>
         </TabsList>
