@@ -38,12 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Main } from '@/components/layout/main'
-import { Derp } from '@/features/derp'
-import { DerpPing } from '@/features/derp-ping'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
-import { ForceRoutes } from '@/features/force-routes'
 import {
   deleteMachine,
   derpNameSet,
@@ -57,18 +52,6 @@ import {
   renameMachine,
   userName,
 } from '@/features/headscale/hs-api'
-import { HomeDerp } from '@/features/home-derp'
-import { HsRoutes } from '@/features/hs-routes'
-import { Latency } from '@/features/latency'
-import { NodeAssignments } from '@/features/node-assignments'
-import { Acl } from '@/features/acl'
-import { NodeRuntimePage } from '@/features/node-runtime'
-import { PacRulesPage } from '@/features/pac-rules'
-import { ClientConfig } from '@/features/client-config'
-import { DnsSplit } from '@/features/dns-split'
-import { Users } from '@/features/users'
-import { PreAuthKeys } from '@/features/preauth-keys'
-import { ClientAutoUpdateCard } from '@/features/client-update'
 
 /** Headscale node name = DNS label: chữ thường a-z0-9 và '-', không bắt đầu/kết
  *  thúc bằng '-'. Bỏ dấu tiếng Việt, hạ chữ thường, thay ký tự lạ bằng '-'. */
@@ -371,7 +354,12 @@ function MachineTable({
   )
 }
 
-export function Machines() {
+/**
+ * Bảng thiết bị (self-contained): tự query + lọc + dialog. variant:
+ *  - 'users': máy thật của người dùng
+ *  - 'derp' : node hạ tầng DERP
+ */
+export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: hsKeys.machines,
     queryFn: fetchMachines,
@@ -391,168 +379,25 @@ export function Machines() {
   const names = derpNameSet(derp.data ?? [])
   const typeByNodeKey = deviceTypeMap(devices.data ?? [])
   const nodes = data?.nodes ?? []
-  const userNodes = nodes
-    .filter((n) => !isDerpNodeV2(n, typeByNodeKey, names))
-    .sort((a, b) => Number(b.online) - Number(a.online))
-  const derpNodes = nodes
-    .filter((n) => isDerpNodeV2(n, typeByNodeKey, names))
+  const rows = nodes
+    .filter((n) =>
+      variant === 'derp'
+        ? isDerpNodeV2(n, typeByNodeKey, names)
+        : !isDerpNodeV2(n, typeByNodeKey, names)
+    )
     .sort((a, b) => Number(b.online) - Number(a.online))
 
   return (
-    <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
-      <div>
-        <h2 className='text-2xl font-bold tracking-tight'>Machines</h2>
-        <p className='text-muted-foreground'>
-          Thiết bị tailnet, subnet route, và vận hành relay DERP liên quan.
-        </p>
-      </div>
-
-      {/* 3 menu gốc — gộp toàn bộ Tailnet Access vào đây:
-       *   - Thiết bị: Người dùng | Hạ tầng DERP | Routes | Force Routes |
-       *       Node Assignments | ACL | Node runtime | PAC Rule | Client config | Split DNS
-       *   - Regions:  Regions | Giám sát DERP (Latency | Home DERP | Ping DERP)
-       *   - Users:    User | Pre-auth Key
-       *  Radix Tabs chỉ mount TabsContent đang active (kể cả sub-tab lồng nhau)
-       *  → không gọi API của tab chưa mở. */}
-      <Tabs defaultValue='devices'>
-        <TabsList className='flex h-auto flex-wrap justify-start'>
-          <TabsTrigger value='devices'>
-            Thiết bị
-            <span className='ms-1.5 text-muted-foreground'>
-              ({userNodes.length + derpNodes.length})
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value='regions'>Regions</TabsTrigger>
-          <TabsTrigger value='users'>Users</TabsTrigger>
-        </TabsList>
-
-        {/* Thiết bị */}
-        <TabsContent value='devices' className='mt-4'>
-          <Tabs defaultValue='dev-users'>
-            <TabsList className='flex h-auto flex-wrap justify-start'>
-              <TabsTrigger value='dev-users'>
-                Người dùng
-                <span className='ms-1.5 text-muted-foreground'>
-                  ({userNodes.length})
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value='derpnodes'>
-                Hạ tầng DERP
-                <span className='ms-1.5 text-muted-foreground'>
-                  ({derpNodes.length})
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value='routes'>Routes</TabsTrigger>
-              <TabsTrigger value='force'>Force Routes</TabsTrigger>
-              <TabsTrigger value='assign'>Node Assignments</TabsTrigger>
-              <TabsTrigger value='acl'>ACL</TabsTrigger>
-              <TabsTrigger value='runtime'>Node runtime</TabsTrigger>
-              <TabsTrigger value='pac'>PAC Rule</TabsTrigger>
-              <TabsTrigger value='client-config'>Client config</TabsTrigger>
-              <TabsTrigger value='dns'>Split DNS</TabsTrigger>
-              <TabsTrigger value='autoupdate'>Auto-update</TabsTrigger>
-            </TabsList>
-            <TabsContent value='dev-users' className='mt-4'>
-              {isError ? (
-                <ErrorBox />
-              ) : isLoading ? (
-                <p className='text-sm text-muted-foreground'>Đang tải…</p>
-              ) : !data?.configured ? (
-                <NotConfigured />
-              ) : (
-                <MachineTable rows={userNodes} onAction={onAction} />
-              )}
-            </TabsContent>
-            <TabsContent value='derpnodes' className='mt-4'>
-              {isError ? (
-                <ErrorBox />
-              ) : isLoading ? (
-                <p className='text-sm text-muted-foreground'>Đang tải…</p>
-              ) : !data?.configured ? (
-                <NotConfigured />
-              ) : (
-                <MachineTable rows={derpNodes} onAction={onAction} />
-              )}
-            </TabsContent>
-            <TabsContent value='routes' className='mt-4'>
-              <HsRoutes />
-            </TabsContent>
-            <TabsContent value='force' className='mt-4'>
-              <ForceRoutes />
-            </TabsContent>
-            <TabsContent value='assign' className='mt-4'>
-              <NodeAssignments />
-            </TabsContent>
-            <TabsContent value='acl' className='mt-4'>
-              <Acl />
-            </TabsContent>
-            <TabsContent value='runtime' className='mt-4'>
-              <NodeRuntimePage />
-            </TabsContent>
-            <TabsContent value='pac' className='mt-4'>
-              <PacRulesPage />
-            </TabsContent>
-            <TabsContent value='client-config' className='mt-4'>
-              <ClientConfig />
-            </TabsContent>
-            <TabsContent value='dns' className='mt-4'>
-              <DnsSplit />
-            </TabsContent>
-            <TabsContent value='autoupdate' className='mt-4'>
-              <div className='max-w-2xl'>
-                <ClientAutoUpdateCard />
-              </div>
-            </TabsContent>
-          </Tabs>
-        </TabsContent>
-
-        {/* Regions: danh sách region + Giám sát DERP (latency / home / ping) */}
-        <TabsContent value='regions' className='mt-4'>
-          <Tabs defaultValue='regions-list'>
-            <TabsList className='flex h-auto flex-wrap justify-start'>
-              <TabsTrigger value='regions-list'>Regions</TabsTrigger>
-              <TabsTrigger value='monitor'>Giám sát DERP</TabsTrigger>
-            </TabsList>
-            <TabsContent value='regions-list' className='mt-4'>
-              <Derp />
-            </TabsContent>
-            <TabsContent value='monitor' className='mt-4'>
-              <Tabs defaultValue='latency'>
-                <TabsList>
-                  <TabsTrigger value='latency'>Latency</TabsTrigger>
-                  <TabsTrigger value='home-derp'>Home DERP</TabsTrigger>
-                  <TabsTrigger value='ping-derp'>Ping DERP</TabsTrigger>
-                </TabsList>
-                <TabsContent value='latency' className='mt-4'>
-                  <Latency />
-                </TabsContent>
-                <TabsContent value='home-derp' className='mt-4'>
-                  <HomeDerp />
-                </TabsContent>
-                <TabsContent value='ping-derp' className='mt-4'>
-                  <DerpPing />
-                </TabsContent>
-              </Tabs>
-            </TabsContent>
-          </Tabs>
-        </TabsContent>
-
-        {/* Users: user headscale + pre-auth key */}
-        <TabsContent value='users' className='mt-4'>
-          <Tabs defaultValue='user-list'>
-            <TabsList>
-              <TabsTrigger value='user-list'>User</TabsTrigger>
-              <TabsTrigger value='preauth'>Pre-auth Key</TabsTrigger>
-            </TabsList>
-            <TabsContent value='user-list' className='mt-4'>
-              <Users />
-            </TabsContent>
-            <TabsContent value='preauth' className='mt-4'>
-              <PreAuthKeys />
-            </TabsContent>
-          </Tabs>
-        </TabsContent>
-      </Tabs>
+    <>
+      {isError ? (
+        <ErrorBox />
+      ) : isLoading ? (
+        <p className='text-sm text-muted-foreground'>Đang tải…</p>
+      ) : !data?.configured ? (
+        <NotConfigured />
+      ) : (
+        <MachineTable rows={rows} onAction={onAction} />
+      )}
 
       <RenameDialog
         open={dialog === 'rename'}
@@ -569,7 +414,7 @@ export function Machines() {
         onOpenChange={(o) => !o && setDialog(null)}
         row={currentRow}
       />
-    </Main>
+    </>
   )
 }
 
