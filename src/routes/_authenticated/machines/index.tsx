@@ -1,6 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Machines } from '@/features/machines'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
+// /machines -> nhóm đầu tiên (Thiết bị). Sidebar mở Machines thành 5 nhóm con.
 export const Route = createFileRoute('/_authenticated/machines/')({
-  component: Machines,
+  beforeLoad: () => {
+    throw redirect({ to: '/machines/thiet-bi' })
+  },
 })

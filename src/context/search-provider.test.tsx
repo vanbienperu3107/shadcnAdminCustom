@@ -73,7 +73,7 @@ describe('SearchProvider and CommandMenu', () => {
     await expect.element(getByText('Light')).toBeInTheDocument()
     await expect.element(getByText('Dark')).toBeInTheDocument()
     await expect.element(getByText('System')).toBeInTheDocument()
-    await expect.element(getByText('Machines')).toBeInTheDocument()
+    await expect.element(getByText('Overview')).toBeInTheDocument()
   })
 
   it('does not show the dialog content when search is closed', async () => {
@@ -109,9 +109,11 @@ describe('SearchProvider and CommandMenu', () => {
 
     await openCommandPalette(screen)
 
-    await userEvent.click(screen.getByText('Machines'))
+    // Machines là mục cha (collapsible) -> command menu render các mục con
+    // "Machines › <nhóm>". Chọn "Thiết bị" điều hướng tới route nhóm đó.
+    await userEvent.click(screen.getByText('Thiết bị'))
 
-    expect(mocks.navigate).toHaveBeenCalledWith({ to: '/machines' })
+    expect(mocks.navigate).toHaveBeenCalledWith({ to: '/machines/thiet-bi' })
     await expect
       .element(screen.getByPlaceholder(COMMAND_MENU_PLACEHOLDER))
       .not.toBeInTheDocument()
