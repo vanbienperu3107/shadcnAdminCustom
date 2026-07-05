@@ -1,4 +1,5 @@
 import {
+  FolderSync,
   LayoutDashboard,
   MonitorSmartphone,
   Network,
@@ -54,6 +55,7 @@ export const sidebarData: SidebarData = {
           ],
         },
         { title: 'Deploy & CI', url: '/deploy', icon: Rocket },
+        { title: 'Hub (Syncthing)', url: '/hub', icon: FolderSync },
       ],
     },
     {

@@ -48,6 +48,13 @@ export default defineConfig({
     proxy: {
       '/api': { target: 'http://localhost:8787', changeOrigin: true },
       '/derpmap.json': { target: 'http://localhost:8787', changeOrigin: true },
+      // Hub syncthingMem0 (REST Syncthing + /api/*). changeOrigin để qua
+      // host-check của hub; rewrite bỏ tiền tố /hub.
+      '/hub': {
+        target: process.env.VITE_HUB_PROXY_TARGET || 'http://127.0.0.1:8384',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/hub/, ''),
+      },
     },
   },
   test: {
