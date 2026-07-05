@@ -36,6 +36,7 @@ import { Route as AuthenticatedNodeRuntimeIndexRouteImport } from './routes/_aut
 import { Route as AuthenticatedNodeAssignmentsIndexRouteImport } from './routes/_authenticated/node-assignments/index'
 import { Route as AuthenticatedMachinesIndexRouteImport } from './routes/_authenticated/machines/index'
 import { Route as AuthenticatedLatencyIndexRouteImport } from './routes/_authenticated/latency/index'
+import { Route as AuthenticatedHubIndexRouteImport } from './routes/_authenticated/hub/index'
 import { Route as AuthenticatedHsRoutesIndexRouteImport } from './routes/_authenticated/hs-routes/index'
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
 import { Route as AuthenticatedForceRoutesIndexRouteImport } from './routes/_authenticated/force-routes/index'
@@ -204,6 +205,11 @@ const AuthenticatedLatencyIndexRoute =
     path: '/latency/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedHubIndexRoute = AuthenticatedHubIndexRouteImport.update({
+  id: '/hub/',
+  path: '/hub/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedHsRoutesIndexRoute =
   AuthenticatedHsRoutesIndexRouteImport.update({
     id: '/hs-routes/',
@@ -380,6 +386,7 @@ export interface FileRoutesByFullPath {
   '/force-routes/': typeof AuthenticatedForceRoutesIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/hs-routes/': typeof AuthenticatedHsRoutesIndexRoute
+  '/hub/': typeof AuthenticatedHubIndexRoute
   '/latency/': typeof AuthenticatedLatencyIndexRoute
   '/machines/': typeof AuthenticatedMachinesIndexRoute
   '/node-assignments/': typeof AuthenticatedNodeAssignmentsIndexRoute
@@ -429,6 +436,7 @@ export interface FileRoutesByTo {
   '/force-routes': typeof AuthenticatedForceRoutesIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
   '/hs-routes': typeof AuthenticatedHsRoutesIndexRoute
+  '/hub': typeof AuthenticatedHubIndexRoute
   '/latency': typeof AuthenticatedLatencyIndexRoute
   '/machines': typeof AuthenticatedMachinesIndexRoute
   '/node-assignments': typeof AuthenticatedNodeAssignmentsIndexRoute
@@ -483,6 +491,7 @@ export interface FileRoutesById {
   '/_authenticated/force-routes/': typeof AuthenticatedForceRoutesIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/_authenticated/hs-routes/': typeof AuthenticatedHsRoutesIndexRoute
+  '/_authenticated/hub/': typeof AuthenticatedHubIndexRoute
   '/_authenticated/latency/': typeof AuthenticatedLatencyIndexRoute
   '/_authenticated/machines/': typeof AuthenticatedMachinesIndexRoute
   '/_authenticated/node-assignments/': typeof AuthenticatedNodeAssignmentsIndexRoute
@@ -535,6 +544,7 @@ export interface FileRouteTypes {
     | '/force-routes/'
     | '/help-center/'
     | '/hs-routes/'
+    | '/hub/'
     | '/latency/'
     | '/machines/'
     | '/node-assignments/'
@@ -584,6 +594,7 @@ export interface FileRouteTypes {
     | '/force-routes'
     | '/help-center'
     | '/hs-routes'
+    | '/hub'
     | '/latency'
     | '/machines'
     | '/node-assignments'
@@ -637,6 +648,7 @@ export interface FileRouteTypes {
     | '/_authenticated/force-routes/'
     | '/_authenticated/help-center/'
     | '/_authenticated/hs-routes/'
+    | '/_authenticated/hub/'
     | '/_authenticated/latency/'
     | '/_authenticated/machines/'
     | '/_authenticated/node-assignments/'
@@ -856,6 +868,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLatencyIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/hub/': {
+      id: '/_authenticated/hub/'
+      path: '/hub'
+      fullPath: '/hub/'
+      preLoaderRoute: typeof AuthenticatedHubIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/hs-routes/': {
       id: '/_authenticated/hs-routes/'
       path: '/hs-routes'
@@ -1072,6 +1091,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedForceRoutesIndexRoute: typeof AuthenticatedForceRoutesIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
   AuthenticatedHsRoutesIndexRoute: typeof AuthenticatedHsRoutesIndexRoute
+  AuthenticatedHubIndexRoute: typeof AuthenticatedHubIndexRoute
   AuthenticatedLatencyIndexRoute: typeof AuthenticatedLatencyIndexRoute
   AuthenticatedMachinesIndexRoute: typeof AuthenticatedMachinesIndexRoute
   AuthenticatedNodeAssignmentsIndexRoute: typeof AuthenticatedNodeAssignmentsIndexRoute
@@ -1103,6 +1123,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedForceRoutesIndexRoute: AuthenticatedForceRoutesIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
   AuthenticatedHsRoutesIndexRoute: AuthenticatedHsRoutesIndexRoute,
+  AuthenticatedHubIndexRoute: AuthenticatedHubIndexRoute,
   AuthenticatedLatencyIndexRoute: AuthenticatedLatencyIndexRoute,
   AuthenticatedMachinesIndexRoute: AuthenticatedMachinesIndexRoute,
   AuthenticatedNodeAssignmentsIndexRoute:
