@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import { playwright } from '@vitest/browser-playwright'
+import { configDefaults } from 'vitest/config'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -54,6 +55,11 @@ export default defineConfig({
   test: {
     silent: 'passed-only',
     unstubEnvs: true,
+    // Giữ default include nhưng LOẠI server/** khỏi vitest root. Server deps
+    // (Fastify) nằm ở server/node_modules, root không resolve được -> vitest
+    // fail dep-scan + reload test giữa chừng khiến cả suite flaky/đỏ. Backend
+    // có job CI riêng ("DERP backend") chạy trong server/.
+    exclude: [...configDefaults.exclude, 'server/**'],
     browser: {
       enabled: true,
       provider: playwright(),
