@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { Main } from '@/components/layout/main'
 import { Acl } from '@/features/acl'
 import { ClientConfig } from '@/features/client-config'
+import { ClientAutoUpdateCard } from '@/features/client-update'
 import { Derp } from '@/features/derp'
 import { DerpPing } from '@/features/derp-ping'
 import { DnsSplit } from '@/features/dns-split'
@@ -60,6 +61,15 @@ const GROUPS: Record<MachineGroup, Leaf[]> = {
     { key: 'pac', label: 'PAC Rule', render: () => <PacRulesPage /> },
     { key: 'client', label: 'Client config', render: () => <ClientConfig /> },
     { key: 'dns', label: 'Split DNS', render: () => <DnsSplit /> },
+    {
+      key: 'autoupdate',
+      label: 'Auto-update',
+      render: () => (
+        <div className='max-w-2xl'>
+          <ClientAutoUpdateCard />
+        </div>
+      ),
+    },
   ],
   users: [
     { key: 'user', label: 'User', render: () => <Users /> },
