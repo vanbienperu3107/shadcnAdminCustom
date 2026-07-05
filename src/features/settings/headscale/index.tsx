@@ -10,6 +10,7 @@ import {
   hsKeys,
   type ApiKeyStatus,
 } from '@/features/headscale/hs-api'
+import { ClientAutoUpdateCard } from '@/features/client-update'
 
 function fmt(iso: string | null | undefined): string {
   if (!iso) return '—'
@@ -161,6 +162,9 @@ export function SettingsHeadscale() {
             Không lấy được trạng thái API key.
           </p>
         )}
+
+        <Separator className='my-6' />
+        <ClientAutoUpdateCard />
       </div>
     </div>
   )

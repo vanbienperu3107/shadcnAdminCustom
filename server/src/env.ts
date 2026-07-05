@@ -43,6 +43,8 @@ const schema = z.object({
   GITHUB_REPOS: z
     .string()
     .default('vanbienperu3107/shadcnAdminCustom,vanbienperu3107/deployHeadscale'),
+  // Repo chứa GitHub Release của portable client (auto-update lấy binary từ đây).
+  CLIENT_RELEASE_REPO: z.string().default('vanbienperu3107/tailscale_mod'),
   // 'true' = bỏ qua đăng nhập (CHỈ dev/local để xem UI khi chưa cấu hình Google).
   AUTH_OPTIONAL: z.string().default('false'),
   // Bootstrap tài khoản admin nội bộ (username/password) lúc khởi động. Để trống

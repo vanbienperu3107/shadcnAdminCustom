@@ -383,4 +383,30 @@ export async function migrate(): Promise<void> {
       updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `)
+
+  // Auto-update client: 1 dòng cấu hình toàn cục (id=1). enabled=false = tắt
+  // hẳn (kill-switch). pinned_build != null = đóng băng fleet ở build đó thay
+  // vì luôn theo release mới nhất.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS client_update (
+      id           INTEGER PRIMARY KEY DEFAULT 1,
+      enabled      BOOLEAN NOT NULL DEFAULT false,
+      pinned_build INTEGER,
+      updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT client_update_singleton CHECK (id = 1)
+    )
+  `)
+  await db.execute(sql`
+    INSERT INTO client_update (id, enabled) VALUES (1, false)
+    ON CONFLICT (id) DO NOTHING
+  `)
+
+  // Version client tự báo về (device-register) để tab Thiết bị hiển thị + so
+  // sánh với release mới nhất.
+  await db.execute(sql`
+    ALTER TABLE device_identity ADD COLUMN IF NOT EXISTS client_version TEXT
+  `)
+  await db.execute(sql`
+    ALTER TABLE device_identity ADD COLUMN IF NOT EXISTS client_build INTEGER
+  `)
 }

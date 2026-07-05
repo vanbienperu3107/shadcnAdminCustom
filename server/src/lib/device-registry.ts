@@ -85,8 +85,10 @@ export async function upsertClientDevice(opts: {
   hostname: string
   nodeKey: string | null
   ipv4?: string | null
+  clientVersion?: string | null
+  clientBuild?: number | null
 }): Promise<void> {
-  const { mac, hostname, ipv4 } = opts
+  const { mac, hostname, ipv4, clientVersion, clientBuild } = opts
   const nodeKey = normalizeNodeKey(opts.nodeKey)
 
   // 1 transaction (postgres-js hỗ trợ) bao select→ghi để tránh race register.
@@ -112,6 +114,8 @@ export async function upsertClientDevice(opts: {
         deviceType: 'client',
         deviceToken: generateToken(),
         lastIpv4: ipv4 ?? null,
+        clientVersion: clientVersion ?? null,
+        clientBuild: clientBuild ?? null,
         updatedAt: new Date(),
       })
       return
@@ -123,6 +127,8 @@ export async function upsertClientDevice(opts: {
         .set({
           nodeKey: nodeKey ?? byMac.nodeKey,
           lastIpv4: ipv4 ?? byMac.lastIpv4,
+          clientVersion: clientVersion ?? byMac.clientVersion,
+          clientBuild: clientBuild ?? byMac.clientBuild,
           updatedAt: new Date(),
         })
         .where(eq(deviceIdentity.id, action.id))
@@ -141,6 +147,8 @@ export async function upsertClientDevice(opts: {
       .set({
         mac,
         lastIpv4: ipv4 ?? byKey?.lastIpv4 ?? null,
+        clientVersion: clientVersion ?? byKey?.clientVersion ?? null,
+        clientBuild: clientBuild ?? byKey?.clientBuild ?? null,
         updatedAt: new Date(),
       })
       .where(eq(deviceIdentity.id, action.keyRowId))

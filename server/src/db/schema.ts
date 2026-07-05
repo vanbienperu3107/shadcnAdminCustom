@@ -231,7 +231,18 @@ export const deviceIdentity = pgTable('device_identity', {
   deviceToken:  text('device_token'), // token riêng cho thiết bị, sinh lúc đăng ký lần đầu
   lastIpv4:     text('last_ipv4'),    // IP tailnet gần nhất được báo cáo (tự động)
   staticIpv4:   text('static_ipv4'),  // IP admin ép cố định (ưu tiên hơn lastIpv4)
+  clientVersion: text('client_version'), // version client tự báo (device-register)
+  clientBuild:  integer('client_build'), // build number tăng đơn điệu (so sánh update)
   updatedAt:    timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Cấu hình auto-update client (singleton id=1). enabled=false = kill-switch;
+ *  pinnedBuild != null = đóng băng fleet ở build đó thay vì theo release mới. */
+export const clientUpdate = pgTable('client_update', {
+  id:          integer('id').primaryKey().default(1),
+  enabled:     boolean('enabled').notNull().default(false),
+  pinnedBuild: integer('pinned_build'),
+  updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export const clientConfig = pgTable('client_config', {
