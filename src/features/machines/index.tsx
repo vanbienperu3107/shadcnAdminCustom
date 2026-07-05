@@ -68,6 +68,7 @@ import { ClientConfig } from '@/features/client-config'
 import { DnsSplit } from '@/features/dns-split'
 import { Users } from '@/features/users'
 import { PreAuthKeys } from '@/features/preauth-keys'
+import { ClientAutoUpdateCard } from '@/features/client-update'
 
 /** Headscale node name = DNS label: chữ thường a-z0-9 và '-', không bắt đầu/kết
  *  thúc bằng '-'. Bỏ dấu tiếng Việt, hạ chữ thường, thay ký tự lạ bằng '-'. */
@@ -449,6 +450,7 @@ export function Machines() {
               <TabsTrigger value='pac'>PAC Rule</TabsTrigger>
               <TabsTrigger value='client-config'>Client config</TabsTrigger>
               <TabsTrigger value='dns'>Split DNS</TabsTrigger>
+              <TabsTrigger value='autoupdate'>Auto-update</TabsTrigger>
             </TabsList>
             <TabsContent value='dev-users' className='mt-4'>
               {isError ? (
@@ -495,6 +497,11 @@ export function Machines() {
             </TabsContent>
             <TabsContent value='dns' className='mt-4'>
               <DnsSplit />
+            </TabsContent>
+            <TabsContent value='autoupdate' className='mt-4'>
+              <div className='max-w-2xl'>
+                <ClientAutoUpdateCard />
+              </div>
             </TabsContent>
           </Tabs>
         </TabsContent>
