@@ -30,6 +30,25 @@ function checkSecret(req: FastifyRequest, reply: FastifyReply): boolean {
   return false
 }
 
+/** MAX(update_check_at toàn cục, dòng riêng theo mac) — dùng chung bởi
+ *  GET /api/client/runtime và GET /api/client/update-signal (vòng poll
+ *  riêng, nhanh hơn nhiều so với runtime poll 20s — xem route đó). */
+async function resolveUpdateCheckAt(mac?: string): Promise<Date | null> {
+  const [upd] = await db
+    .select({ at: clientUpdate.updateCheckAt })
+    .from(clientUpdate)
+    .where(eq(clientUpdate.id, 1))
+  let at = upd?.at ?? null
+  if (mac) {
+    const [perMac] = await db
+      .select({ at: nodeUpdateRequests.requestedAt })
+      .from(nodeUpdateRequests)
+      .where(eq(nodeUpdateRequests.mac, mac))
+    if (perMac?.at && (!at || perMac.at > at)) at = perMac.at
+  }
+  return at
+}
+
 /** Tra node_runtime_config theo mac (chính), fallback hostname (phụ). */
 async function findNode(
   mac?: string,
@@ -84,25 +103,10 @@ export async function clientRuntimePublicRoutes(
         reloadAt = r ? r.requestedAt.toISOString() : null
       }
 
-      // update_check_at: tín hiệu "Cập nhật ngay" — client so với lần đã xử
-      // lý, khác → chạy self-update check liền. Lấy MAX giữa dòng toàn cục
-      // (nút "Cập nhật ngay (toàn fleet)") và dòng riêng theo mac (nút "Cập
-      // nhật" cho 1 máy), để cả 2 cách bấm đều có tác dụng — client chỉ theo
-      // dõi 1 giá trị nên không cần biết dòng nào vừa đổi.
-      const [upd] = await db
-        .select({ at: clientUpdate.updateCheckAt })
-        .from(clientUpdate)
-        .where(eq(clientUpdate.id, 1))
-      let updateCheckAtDate = upd?.at ?? null
-      if (q.mac) {
-        const [perMac] = await db
-          .select({ at: nodeUpdateRequests.requestedAt })
-          .from(nodeUpdateRequests)
-          .where(eq(nodeUpdateRequests.mac, q.mac))
-        if (perMac?.at && (!updateCheckAtDate || perMac.at > updateCheckAtDate)) {
-          updateCheckAtDate = perMac.at
-        }
-      }
+      // update_check_at: tín hiệu "Cập nhật ngay" (toàn fleet hoặc riêng máy
+      // này) — vẫn trả ở đây cho client cũ, nhưng client mới dò thay đổi
+      // NHANH HƠN qua GET /api/client/update-signal (poll riêng, xem route đó).
+      const updateCheckAtDate = await resolveUpdateCheckAt(q.mac)
       const updateCheckAt = updateCheckAtDate ? updateCheckAtDate.toISOString() : null
 
       // Folder-share (Taildrive): shares = thư mục node này XUẤT (client tự
@@ -164,6 +168,22 @@ export async function clientRuntimePublicRoutes(
         shares,
         mounts,
       }
+    } catch (e) {
+      return reply.code(502).send({ error: String(e) })
+    }
+  })
+
+  // Tín hiệu "Cập nhật ngay" — poll RIÊNG, NHANH (client gọi mỗi vài giây,
+  // xem nodeUpdateSignalPollLoop phía node), tách khỏi /api/client/runtime
+  // (nặng hơn: routes/shares/mounts/pac) để một cú bấm "Cập nhật ngay" hay
+  // toggle auto-update được client biết gần như tức thì, không phải chờ
+  // chu kỳ runtime-poll 20s hay self-update ticker 1 phút.
+  app.get('/api/client/update-signal', async (req, reply) => {
+    if (!checkSecret(req, reply)) return
+    const q = req.query as { mac?: string }
+    try {
+      const at = await resolveUpdateCheckAt(q.mac)
+      return { at: at ? at.toISOString() : null }
     } catch (e) {
       return reply.code(502).send({ error: String(e) })
     }
