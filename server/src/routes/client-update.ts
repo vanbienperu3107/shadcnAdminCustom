@@ -1,8 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/client.js'
-import { clientUpdate } from '../db/schema.js'
+import { clientUpdate, clientVersionHistory } from '../db/schema.js'
 import { env } from '../env.js'
 import { requireAuth } from '../auth/middleware.js'
 
@@ -217,5 +217,17 @@ export async function clientUpdateRoutes(app: FastifyInstance): Promise<void> {
       .values({ id: 1, updateCheckAt: now })
       .onConflictDoUpdate({ target: clientUpdate.id, set: { updateCheckAt: now } })
     return { ok: true, at: now.toISOString() }
+  })
+
+  // Lịch sử nâng/hạ cấp build client (toàn fleet, mới nhất trước). ?limit=N.
+  app.get('/api/client-update/history', async (req) => {
+    const q = req.query as { limit?: string }
+    const limit = Math.min(Math.max(Number(q.limit) || 100, 1), 500)
+    const rows = await db
+      .select()
+      .from(clientVersionHistory)
+      .orderBy(desc(clientVersionHistory.changedAt))
+      .limit(limit)
+    return rows
   })
 }

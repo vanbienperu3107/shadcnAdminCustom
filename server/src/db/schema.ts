@@ -248,6 +248,21 @@ export const clientUpdate = pgTable('client_update', {
   updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+/** Lịch sử đổi build của client (nâng cấp/hạ cấp/lần đầu). Ghi mỗi khi
+ *  device-register báo client_build khác giá trị đang lưu. direction:
+ *  'initial' (lần đầu có build) | 'upgrade' (build tăng) | 'downgrade' (giảm). */
+export const clientVersionHistory = pgTable('client_version_history', {
+  id:          serial('id').primaryKey(),
+  mac:         text('mac'),
+  hostname:    text('hostname'),
+  fromBuild:   integer('from_build'),
+  toBuild:     integer('to_build'),
+  fromVersion: text('from_version'),
+  toVersion:   text('to_version'),
+  direction:   text('direction').notNull(),
+  changedAt:   timestamp('changed_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const clientConfig = pgTable('client_config', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),

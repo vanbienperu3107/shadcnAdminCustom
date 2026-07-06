@@ -415,6 +415,25 @@ export async function migrate(): Promise<void> {
     ALTER TABLE client_update ADD COLUMN IF NOT EXISTS update_check_at TIMESTAMPTZ
   `)
 
+  // Lịch sử nâng/hạ cấp build client (ghi khi device-register báo build khác).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS client_version_history (
+      id           SERIAL PRIMARY KEY,
+      mac          TEXT,
+      hostname     TEXT,
+      from_build   INTEGER,
+      to_build     INTEGER,
+      from_version TEXT,
+      to_version   TEXT,
+      direction    TEXT NOT NULL,
+      changed_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS client_version_history_changed_at_idx
+      ON client_version_history (changed_at DESC)
+  `)
+
   // Chia sẻ thư mục theo từng PC qua Taildrive. folder_shares = thư mục 1 PC
   // (owner_mac) xuất ra; folder_share_access = ai được truy cập + quyền +
   // auto-mount. headscale gọi GET /api/internal/taildrive/:nodeKey để lấy

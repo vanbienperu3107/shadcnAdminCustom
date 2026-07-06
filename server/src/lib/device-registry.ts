@@ -14,11 +14,25 @@
 import { randomBytes } from 'node:crypto'
 import { eq, isNull } from 'drizzle-orm'
 import { db } from '../db/client.js'
-import { deviceIdentity, derpServers } from '../db/schema.js'
+import {
+  clientVersionHistory,
+  deviceIdentity,
+  derpServers,
+} from '../db/schema.js'
 import { hsApi } from './headscale.js'
 
 function generateToken(): string {
   return randomBytes(24).toString('base64url')
+}
+
+/** Hướng đổi build: lần đầu có build / tăng (nâng cấp) / giảm (hạ cấp). Thuần
+ *  để unit-test được. */
+export function versionChangeDirection(
+  prevBuild: number | null,
+  newBuild: number
+): 'initial' | 'upgrade' | 'downgrade' {
+  if (prevBuild == null) return 'initial'
+  return newBuild > prevBuild ? 'upgrade' : 'downgrade'
 }
 
 /**
@@ -118,6 +132,18 @@ export async function upsertClientDevice(opts: {
         clientBuild: clientBuild ?? null,
         updatedAt: new Date(),
       })
+      if (clientBuild != null) {
+        await tx.insert(clientVersionHistory).values({
+          mac,
+          hostname,
+          fromBuild: null,
+          toBuild: clientBuild,
+          fromVersion: null,
+          toVersion: clientVersion ?? null,
+          direction: 'initial',
+          changedAt: new Date(),
+        })
+      }
       return
     }
 
@@ -132,6 +158,18 @@ export async function upsertClientDevice(opts: {
           updatedAt: new Date(),
         })
         .where(eq(deviceIdentity.id, action.id))
+      if (clientBuild != null && clientBuild !== byMac.clientBuild) {
+        await tx.insert(clientVersionHistory).values({
+          mac,
+          hostname: byMac.hostname,
+          fromBuild: byMac.clientBuild ?? null,
+          toBuild: clientBuild,
+          fromVersion: byMac.clientVersion ?? null,
+          toVersion: clientVersion ?? null,
+          direction: versionChangeDirection(byMac.clientBuild ?? null, clientBuild),
+          changedAt: new Date(),
+        })
+      }
       return
     }
 
@@ -152,6 +190,19 @@ export async function upsertClientDevice(opts: {
         updatedAt: new Date(),
       })
       .where(eq(deviceIdentity.id, action.keyRowId))
+    const prevBuild = byKey?.clientBuild ?? null
+    if (clientBuild != null && clientBuild !== prevBuild) {
+      await tx.insert(clientVersionHistory).values({
+        mac,
+        hostname: byKey?.hostname ?? hostname,
+        fromBuild: prevBuild,
+        toBuild: clientBuild,
+        fromVersion: byKey?.clientVersion ?? null,
+        toVersion: clientVersion ?? null,
+        direction: versionChangeDirection(prevBuild, clientBuild),
+        changedAt: new Date(),
+      })
+    }
   })
 }
 

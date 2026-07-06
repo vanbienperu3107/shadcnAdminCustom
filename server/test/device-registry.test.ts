@@ -2,7 +2,20 @@ import { describe, it, expect } from 'vitest'
 import {
   resolveClientDeviceAction,
   normalizeNodeKey,
+  versionChangeDirection,
 } from '../src/lib/device-registry'
+
+describe('versionChangeDirection', () => {
+  it('prev null → initial (lần đầu có build)', () => {
+    expect(versionChangeDirection(null, 70)).toBe('initial')
+  })
+  it('build tăng → upgrade', () => {
+    expect(versionChangeDirection(70, 72)).toBe('upgrade')
+  })
+  it('build giảm → downgrade (rollback)', () => {
+    expect(versionChangeDirection(72, 70)).toBe('downgrade')
+  })
+})
 
 const row = (id: number) => ({ id })
 

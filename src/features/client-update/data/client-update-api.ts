@@ -29,3 +29,23 @@ export async function checkNowClientUpdate(): Promise<{ ok: boolean; at: string 
   const { data } = await api.post('/client-update/check-now')
   return data
 }
+
+export type VersionHistoryRow = {
+  id: number
+  mac: string | null
+  hostname: string | null
+  fromBuild: number | null
+  toBuild: number | null
+  fromVersion: string | null
+  toVersion: string | null
+  direction: 'initial' | 'upgrade' | 'downgrade'
+  changedAt: string
+}
+
+/** Lịch sử nâng/hạ cấp build client (toàn fleet, mới nhất trước). */
+export async function getVersionHistory(limit = 100): Promise<VersionHistoryRow[]> {
+  const { data } = await api.get<VersionHistoryRow[]>('/client-update/history', {
+    params: { limit },
+  })
+  return data
+}
