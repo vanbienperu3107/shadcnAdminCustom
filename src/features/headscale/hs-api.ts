@@ -245,6 +245,8 @@ export type Device = {
   deviceType: 'client' | 'derp_infra' | string
   lastIpv4: string | null
   staticIpv4: string | null
+  clientVersion: string | null
+  clientBuild: number | null
   updatedAt: string
 }
 
@@ -280,6 +282,20 @@ export function deviceTypeMap(devices: Device[]): Map<string, string> {
   const m = new Map<string, string>()
   for (const d of devices) {
     if (d.nodeKey) m.set(d.nodeKey, d.deviceType)
+  }
+  return m
+}
+
+/** Map nodeKey -> {version, build} client hiện đang chạy (self-reported qua
+ *  device-register), dùng để hiển thị cột "Phiên bản" — không cần đợi client
+ *  gõ tay, dữ liệu đã có sẵn ở device_identity. */
+export function deviceVersionMap(
+  devices: Device[]
+): Map<string, { version: string | null; build: number | null }> {
+  const m = new Map<string, { version: string | null; build: number | null }>()
+  for (const d of devices) {
+    if (d.nodeKey)
+      m.set(d.nodeKey, { version: d.clientVersion, build: d.clientBuild })
   }
   return m
 }
