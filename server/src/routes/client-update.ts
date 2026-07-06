@@ -207,4 +207,15 @@ export async function clientUpdateRoutes(app: FastifyInstance): Promise<void> {
       .onConflictDoUpdate({ target: clientUpdate.id, set: patch })
     return loadConfig()
   })
+
+  // "Cập nhật ngay": touch update_check_at = now(). Mọi client thấy qua
+  // /api/client/runtime (poll 20s) → chạy self-update check liền cho toàn fleet.
+  app.post('/api/client-update/check-now', async () => {
+    const now = new Date()
+    await db
+      .insert(clientUpdate)
+      .values({ id: 1, updateCheckAt: now })
+      .onConflictDoUpdate({ target: clientUpdate.id, set: { updateCheckAt: now } })
+    return { ok: true, at: now.toISOString() }
+  })
 }

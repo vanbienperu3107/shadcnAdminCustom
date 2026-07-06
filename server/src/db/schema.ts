@@ -242,6 +242,9 @@ export const clientUpdate = pgTable('client_update', {
   id:          integer('id').primaryKey().default(1),
   enabled:     boolean('enabled').notNull().default(false),
   pinnedBuild: integer('pinned_build'),
+  // "Cập nhật ngay": touch = now() → client thấy qua /api/client/runtime (poll
+  // 20s) và chạy self-update check liền thay vì chờ chu kỳ 6h.
+  updateCheckAt: timestamp('update_check_at', { withTimezone: true }),
   updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

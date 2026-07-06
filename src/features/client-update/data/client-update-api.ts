@@ -23,3 +23,9 @@ export async function putClientUpdate(patch: {
   const { data } = await api.put('/client-update', patch)
   return data
 }
+
+/** "Cập nhật ngay": báo toàn bộ client kiểm tra + cập nhật liền (poll 20s). */
+export async function checkNowClientUpdate(): Promise<{ ok: boolean; at: string }> {
+  const { data } = await api.post('/client-update/check-now')
+  return data
+}

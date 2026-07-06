@@ -5,6 +5,7 @@ import { requireAuth } from '../auth/middleware.js'
 import { db } from '../db/client.js'
 import {
   clientConfig,
+  clientUpdate,
   deviceIdentity,
   folderShareAccess,
   folderShares,
@@ -82,6 +83,14 @@ export async function clientRuntimePublicRoutes(
         reloadAt = r ? r.requestedAt.toISOString() : null
       }
 
+      // update_check_at: tín hiệu "Cập nhật ngay" toàn cục (client so với lần
+      // đã xử lý; khác → chạy self-update check liền).
+      const [upd] = await db
+        .select({ at: clientUpdate.updateCheckAt })
+        .from(clientUpdate)
+        .where(eq(clientUpdate.id, 1))
+      const updateCheckAt = upd?.at ? upd.at.toISOString() : null
+
       // Folder-share (Taildrive): shares = thư mục node này XUẤT (client tự
       // `drive share`); mounts = share node này được auto-mount thành ổ đĩa.
       // owner_ip: client KHÔNG tin hostname tự báo (có thể lệch với tên
@@ -137,6 +146,7 @@ export async function clientRuntimePublicRoutes(
         pac_url: `${env.PUBLIC_URL}/api/client/pac${macQ}`,
         matched: node ? (node.mac === q.mac ? 'mac' : 'hostname') : 'default',
         reload_at: reloadAt,
+        update_check_at: updateCheckAt,
         shares,
         mounts,
       }

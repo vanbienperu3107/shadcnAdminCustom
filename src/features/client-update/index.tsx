@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { DownloadCloud } from 'lucide-react'
+import { DownloadCloud, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import {
+  checkNowClientUpdate,
   clientUpdateKeys,
   getClientUpdate,
   putClientUpdate,
@@ -25,6 +27,13 @@ export function ClientAutoUpdateCard() {
       qc.invalidateQueries({ queryKey: clientUpdateKeys.all })
       toast.success('Đã lưu cấu hình auto-update')
     },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const checkNowMut = useMutation({
+    mutationFn: checkNowClientUpdate,
+    onSuccess: () =>
+      toast.success('Đã yêu cầu toàn bộ client kiểm tra cập nhật (≤20s)'),
     onError: (e: Error) => toast.error(e.message),
   })
 
@@ -59,6 +68,28 @@ export function ClientAutoUpdateCard() {
         sha256) và tự khởi động lại — kiểm tra lúc khởi động và mỗi 6h. Tắt =
         dừng cập nhật toàn bộ (kill-switch).
       </p>
+
+      {/* Push tức thì: báo mọi client kiểm tra cập nhật liền (không chờ 6h). */}
+      <div className='flex flex-wrap items-center justify-between gap-2 rounded-md border p-3'>
+        <div>
+          <p className='text-sm font-medium'>Cập nhật ngay (toàn fleet)</p>
+          <p className='text-xs text-muted-foreground'>
+            Báo mọi client kiểm tra + tự cập nhật liền qua vòng poll 20s, thay vì
+            chờ chu kỳ 6h. Chỉ có tác dụng khi đang bật auto-update.
+          </p>
+        </div>
+        <Button
+          variant='outline'
+          size='sm'
+          disabled={checkNowMut.isPending || !data.enabled}
+          onClick={() => checkNowMut.mutate()}
+        >
+          <RefreshCw
+            className={checkNowMut.isPending ? 'animate-spin' : ''}
+          />
+          Cập nhật ngay
+        </Button>
+      </div>
 
       {/* Pin version — đóng băng fleet ở 1 build cụ thể (rollback an toàn). */}
       <div className='flex flex-col gap-1.5 rounded-md border p-3'>

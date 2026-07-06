@@ -409,6 +409,11 @@ export async function migrate(): Promise<void> {
   await db.execute(sql`
     ALTER TABLE device_identity ADD COLUMN IF NOT EXISTS client_build INTEGER
   `)
+  // "Cập nhật ngay" — timestamp toàn cục; client poll runtime thấy đổi thì chạy
+  // self-update check ngay (không chờ chu kỳ 6h).
+  await db.execute(sql`
+    ALTER TABLE client_update ADD COLUMN IF NOT EXISTS update_check_at TIMESTAMPTZ
+  `)
 
   // Chia sẻ thư mục theo từng PC qua Taildrive. folder_shares = thư mục 1 PC
   // (owner_mac) xuất ra; folder_share_access = ai được truy cập + quyền +
