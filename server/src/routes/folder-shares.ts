@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { and, eq, inArray } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/client.js'
 import {
@@ -11,6 +11,7 @@ import {
 } from '../db/schema.js'
 import { requireAuth } from '../auth/middleware.js'
 import { env } from '../env.js'
+import { pushTaildrivePolicy } from '../lib/taildrive-policy.js'
 
 /** Kiểm tra X-Headscale-Secret (giống client-runtime / node-assignments). */
 function checkSecret(req: FastifyRequest, reply: FastifyReply): boolean {
@@ -18,16 +19,6 @@ function checkSecret(req: FastifyRequest, reply: FastifyReply): boolean {
   if (req.headers['x-headscale-secret'] === env.HEADSCALE_DASHBOARD_SECRET) return true
   reply.code(401).send({ error: 'unauthorized' })
   return false
-}
-
-/** IP tailnet của 1 MAC (static ưu tiên, fallback last) dạng CIDR /32; null nếu chưa biết. */
-async function ipForMac(mac: string): Promise<string | null> {
-  const [d] = await db
-    .select({ s: deviceIdentity.staticIpv4, l: deviceIdentity.lastIpv4 })
-    .from(deviceIdentity)
-    .where(eq(deviceIdentity.mac, mac))
-  const ip = d?.s || d?.l
-  return ip ? `${ip}/32` : null
 }
 
 /** nodeKey headscale của 1 MAC (để poke). */
@@ -39,8 +30,11 @@ async function nodeKeyForMac(mac: string): Promise<string | null> {
   return d?.nk ?? null
 }
 
-/** Gọi POST {HEADSCALE_API_URL}/derp/poke?nodeKey=… — headscale invalidate cache
- *  DERPMap + Taildrive của node rồi re-map ngay (thay vì chờ TTL 30s). */
+/** Gọi POST {HEADSCALE_API_URL}/derp/poke?nodeKey=… — chỉ dùng để đánh thức
+ *  client sớm cho tính năng folder-browse (client re-poll runtime ngay thay
+ *  vì chờ hết chu kỳ 20s); KHÔNG còn liên quan tới cấp quyền Taildrive (việc
+ *  đó giờ do headscale tự đọc nodeAttrs/grants từ policy — xem
+ *  lib/taildrive-policy.ts). */
 async function pokeHeadscale(nodeKey: string): Promise<boolean> {
   const base = env.HEADSCALE_API_URL.replace(/\/+$/, '')
   if (!base) return false
@@ -58,8 +52,11 @@ async function pokeHeadscale(nodeKey: string): Promise<boolean> {
   }
 }
 
-/** Báo cho các node bị ảnh hưởng: (1) bump reload để client re-poll runtime
- *  (áp lại shares/mounts), (2) poke headscale để re-emit CapGrant/node-attr. */
+/** Báo cho các node bị ảnh hưởng: bump reload để client re-poll runtime (áp
+ *  lại shares/mounts sớm hơn chu kỳ 20s). Việc cấp/thu hồi quyền Taildrive
+ *  thật sự (nodeAttrs/grants trong ACL policy của headscale) là việc của
+ *  pushTaildrivePolicy() — gọi riêng, MỘT LẦN cho toàn bộ state hiện tại,
+ *  không phải theo từng mac (nodeAttrs/grants tính lại từ đầu mỗi lần). */
 async function notifyNodes(macs: (string | null | undefined)[]): Promise<void> {
   const uniq = [...new Set(macs.filter((m): m is string => !!m))]
   for (const mac of uniq) {
@@ -67,109 +64,24 @@ async function notifyNodes(macs: (string | null | undefined)[]): Promise<void> {
       .insert(nodeReloadRequests)
       .values({ mac, requestedAt: new Date() })
       .onConflictDoUpdate({ target: nodeReloadRequests.mac, set: { requestedAt: new Date() } })
-    const nk = await nodeKeyForMac(mac)
-    if (nk) await pokeHeadscale(nk)
+  }
+  // Best-effort, không chặn mutation: nếu headscale chưa bật
+  // POLICY_MODE=database hoặc tạm thời không tới được, DB vẫn ghi đúng ý admin
+  // — lần push kế tiếp (mutation sau, hoặc retry thủ công) sẽ đồng bộ lại từ
+  // đầu vì pushTaildrivePolicy() luôn tính lại toàn bộ nodeAttrs/grants từ
+  // state hiện tại, không phải một diff tăng dần.
+  try {
+    await pushTaildrivePolicy()
+  } catch (e) {
+    console.error('folder-share: pushTaildrivePolicy failed:', e instanceof Error ? e.message : e)
   }
 }
 
 /**
- * Public — gọi bởi headscale (patch taildrive) và client (browse).
- * Bảo vệ bằng X-Headscale-Secret nếu env được set.
+ * Public — gọi bởi client (browse). Bảo vệ bằng X-Headscale-Secret nếu env
+ * được set.
  */
 export async function folderSharesPublicRoutes(app: FastifyInstance): Promise<void> {
-  // headscale gọi mỗi khi build MapResponse cho 1 node. Trả node-attr self +
-  // các grant (CapGrant) với node LÀ đích: owner→cap 'drive' từ grantee,
-  // grantee→cap 'drive-sharer' từ owner. 404 = node không có gì (fail-open).
-  app.get<{ Params: { nodeKey: string } }>(
-    '/api/internal/taildrive/:nodeKey',
-    async (req, reply) => {
-      if (!checkSecret(req, reply)) return
-      const { nodeKey } = req.params
-
-      const [dev] = await db
-        .select({ mac: deviceIdentity.mac })
-        .from(deviceIdentity)
-        .where(eq(deviceIdentity.nodeKey, nodeKey))
-      if (!dev?.mac) return reply.code(404).send({ error: 'no_device' })
-      const mac = dev.mac
-
-      // Node này có sở hữu share đang bật không? (→ self.share = drive:share)
-      const owned = await db
-        .select({ id: folderShares.id })
-        .from(folderShares)
-        .where(and(eq(folderShares.ownerMac, mac), eq(folderShares.enabled, true)))
-
-      // Node này có được cấp truy cập share nào không? (→ self.access = drive:access)
-      const asGrantee = await db
-        .select({ id: folderShareAccess.id })
-        .from(folderShareAccess)
-        .innerJoin(folderShares, eq(folderShareAccess.shareId, folderShares.id))
-        .where(
-          and(
-            eq(folderShareAccess.granteeMac, mac),
-            eq(folderShareAccess.enabled, true),
-            eq(folderShares.enabled, true)
-          )
-        )
-
-      const share = owned.length > 0
-      const access = asGrantee.length > 0
-      const grants: Array<{ src_ips: string[]; cap: string; shares?: string[]; access?: string }> = []
-
-      // Owner side: mỗi grantee được cấp → CapGrant 'drive' (src=grantee IP).
-      if (share) {
-        const rows = await db
-          .select({
-            granteeMac: folderShareAccess.granteeMac,
-            access: folderShareAccess.access,
-            shareName: folderShares.shareName,
-          })
-          .from(folderShareAccess)
-          .innerJoin(folderShares, eq(folderShareAccess.shareId, folderShares.id))
-          .where(
-            and(
-              eq(folderShares.ownerMac, mac),
-              eq(folderShareAccess.enabled, true),
-              eq(folderShares.enabled, true)
-            )
-          )
-        for (const r of rows) {
-          const ip = await ipForMac(r.granteeMac)
-          if (ip) {
-            grants.push({
-              src_ips: [ip],
-              cap: 'drive',
-              shares: [r.shareName],
-              access: r.access === 'ro' ? 'ro' : 'rw',
-            })
-          }
-        }
-      }
-
-      // Grantee side: mỗi owner mà node này truy cập → CapGrant 'drive-sharer'
-      // (src=owner IP) để client nhận diện owner là remote mount được.
-      if (access) {
-        const owners = await db
-          .selectDistinct({ ownerMac: folderShares.ownerMac })
-          .from(folderShareAccess)
-          .innerJoin(folderShares, eq(folderShareAccess.shareId, folderShares.id))
-          .where(
-            and(
-              eq(folderShareAccess.granteeMac, mac),
-              eq(folderShareAccess.enabled, true),
-              eq(folderShares.enabled, true)
-            )
-          )
-        for (const o of owners) {
-          const ip = await ipForMac(o.ownerMac)
-          if (ip) grants.push({ src_ips: [ip], cap: 'drive-sharer' })
-        }
-      }
-
-      return { self: { share, access }, grants }
-    }
-  )
-
   // Client poll: có yêu cầu duyệt thư mục nào đang chờ cho MAC này không?
   app.get('/api/client/browse-request', async (req, reply) => {
     if (!checkSecret(req, reply)) return
