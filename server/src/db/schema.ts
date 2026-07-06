@@ -233,6 +233,7 @@ export const deviceIdentity = pgTable('device_identity', {
   staticIpv4:   text('static_ipv4'),  // IP admin ép cố định (ưu tiên hơn lastIpv4)
   clientVersion: text('client_version'), // version client tự báo (device-register)
   clientBuild:  integer('client_build'), // build number tăng đơn điệu (so sánh update)
+  clientVariant: text('client_variant'), // 'portable' | 'proxy' | 'vpn' | 'linux-amd64'
   updatedAt:    timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

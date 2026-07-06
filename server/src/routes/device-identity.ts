@@ -41,6 +41,7 @@ export async function deviceIdentityPublicRoutes(
       ipv4?: unknown
       version?: unknown
       build?: unknown
+      variant?: unknown
     }
     const mac = typeof body.mac === 'string' ? body.mac.trim().toLowerCase() : ''
     const hostname =
@@ -54,6 +55,8 @@ export async function deviceIdentityPublicRoutes(
       typeof body.build === 'number' && Number.isFinite(body.build)
         ? Math.trunc(body.build)
         : null
+    const variant =
+      typeof body.variant === 'string' ? body.variant.trim() : ''
     if (!mac || !hostname) {
       return reply.code(400).send({ error: 'mac and hostname required' })
     }
@@ -74,6 +77,7 @@ export async function deviceIdentityPublicRoutes(
         ipv4: ipv4 || null,
         clientVersion: version || null,
         clientBuild: build,
+        clientVariant: variant || null,
       })
       // Ghi log file server (docker logs) để tail/grep theo dõi nâng/hạ cấp.
       if (versionChange) {

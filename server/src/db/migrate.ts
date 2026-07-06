@@ -409,6 +409,12 @@ export async function migrate(): Promise<void> {
   await db.execute(sql`
     ALTER TABLE device_identity ADD COLUMN IF NOT EXISTS client_build INTEGER
   `)
+  // Biến thể build client tự báo (device-register) — 'portable' | 'proxy' |
+  // 'vpn' | 'linux-amd64' — để tab Thiết bị phân biệt máy nào đang chạy bản
+  // nào (self-update chỉ hỗ trợ biến thể có publish exe độc lập).
+  await db.execute(sql`
+    ALTER TABLE device_identity ADD COLUMN IF NOT EXISTS client_variant TEXT
+  `)
   // "Cập nhật ngay" — timestamp toàn cục; client poll runtime thấy đổi thì chạy
   // self-update check ngay (không chờ chu kỳ 6h).
   await db.execute(sql`

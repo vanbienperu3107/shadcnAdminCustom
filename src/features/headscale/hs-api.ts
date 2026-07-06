@@ -247,6 +247,7 @@ export type Device = {
   staticIpv4: string | null
   clientVersion: string | null
   clientBuild: number | null
+  clientVariant: string | null
   updatedAt: string
 }
 
@@ -289,13 +290,23 @@ export function deviceTypeMap(devices: Device[]): Map<string, string> {
 /** Map nodeKey -> {version, build} client hiện đang chạy (self-reported qua
  *  device-register), dùng để hiển thị cột "Phiên bản" — không cần đợi client
  *  gõ tay, dữ liệu đã có sẵn ở device_identity. */
+export type DeviceVersionInfo = {
+  version: string | null
+  build: number | null
+  variant: string | null
+}
+
 export function deviceVersionMap(
   devices: Device[]
-): Map<string, { version: string | null; build: number | null }> {
-  const m = new Map<string, { version: string | null; build: number | null }>()
+): Map<string, DeviceVersionInfo> {
+  const m = new Map<string, DeviceVersionInfo>()
   for (const d of devices) {
     if (d.nodeKey)
-      m.set(d.nodeKey, { version: d.clientVersion, build: d.clientBuild })
+      m.set(d.nodeKey, {
+        version: d.clientVersion,
+        build: d.clientBuild,
+        variant: d.clientVariant,
+      })
   }
   return m
 }
