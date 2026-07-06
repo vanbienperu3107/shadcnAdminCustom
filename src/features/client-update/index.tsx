@@ -67,17 +67,18 @@ export function ClientAutoUpdateCard() {
 
       <p className='text-sm text-muted-foreground'>
         Khi bật, portable client tự tải bản mới nhất từ GitHub Release (verify
-        sha256) và tự khởi động lại — kiểm tra lúc khởi động và mỗi 6h. Tắt =
+        sha256) và tự khởi động lại — kiểm tra lúc khởi động và mỗi phút. Tắt =
         dừng cập nhật toàn bộ (kill-switch).
       </p>
 
-      {/* Push tức thì: báo mọi client kiểm tra cập nhật liền (không chờ 6h). */}
+      {/* Push tức thì: báo mọi client kiểm tra cập nhật liền (không chờ chu kỳ). */}
       <div className='flex flex-wrap items-center justify-between gap-2 rounded-md border p-3'>
         <div>
           <p className='text-sm font-medium'>Cập nhật ngay (toàn fleet)</p>
           <p className='text-xs text-muted-foreground'>
             Báo mọi client kiểm tra + tự cập nhật liền qua vòng poll 20s, thay
-            vì chờ chu kỳ 6h. Chỉ có tác dụng khi đang bật auto-update.
+            vì chờ tới chu kỳ tự kiểm tra (mỗi phút). Chỉ có tác dụng khi đang
+            bật auto-update.
           </p>
         </div>
         <Button

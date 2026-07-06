@@ -11,6 +11,7 @@ import {
   folderShares,
   nodeReloadRequests,
   nodeRuntimeConfig,
+  nodeUpdateRequests,
   pacRules,
 } from '../db/schema.js'
 import { env } from '../env.js'
@@ -83,13 +84,26 @@ export async function clientRuntimePublicRoutes(
         reloadAt = r ? r.requestedAt.toISOString() : null
       }
 
-      // update_check_at: tín hiệu "Cập nhật ngay" toàn cục (client so với lần
-      // đã xử lý; khác → chạy self-update check liền).
+      // update_check_at: tín hiệu "Cập nhật ngay" — client so với lần đã xử
+      // lý, khác → chạy self-update check liền. Lấy MAX giữa dòng toàn cục
+      // (nút "Cập nhật ngay (toàn fleet)") và dòng riêng theo mac (nút "Cập
+      // nhật" cho 1 máy), để cả 2 cách bấm đều có tác dụng — client chỉ theo
+      // dõi 1 giá trị nên không cần biết dòng nào vừa đổi.
       const [upd] = await db
         .select({ at: clientUpdate.updateCheckAt })
         .from(clientUpdate)
         .where(eq(clientUpdate.id, 1))
-      const updateCheckAt = upd?.at ? upd.at.toISOString() : null
+      let updateCheckAtDate = upd?.at ?? null
+      if (q.mac) {
+        const [perMac] = await db
+          .select({ at: nodeUpdateRequests.requestedAt })
+          .from(nodeUpdateRequests)
+          .where(eq(nodeUpdateRequests.mac, q.mac))
+        if (perMac?.at && (!updateCheckAtDate || perMac.at > updateCheckAtDate)) {
+          updateCheckAtDate = perMac.at
+        }
+      }
+      const updateCheckAt = updateCheckAtDate ? updateCheckAtDate.toISOString() : null
 
       // Folder-share (Taildrive): shares = thư mục node này XUẤT (client tự
       // `drive share`); mounts = share node này được auto-mount thành ổ đĩa.

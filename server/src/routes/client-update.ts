@@ -2,7 +2,11 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/client.js'
-import { clientUpdate, clientVersionHistory } from '../db/schema.js'
+import {
+  clientUpdate,
+  clientVersionHistory,
+  nodeUpdateRequests,
+} from '../db/schema.js'
 import { env } from '../env.js'
 import { requireAuth } from '../auth/middleware.js'
 
@@ -230,6 +234,25 @@ export async function clientUpdateRoutes(app: FastifyInstance): Promise<void> {
       .onConflictDoUpdate({ target: clientUpdate.id, set: { updateCheckAt: now } })
     return { ok: true, at: now.toISOString() }
   })
+
+  // "Cập nhật ngay" nhắm vào đúng 1 máy — không đụng tới toàn fleet. Cùng cơ
+  // chế với node_reload_requests (xem client-runtime.ts): GET
+  // /api/client/runtime lấy MAX(dòng này, dòng toàn cục) làm update_check_at.
+  app.post<{ Params: { mac: string } }>(
+    '/api/client-update/check-now/:mac',
+    async (req) => {
+      const { mac } = req.params
+      const now = new Date()
+      await db
+        .insert(nodeUpdateRequests)
+        .values({ mac, requestedAt: now })
+        .onConflictDoUpdate({
+          target: nodeUpdateRequests.mac,
+          set: { requestedAt: now },
+        })
+      return { ok: true, at: now.toISOString() }
+    }
+  )
 
   // Lịch sử nâng/hạ cấp build client (toàn fleet, mới nhất trước). ?limit=N.
   app.get('/api/client-update/history', async (req) => {

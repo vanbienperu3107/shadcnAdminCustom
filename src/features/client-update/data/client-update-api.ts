@@ -33,6 +33,16 @@ export async function checkNowClientUpdate(): Promise<{
   return data
 }
 
+/** "Cập nhật ngay" cho đúng 1 máy (theo MAC) — không đụng tới toàn fleet. */
+export async function checkNowClientUpdateForMac(
+  mac: string
+): Promise<{ ok: boolean; at: string }> {
+  const { data } = await api.post(
+    `/client-update/check-now/${encodeURIComponent(mac)}`
+  )
+  return data
+}
+
 export type VersionHistoryRow = {
   id: number
   mac: string | null

@@ -313,6 +313,14 @@ export async function migrate(): Promise<void> {
     )
   `)
 
+  // "Cập nhật ngay" nhắm vào 1 client cụ thể — xem nodeUpdateRequests ở schema.ts.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS node_update_requests (
+      mac          TEXT PRIMARY KEY,
+      requested_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+
   // Luật PAC động — render thành file PAC qua /api/client/pac.
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS pac_rules (

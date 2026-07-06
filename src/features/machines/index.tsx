@@ -1,6 +1,12 @@
 import { memo, useCallback, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MoreHorizontal, Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import {
+  MoreHorizontal,
+  Pencil,
+  RefreshCw,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -38,6 +44,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  checkNowClientUpdateForMac,
+  clientUpdateKeys,
+  getClientUpdate,
+} from '@/features/client-update/data/client-update-api'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
 import {
   deleteMachine,
@@ -245,10 +256,14 @@ type DialogKind = 'rename' | 'delete' | 'expire' | null
 const MachineRow = memo(function MachineRow({
   n,
   version,
+  latestBuild,
+  onUpdateNow,
   onAction,
 }: {
   n: HsMachine
   version?: DeviceVersionInfo
+  latestBuild: number | null
+  onUpdateNow: (mac: string) => void
   onAction: (kind: DialogKind, row: HsMachine) => void
 }) {
   return (
@@ -264,17 +279,35 @@ const MachineRow = memo(function MachineRow({
       </TableCell>
       <TableCell className='hidden font-mono text-xs xl:table-cell'>
         {version?.version ? (
-          <span
-            title={version.build != null ? `build ${version.build}` : undefined}
-          >
-            {version.version}
-            {version.variant && (
-              <span className='text-muted-foreground'>
-                {' '}
-                · {version.variant}
-              </span>
+          <div className='flex flex-col gap-1'>
+            <span
+              title={
+                version.build != null ? `build ${version.build}` : undefined
+              }
+            >
+              {version.version}
+              {version.variant && (
+                <span className='text-muted-foreground'>
+                  {' '}
+                  · {version.variant}
+                </span>
+              )}
+            </span>
+            {version.build != null && latestBuild != null && (
+              <Badge
+                variant='outline'
+                className={
+                  version.build >= latestBuild
+                    ? 'w-fit border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                    : 'w-fit border-amber-500/40 text-amber-600 dark:text-amber-400'
+                }
+              >
+                {version.build >= latestBuild
+                  ? 'Mới nhất'
+                  : `Có bản mới (${latestBuild})`}
+              </Badge>
             )}
-          </span>
+          </div>
         ) : (
           <span className='text-muted-foreground'>—</span>
         )}
@@ -320,6 +353,11 @@ const MachineRow = memo(function MachineRow({
             <DropdownMenuItem onClick={() => onAction('expire', n)}>
               <RotateCcw className='me-2 size-4' /> Thu hồi key
             </DropdownMenuItem>
+            {version?.mac && (
+              <DropdownMenuItem onClick={() => onUpdateNow(version.mac!)}>
+                <RefreshCw className='me-2 size-4' /> Cập nhật ngay
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant='destructive'
@@ -337,10 +375,14 @@ const MachineRow = memo(function MachineRow({
 function MachineTable({
   rows,
   versionByNodeKey,
+  latestBuild,
+  onUpdateNow,
   onAction,
 }: {
   rows: HsMachine[]
   versionByNodeKey: Map<string, DeviceVersionInfo>
+  latestBuild: number | null
+  onUpdateNow: (mac: string) => void
   onAction: (kind: DialogKind, row: HsMachine) => void
 }) {
   return (
@@ -375,6 +417,8 @@ function MachineTable({
                 version={
                   n.nodeKey ? versionByNodeKey.get(n.nodeKey) : undefined
                 }
+                latestBuild={latestBuild}
+                onUpdateNow={onUpdateNow}
                 onAction={onAction}
               />
             ))
@@ -398,6 +442,10 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
   })
   const derp = useQuery({ queryKey: derpKeys.all, queryFn: listDerp })
   const devices = useQuery({ queryKey: ['devices'], queryFn: fetchDevices })
+  const clientUpdateCfg = useQuery({
+    queryKey: clientUpdateKeys.all,
+    queryFn: getClientUpdate,
+  })
 
   const [dialog, setDialog] = useState<DialogKind>(null)
   const [currentRow, setCurrentRow] = useState<HsMachine | null>(null)
@@ -406,6 +454,15 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
     setCurrentRow(row)
     setDialog(kind)
   }, [])
+
+  // "Cập nhật" cho 1 máy — không cần đợi bấm xong mới thấy tác dụng (client tự
+  // poll 20s), chỉ cần toast xác nhận đã gửi yêu cầu.
+  const checkNowForMac = useMutation({
+    mutationFn: (mac: string) => checkNowClientUpdateForMac(mac),
+    onSuccess: () =>
+      toast.success('Đã gửi yêu cầu — máy sẽ kiểm tra trong ít giây'),
+    onError: () => toast.error('Gửi yêu cầu cập nhật thất bại'),
+  })
 
   const names = derpNameSet(derp.data ?? [])
   const typeByNodeKey = deviceTypeMap(devices.data ?? [])
@@ -431,6 +488,8 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
         <MachineTable
           rows={rows}
           versionByNodeKey={versionByNodeKey}
+          latestBuild={clientUpdateCfg.data?.latestBuild ?? null}
+          onUpdateNow={(mac) => checkNowForMac.mutate(mac)}
           onAction={onAction}
         />
       )}
