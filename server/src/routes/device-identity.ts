@@ -67,7 +67,7 @@ export async function deviceIdentityPublicRoutes(
       // upsertClientDevice() chỉ set hostname lúc INSERT lần đầu — nếu đã có
       // dòng cũ, hostname (tên chuẩn) không bị ghi đè, chỉ nodeKey/lastIpv4
       // được cập nhật (xem lib/device-registry.ts).
-      await upsertClientDevice({
+      const versionChange = await upsertClientDevice({
         mac,
         hostname,
         nodeKey: nodeKey || null,
@@ -75,6 +75,20 @@ export async function deviceIdentityPublicRoutes(
         clientVersion: version || null,
         clientBuild: build,
       })
+      // Ghi log file server (docker logs) để tail/grep theo dõi nâng/hạ cấp.
+      if (versionChange) {
+        req.log.info(
+          {
+            hostname: versionChange.hostname,
+            mac,
+            fromBuild: versionChange.fromBuild,
+            toBuild: versionChange.toBuild,
+            direction: versionChange.direction,
+            version,
+          },
+          `client version ${versionChange.direction}: ${versionChange.hostname} build ${versionChange.fromBuild ?? '-'} -> ${versionChange.toBuild}`
+        )
+      }
 
       if (!existing) {
         return { ok: true, canonicalHostname: hostname, renamed: false }

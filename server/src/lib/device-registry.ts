@@ -94,6 +94,14 @@ export function resolveClientDeviceAction(
   return { kind: 'update-by-mac', id: byMac.id }
 }
 
+/** Thông tin đổi build (trả về để route ghi log file server theo dõi). */
+export type VersionChangeInfo = {
+  hostname: string
+  fromBuild: number | null
+  toBuild: number
+  direction: 'initial' | 'upgrade' | 'downgrade'
+}
+
 export async function upsertClientDevice(opts: {
   mac: string
   hostname: string
@@ -101,9 +109,12 @@ export async function upsertClientDevice(opts: {
   ipv4?: string | null
   clientVersion?: string | null
   clientBuild?: number | null
-}): Promise<void> {
+}): Promise<VersionChangeInfo | null> {
   const { mac, hostname, ipv4, clientVersion, clientBuild } = opts
   const nodeKey = normalizeNodeKey(opts.nodeKey)
+
+  // Đổi build (nếu có) — trả ra ngoài để route log; gán trong transaction.
+  let versionChange: VersionChangeInfo | null = null
 
   // 1 transaction (postgres-js hỗ trợ) bao select→ghi để tránh race register.
   await db.transaction(async (tx) => {
@@ -133,6 +144,12 @@ export async function upsertClientDevice(opts: {
         updatedAt: new Date(),
       })
       if (clientBuild != null) {
+        versionChange = {
+          hostname,
+          fromBuild: null,
+          toBuild: clientBuild,
+          direction: 'initial',
+        }
         await tx.insert(clientVersionHistory).values({
           mac,
           hostname,
@@ -159,6 +176,12 @@ export async function upsertClientDevice(opts: {
         })
         .where(eq(deviceIdentity.id, action.id))
       if (clientBuild != null && clientBuild !== byMac.clientBuild) {
+        versionChange = {
+          hostname: byMac.hostname,
+          fromBuild: byMac.clientBuild ?? null,
+          toBuild: clientBuild,
+          direction: versionChangeDirection(byMac.clientBuild ?? null, clientBuild),
+        }
         await tx.insert(clientVersionHistory).values({
           mac,
           hostname: byMac.hostname,
@@ -192,6 +215,12 @@ export async function upsertClientDevice(opts: {
       .where(eq(deviceIdentity.id, action.keyRowId))
     const prevBuild = byKey?.clientBuild ?? null
     if (clientBuild != null && clientBuild !== prevBuild) {
+      versionChange = {
+        hostname: byKey?.hostname ?? hostname,
+        fromBuild: prevBuild,
+        toBuild: clientBuild,
+        direction: versionChangeDirection(prevBuild, clientBuild),
+      }
       await tx.insert(clientVersionHistory).values({
         mac,
         hostname: byKey?.hostname ?? hostname,
@@ -204,6 +233,8 @@ export async function upsertClientDevice(opts: {
       })
     }
   })
+
+  return versionChange
 }
 
 /** Upsert theo nodeKey — dùng bởi routes/derp.ts khi admin gán ts_node_key cho 1 region. */
