@@ -56,6 +56,11 @@ import {
   type FolderShareInput,
 } from './data/folder-shares-api'
 
+// Yêu cầu client liệt kê Ổ ĐĨA THẬT có trên máy thay vì đoán 1 ổ cố định
+// ("D:\" cũ — lỗi ngay trên máy không có ổ D). Phải khớp
+// nodeBrowseDrivesSentinel bên tailscale_mod (cmd/tailscaled/foldershare.go).
+const DRIVES_SENTINEL = '::drives::'
+
 type Draft = FolderShareInput & { id?: number }
 
 const EMPTY: Draft = {
@@ -442,7 +447,7 @@ export function FolderSharesPage() {
                       })
                       void requestBrowse(
                         draft.ownerMac,
-                        draft.localPath || 'D:\\'
+                        draft.localPath || DRIVES_SENTINEL
                       )
                     }}
                   >
@@ -598,12 +603,19 @@ function BrowseDialog({
     queryKey: ['folder-browse', target?.mac],
     queryFn: () => getBrowse(target!.mac),
     enabled: !!target,
-    refetchInterval: (q) => (q.state.data?.pending ? 2000 : false),
+    // 1s (was 2s): client now checks every 1s too (nodeBrowsePollInterval) —
+    // matching cadence so the dashboard isn't the slower half of the round trip.
+    refetchInterval: (q) => (q.state.data?.pending ? 1000 : false),
   })
 
   function open(entry: BrowseEntry, base: string) {
     if (!target || !entry.is_dir) return
-    const next = `${base.replace(/[\\/]+$/, '')}\\${entry.name}`
+    // Từ danh sách ổ đĩa (base = sentinel), entry.name đã là "C:" — ghép thẳng
+    // thành "C:\", không phải nối vào sentinel như 1 thư mục con thật.
+    const next =
+      base === DRIVES_SENTINEL
+        ? `${entry.name}\\`
+        : `${base.replace(/[\\/]+$/, '')}\\${entry.name}`
     setPath(next)
     setFilter('') // gõ dở dang ở thư mục cũ không nên lọc nhầm sang thư mục mới
     // requestBrowse() flips server-side `pending` back to true, nhưng data
@@ -624,6 +636,10 @@ function BrowseDialog({
         e.name.toLowerCase().includes(filter.trim().toLowerCase())
       )
     : dirs
+  // Sentinel chỉ là tín hiệu "liệt kê ổ đĩa" — không phải đường dẫn thật, nên
+  // không được coi là "đã chọn" hay cho phép bấm "Chọn".
+  const isRealPath = (p: string) => !!p && p !== DRIVES_SENTINEL
+  const selected = isRealPath(path) ? path : isRealPath(resPath) ? resPath : ''
 
   return (
     <Dialog open={!!target} onOpenChange={(o) => !o && onClose()}>
@@ -647,9 +663,11 @@ function BrowseDialog({
             </p>
           ) : entries.length === 0 ? (
             <p className='p-4 text-sm text-muted-foreground'>
-              {resPath
-                ? `"${resPath}" không có thư mục con.`
-                : 'Chưa có dữ liệu.'}
+              {resPath === DRIVES_SENTINEL
+                ? 'Không tìm thấy ổ đĩa nào trên máy này.'
+                : resPath
+                  ? `"${resPath}" không có thư mục con.`
+                  : 'Chưa có dữ liệu.'}
             </p>
           ) : filteredDirs.length === 0 ? (
             <p className='p-4 text-sm text-muted-foreground'>
@@ -673,16 +691,13 @@ function BrowseDialog({
         </div>
         <div className='flex items-center justify-between gap-3 pt-1'>
           <span className='truncate font-mono text-xs text-muted-foreground'>
-            {path || resPath ? `Đã chọn: ${path || resPath}` : ''}
+            {selected ? `Đã chọn: ${selected}` : ''}
           </span>
           <div className='flex gap-2'>
             <Button variant='outline' onClick={onClose}>
               Hủy
             </Button>
-            <Button
-              disabled={!(path || resPath)}
-              onClick={() => onPick(path || resPath)}
-            >
+            <Button disabled={!selected} onClick={() => onPick(selected)}>
               Chọn
             </Button>
           </div>
