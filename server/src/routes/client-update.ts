@@ -35,8 +35,13 @@ type Release = {
   assets: GhAsset[]
 }
 
+// reason lets the client log a specific cause instead of always assuming the
+// admin toggle is off — "unsupported variant" (no CI asset for this build's
+// nodeVariant) and "admin disabled" used to collapse into the same enabled:
+// false with no way to tell them apart.
 type LatestResult = {
   enabled: boolean
+  reason?: 'disabled' | 'unsupported_variant' | 'no_release' | 'no_asset' | 'no_sha256'
   build?: number
   version?: string
   url?: string
@@ -46,6 +51,7 @@ type LatestResult = {
 const VARIANT_RE: Record<string, RegExp> = {
   vpn: /tailscale-node-vpn-windows-amd64-.*\.exe$/i,
   portable: /tailscale-node-portable-windows-amd64-.*\.exe$/i,
+  proxy: /tailscale-node-proxy-windows-amd64-.*\.exe$/i,
   'linux-amd64': /tailscale-node-linux-amd64-[^.]*$/i,
 }
 
@@ -147,15 +153,21 @@ export async function clientUpdatePublicRoutes(app: FastifyInstance): Promise<vo
     if (!checkSecret(req, reply)) return
     const variant = String((req.query as { variant?: string }).variant ?? 'portable')
     const re = VARIANT_RE[variant]
-    if (!re) return { enabled: false } satisfies LatestResult
+    if (!re)
+      return { enabled: false, reason: 'unsupported_variant' } satisfies LatestResult
     try {
       const [cfg, releases] = await Promise.all([loadConfig(), loadReleases(Date.now())])
+      if (!cfg.enabled)
+        return { enabled: false, reason: 'disabled' } satisfies LatestResult
       const target = pickRelease(releases, cfg)
-      if (!target) return { enabled: false } satisfies LatestResult
+      if (!target)
+        return { enabled: false, reason: 'no_release' } satisfies LatestResult
       const exe = target.assets.find((a) => a.name && re.test(a.name))
-      if (!exe?.name || !exe.browser_download_url) return { enabled: false }
+      if (!exe?.name || !exe.browser_download_url)
+        return { enabled: false, reason: 'no_asset' } satisfies LatestResult
       const sha256 = await fetchSha256(target.assets, exe.name)
-      if (!sha256) return { enabled: false } // không có sha256 → không cho update
+      if (!sha256)
+        return { enabled: false, reason: 'no_sha256' } satisfies LatestResult // không có sha256 → không cho update
       return {
         enabled: true,
         build: target.build,

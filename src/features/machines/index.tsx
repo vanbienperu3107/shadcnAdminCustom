@@ -42,6 +42,7 @@ import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
 import {
   deleteMachine,
   derpNameSet,
+  type DeviceVersionInfo,
   deviceTypeMap,
   deviceVersionMap,
   expireMachine,
@@ -247,7 +248,7 @@ const MachineRow = memo(function MachineRow({
   onAction,
 }: {
   n: HsMachine
-  version?: { version: string | null; build: number | null }
+  version?: DeviceVersionInfo
   onAction: (kind: DialogKind, row: HsMachine) => void
 }) {
   return (
@@ -267,6 +268,12 @@ const MachineRow = memo(function MachineRow({
             title={version.build != null ? `build ${version.build}` : undefined}
           >
             {version.version}
+            {version.variant && (
+              <span className='text-muted-foreground'>
+                {' '}
+                · {version.variant}
+              </span>
+            )}
           </span>
         ) : (
           <span className='text-muted-foreground'>—</span>
@@ -333,10 +340,7 @@ function MachineTable({
   onAction,
 }: {
   rows: HsMachine[]
-  versionByNodeKey: Map<
-    string,
-    { version: string | null; build: number | null }
-  >
+  versionByNodeKey: Map<string, DeviceVersionInfo>
   onAction: (kind: DialogKind, row: HsMachine) => void
 }) {
   return (

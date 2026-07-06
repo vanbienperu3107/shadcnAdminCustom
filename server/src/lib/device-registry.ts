@@ -109,8 +109,9 @@ export async function upsertClientDevice(opts: {
   ipv4?: string | null
   clientVersion?: string | null
   clientBuild?: number | null
+  clientVariant?: string | null
 }): Promise<VersionChangeInfo | null> {
-  const { mac, hostname, ipv4, clientVersion, clientBuild } = opts
+  const { mac, hostname, ipv4, clientVersion, clientBuild, clientVariant } = opts
   const nodeKey = normalizeNodeKey(opts.nodeKey)
 
   // Đổi build (nếu có) — trả ra ngoài để route log; gán trong transaction.
@@ -141,6 +142,7 @@ export async function upsertClientDevice(opts: {
         lastIpv4: ipv4 ?? null,
         clientVersion: clientVersion ?? null,
         clientBuild: clientBuild ?? null,
+        clientVariant: clientVariant ?? null,
         updatedAt: new Date(),
       })
       if (clientBuild != null) {
@@ -172,6 +174,7 @@ export async function upsertClientDevice(opts: {
           lastIpv4: ipv4 ?? byMac.lastIpv4,
           clientVersion: clientVersion ?? byMac.clientVersion,
           clientBuild: clientBuild ?? byMac.clientBuild,
+          clientVariant: clientVariant ?? byMac.clientVariant,
           updatedAt: new Date(),
         })
         .where(eq(deviceIdentity.id, action.id))
@@ -210,6 +213,7 @@ export async function upsertClientDevice(opts: {
         lastIpv4: ipv4 ?? byKey?.lastIpv4 ?? null,
         clientVersion: clientVersion ?? byKey?.clientVersion ?? null,
         clientBuild: clientBuild ?? byKey?.clientBuild ?? null,
+        clientVariant: clientVariant ?? byKey?.clientVariant ?? null,
         updatedAt: new Date(),
       })
       .where(eq(deviceIdentity.id, action.keyRowId))
