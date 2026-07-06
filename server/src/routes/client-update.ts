@@ -2,7 +2,12 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/client.js'
-import { clientUpdate, clientVersionHistory } from '../db/schema.js'
+import {
+  clientUpdate,
+  clientVersionHistory,
+  nodeRuntimeConfig,
+  nodeUpdateRequests,
+} from '../db/schema.js'
 import { env } from '../env.js'
 import { requireAuth } from '../auth/middleware.js'
 
@@ -41,7 +46,13 @@ type Release = {
 // false with no way to tell them apart.
 type LatestResult = {
   enabled: boolean
-  reason?: 'disabled' | 'unsupported_variant' | 'no_release' | 'no_asset' | 'no_sha256'
+  reason?:
+    | 'disabled'
+    | 'disabled_for_device'
+    | 'unsupported_variant'
+    | 'no_release'
+    | 'no_asset'
+    | 'no_sha256'
   build?: number
   version?: string
   url?: string
@@ -151,11 +162,25 @@ async function loadConfig(): Promise<{ enabled: boolean; pinnedBuild: number | n
 export async function clientUpdatePublicRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/client/latest', async (req, reply) => {
     if (!checkSecret(req, reply)) return
-    const variant = String((req.query as { variant?: string }).variant ?? 'portable')
+    const q = req.query as { variant?: string; mac?: string }
+    const variant = String(q.variant ?? 'portable')
     const re = VARIANT_RE[variant]
     if (!re)
       return { enabled: false, reason: 'unsupported_variant' } satisfies LatestResult
     try {
+      // Ép riêng máy này (bật/tắt qua node_runtime_config.auto_update_enabled)
+      // — true/false ghi đè cấu hình toàn cục; null/không có dòng = theo toàn cục.
+      if (q.mac) {
+        const [override] = await db
+          .select({ v: nodeRuntimeConfig.autoUpdateEnabled })
+          .from(nodeRuntimeConfig)
+          .where(eq(nodeRuntimeConfig.mac, q.mac))
+        if (override?.v === false)
+          return {
+            enabled: false,
+            reason: 'disabled_for_device',
+          } satisfies LatestResult
+      }
       const [cfg, releases] = await Promise.all([loadConfig(), loadReleases(Date.now())])
       if (!cfg.enabled)
         return { enabled: false, reason: 'disabled' } satisfies LatestResult
@@ -230,6 +255,25 @@ export async function clientUpdateRoutes(app: FastifyInstance): Promise<void> {
       .onConflictDoUpdate({ target: clientUpdate.id, set: { updateCheckAt: now } })
     return { ok: true, at: now.toISOString() }
   })
+
+  // "Cập nhật ngay" nhắm vào đúng 1 máy — không đụng tới toàn fleet. Cùng cơ
+  // chế với node_reload_requests (xem client-runtime.ts): GET
+  // /api/client/runtime lấy MAX(dòng này, dòng toàn cục) làm update_check_at.
+  app.post<{ Params: { mac: string } }>(
+    '/api/client-update/check-now/:mac',
+    async (req) => {
+      const { mac } = req.params
+      const now = new Date()
+      await db
+        .insert(nodeUpdateRequests)
+        .values({ mac, requestedAt: now })
+        .onConflictDoUpdate({
+          target: nodeUpdateRequests.mac,
+          set: { requestedAt: now },
+        })
+      return { ok: true, at: now.toISOString() }
+    }
+  )
 
   // Lịch sử nâng/hạ cấp build client (toàn fleet, mới nhất trước). ?limit=N.
   app.get('/api/client-update/history', async (req) => {

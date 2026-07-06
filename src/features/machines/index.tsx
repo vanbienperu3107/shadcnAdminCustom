@@ -1,6 +1,13 @@
 import { memo, useCallback, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MoreHorizontal, Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import {
+  DownloadCloud,
+  MoreHorizontal,
+  Pencil,
+  RefreshCw,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -38,6 +45,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  checkNowClientUpdateForMac,
+  clientUpdateKeys,
+  getClientUpdate,
+} from '@/features/client-update/data/client-update-api'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
 import {
   deleteMachine,
@@ -54,6 +66,11 @@ import {
   renameMachine,
   userName,
 } from '@/features/headscale/hs-api'
+import {
+  listNodeRuntime,
+  nodeRuntimeKeys,
+  upsertNodeRuntime,
+} from '@/features/node-runtime/data/node-runtime-api'
 
 /** Headscale node name = DNS label: chữ thường a-z0-9 và '-', không bắt đầu/kết
  *  thúc bằng '-'. Bỏ dấu tiếng Việt, hạ chữ thường, thay ký tự lạ bằng '-'. */
@@ -245,12 +262,24 @@ type DialogKind = 'rename' | 'delete' | 'expire' | null
 const MachineRow = memo(function MachineRow({
   n,
   version,
+  latestBuild,
+  autoUpdateByMac,
+  onUpdateNow,
+  onSetAutoUpdate,
   onAction,
 }: {
   n: HsMachine
   version?: DeviceVersionInfo
+  latestBuild: number | null
+  autoUpdateByMac: Map<string, boolean | null>
+  onUpdateNow: (mac: string) => void
+  onSetAutoUpdate: (mac: string, enabled: boolean | null) => void
   onAction: (kind: DialogKind, row: HsMachine) => void
 }) {
+  // null/chưa có dòng override = theo cấu hình toàn cục ("Bật" mặc định).
+  const autoUpdateOverride = version?.mac
+    ? (autoUpdateByMac.get(version.mac) ?? null)
+    : null
   return (
     <TableRow>
       <TableCell className='font-medium'>
@@ -264,17 +293,43 @@ const MachineRow = memo(function MachineRow({
       </TableCell>
       <TableCell className='hidden font-mono text-xs xl:table-cell'>
         {version?.version ? (
-          <span
-            title={version.build != null ? `build ${version.build}` : undefined}
-          >
-            {version.version}
-            {version.variant && (
-              <span className='text-muted-foreground'>
-                {' '}
-                · {version.variant}
-              </span>
+          <div className='flex flex-col gap-1'>
+            <span
+              title={
+                version.build != null ? `build ${version.build}` : undefined
+              }
+            >
+              {version.version}
+              {version.variant && (
+                <span className='text-muted-foreground'>
+                  {' '}
+                  · {version.variant}
+                </span>
+              )}
+            </span>
+            {version.build != null && latestBuild != null && (
+              <Badge
+                variant='outline'
+                className={
+                  version.build >= latestBuild
+                    ? 'w-fit border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                    : 'w-fit border-amber-500/40 text-amber-600 dark:text-amber-400'
+                }
+              >
+                {version.build >= latestBuild
+                  ? 'Mới nhất'
+                  : `Có bản mới (${latestBuild})`}
+              </Badge>
             )}
-          </span>
+            {autoUpdateOverride === false && (
+              <Badge
+                variant='outline'
+                className='w-fit border-muted-foreground/30 text-muted-foreground'
+              >
+                Auto-update: tắt riêng
+              </Badge>
+            )}
+          </div>
         ) : (
           <span className='text-muted-foreground'>—</span>
         )}
@@ -320,6 +375,26 @@ const MachineRow = memo(function MachineRow({
             <DropdownMenuItem onClick={() => onAction('expire', n)}>
               <RotateCcw className='me-2 size-4' /> Thu hồi key
             </DropdownMenuItem>
+            {version?.mac && (
+              <DropdownMenuItem onClick={() => onUpdateNow(version.mac!)}>
+                <RefreshCw className='me-2 size-4' /> Cập nhật ngay
+              </DropdownMenuItem>
+            )}
+            {version?.mac && (
+              <DropdownMenuItem
+                onClick={() =>
+                  onSetAutoUpdate(
+                    version.mac!,
+                    autoUpdateOverride === false ? null : false
+                  )
+                }
+              >
+                <DownloadCloud className='me-2 size-4' />
+                {autoUpdateOverride === false
+                  ? 'Bật lại auto-update cho máy này'
+                  : 'Tắt auto-update cho máy này'}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant='destructive'
@@ -337,10 +412,18 @@ const MachineRow = memo(function MachineRow({
 function MachineTable({
   rows,
   versionByNodeKey,
+  latestBuild,
+  autoUpdateByMac,
+  onUpdateNow,
+  onSetAutoUpdate,
   onAction,
 }: {
   rows: HsMachine[]
   versionByNodeKey: Map<string, DeviceVersionInfo>
+  latestBuild: number | null
+  autoUpdateByMac: Map<string, boolean | null>
+  onUpdateNow: (mac: string) => void
+  onSetAutoUpdate: (mac: string, enabled: boolean | null) => void
   onAction: (kind: DialogKind, row: HsMachine) => void
 }) {
   return (
@@ -375,6 +458,10 @@ function MachineTable({
                 version={
                   n.nodeKey ? versionByNodeKey.get(n.nodeKey) : undefined
                 }
+                latestBuild={latestBuild}
+                autoUpdateByMac={autoUpdateByMac}
+                onUpdateNow={onUpdateNow}
+                onSetAutoUpdate={onSetAutoUpdate}
                 onAction={onAction}
               />
             ))
@@ -398,6 +485,15 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
   })
   const derp = useQuery({ queryKey: derpKeys.all, queryFn: listDerp })
   const devices = useQuery({ queryKey: ['devices'], queryFn: fetchDevices })
+  const clientUpdateCfg = useQuery({
+    queryKey: clientUpdateKeys.all,
+    queryFn: getClientUpdate,
+  })
+  const nodeRuntimes = useQuery({
+    queryKey: nodeRuntimeKeys.all,
+    queryFn: listNodeRuntime,
+  })
+  const qc = useQueryClient()
 
   const [dialog, setDialog] = useState<DialogKind>(null)
   const [currentRow, setCurrentRow] = useState<HsMachine | null>(null)
@@ -407,9 +503,33 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
     setDialog(kind)
   }, [])
 
+  // "Cập nhật" cho 1 máy — không cần đợi bấm xong mới thấy tác dụng (client tự
+  // poll 20s), chỉ cần toast xác nhận đã gửi yêu cầu.
+  const checkNowForMac = useMutation({
+    mutationFn: (mac: string) => checkNowClientUpdateForMac(mac),
+    onSuccess: () =>
+      toast.success('Đã gửi yêu cầu — máy sẽ kiểm tra trong ít giây'),
+    onError: () => toast.error('Gửi yêu cầu cập nhật thất bại'),
+  })
+
+  // Ép bật/tắt auto-update riêng 1 máy (ghi đè cấu hình toàn cục) — dùng chung
+  // endpoint PUT /api/node-runtime/:mac, chỉ patch đúng field này.
+  const setAutoUpdateForMac = useMutation({
+    mutationFn: ({ mac, enabled }: { mac: string; enabled: boolean | null }) =>
+      upsertNodeRuntime(mac, { autoUpdateEnabled: enabled }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: nodeRuntimeKeys.all })
+      toast.success('Đã lưu')
+    },
+    onError: () => toast.error('Lưu thất bại'),
+  })
+
   const names = derpNameSet(derp.data ?? [])
   const typeByNodeKey = deviceTypeMap(devices.data ?? [])
   const versionByNodeKey = deviceVersionMap(devices.data ?? [])
+  const autoUpdateByMac = new Map(
+    (nodeRuntimes.data ?? []).map((r) => [r.mac, r.autoUpdateEnabled])
+  )
   const nodes = data?.nodes ?? []
   const rows = nodes
     .filter((n) =>
@@ -431,6 +551,12 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
         <MachineTable
           rows={rows}
           versionByNodeKey={versionByNodeKey}
+          latestBuild={clientUpdateCfg.data?.latestBuild ?? null}
+          autoUpdateByMac={autoUpdateByMac}
+          onUpdateNow={(mac) => checkNowForMac.mutate(mac)}
+          onSetAutoUpdate={(mac, enabled) =>
+            setAutoUpdateForMac.mutate({ mac, enabled })
+          }
           onAction={onAction}
         />
       )}

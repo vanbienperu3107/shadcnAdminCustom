@@ -16,6 +16,8 @@ export type NodeRuntime = {
   advertiseRoutes: string | null
   lanRoutes: string | null
   pacServerPort: number | null
+  // null = theo cấu hình auto-update toàn cục; true/false = ép riêng máy này.
+  autoUpdateEnabled: boolean | null
   updatedAt: string
 }
 
@@ -30,6 +32,7 @@ export type NodeRuntimeInput = {
   advertiseRoutes?: string | null
   lanRoutes?: string | null
   pacServerPort?: number | null
+  autoUpdateEnabled?: boolean | null
 }
 
 export async function listNodeRuntime(): Promise<NodeRuntime[]> {

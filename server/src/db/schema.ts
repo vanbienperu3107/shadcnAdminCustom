@@ -299,6 +299,9 @@ export const nodeRuntimeConfig = pgTable('node_runtime_config', {
   advertiseRoutes: text('advertise_routes'),
   lanRoutes: text('lan_routes'),
   pacServerPort: integer('pac_server_port'),
+  // null = theo cấu hình auto-update toàn cục (client_update.enabled); true/false
+  // = ép riêng máy này, bất kể cấu hình toàn cục — xem GET /api/client/latest.
+  autoUpdateEnabled: boolean('auto_update_enabled'),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -310,6 +313,18 @@ export const nodeRuntimeConfig = pgTable('node_runtime_config', {
  *  node_runtime_config tồn tại — reload áp dụng được cho cả node đang dùng
  *  default/global. */
 export const nodeReloadRequests = pgTable('node_reload_requests', {
+  mac: text('mac').primaryKey(),
+  requestedAt: timestamp('requested_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
+/** "Cập nhật ngay" nhắm vào 1 client cụ thể (theo MAC) — cùng cơ chế với
+ *  nodeReloadRequests ở trên, nhưng riêng cho self-update: GET
+ *  /api/client/runtime trả update_check_at = MAX(dòng này theo mac, cột
+ *  toàn cục client_update.update_check_at), để admin chọn đẩy update cho
+ *  1 máy mà không cần bump toàn fleet. */
+export const nodeUpdateRequests = pgTable('node_update_requests', {
   mac: text('mac').primaryKey(),
   requestedAt: timestamp('requested_at', { withTimezone: true })
     .notNull()

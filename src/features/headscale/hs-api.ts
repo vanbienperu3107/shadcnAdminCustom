@@ -291,6 +291,7 @@ export function deviceTypeMap(devices: Device[]): Map<string, string> {
  *  device-register), dùng để hiển thị cột "Phiên bản" — không cần đợi client
  *  gõ tay, dữ liệu đã có sẵn ở device_identity. */
 export type DeviceVersionInfo = {
+  mac: string | null
   version: string | null
   build: number | null
   variant: string | null
@@ -303,6 +304,7 @@ export function deviceVersionMap(
   for (const d of devices) {
     if (d.nodeKey)
       m.set(d.nodeKey, {
+        mac: d.mac,
         version: d.clientVersion,
         build: d.clientBuild,
         variant: d.clientVariant,
