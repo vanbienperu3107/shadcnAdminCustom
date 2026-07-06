@@ -16,9 +16,14 @@
  * trợ ở đây) — tránh trộn 2 nguồn ghi vào cùng 1 khóa.
  */
 
-import { and, eq } from 'drizzle-orm'
+import { desc, inArray } from 'drizzle-orm'
 import { db } from '../db/client.js'
-import { deviceIdentity, folderShareAccess, folderShares } from '../db/schema.js'
+import {
+  deviceIdentity,
+  folderShareAccess,
+  folderShares,
+  latencySamples,
+} from '../db/schema.js'
 import { hsApi } from './headscale.js'
 
 type NodeAttrGrant = { target: string[]; attr: string[] }
@@ -115,6 +120,23 @@ export async function pushTaildrivePolicy(): Promise<void> {
       .from(deviceIdentity)
     for (const r of rows) {
       if (r.mac) macIp.set(r.mac, r.staticIp || r.lastIp || null)
+    }
+
+    // Fallback cho MAC chưa có device_identity (vd máy chỉ mới report qua
+    // /api/metrics/report — CHÍNH LÀ nguồn mà dialog folder-share dùng để
+    // liệt kê "máy online" (xem /api/node-runtime/online), nên phải resolve
+    // IP từ cùng nguồn đó, nếu không owner/grantee chọn từ dialog có thể bị
+    // âm thầm bỏ qua (không có nodeAttrs/grants) mà không báo lỗi gì.
+    const missing = macs.filter((m) => !macIp.get(m))
+    if (missing.length > 0) {
+      const fallbackRows = await db
+        .select({ mac: latencySamples.mac, srcIp: latencySamples.srcIp })
+        .from(latencySamples)
+        .where(inArray(latencySamples.mac, missing))
+        .orderBy(desc(latencySamples.reportedAt))
+      for (const r of fallbackRows) {
+        if (r.mac && r.srcIp && !macIp.get(r.mac)) macIp.set(r.mac, r.srcIp)
+      }
     }
   }
 
