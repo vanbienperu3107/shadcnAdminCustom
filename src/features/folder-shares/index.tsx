@@ -603,7 +603,9 @@ function BrowseDialog({
     queryKey: ['folder-browse', target?.mac],
     queryFn: () => getBrowse(target!.mac),
     enabled: !!target,
-    refetchInterval: (q) => (q.state.data?.pending ? 2000 : false),
+    // 1s (was 2s): client now checks every 1s too (nodeBrowsePollInterval) —
+    // matching cadence so the dashboard isn't the slower half of the round trip.
+    refetchInterval: (q) => (q.state.data?.pending ? 1000 : false),
   })
 
   function open(entry: BrowseEntry, base: string) {
