@@ -591,6 +591,7 @@ function BrowseDialog({
   onPick: (path: string) => void
 }) {
   const [path, setPath] = useState<string>('')
+  const [filter, setFilter] = useState<string>('')
   const qc = useQueryClient()
 
   const browse = useQuery({
@@ -604,6 +605,7 @@ function BrowseDialog({
     if (!target || !entry.is_dir) return
     const next = `${base.replace(/[\\/]+$/, '')}\\${entry.name}`
     setPath(next)
+    setFilter('') // gõ dở dang ở thư mục cũ không nên lọc nhầm sang thư mục mới
     // requestBrowse() flips server-side `pending` back to true, nhưng data
     // đang cache trong query vẫn là kết quả CŨ (pending:false) — nếu không
     // ép refetch ngay, refetchInterval ở trên sẽ không tự bật lại polling
@@ -616,6 +618,12 @@ function BrowseDialog({
 
   const resPath = browse.data?.resPath ?? ''
   const entries = browse.data?.entries ?? []
+  const dirs = entries.filter((e) => e.is_dir)
+  const filteredDirs = filter.trim()
+    ? dirs.filter((e) =>
+        e.name.toLowerCase().includes(filter.trim().toLowerCase())
+      )
+    : dirs
 
   return (
     <Dialog open={!!target} onOpenChange={(o) => !o && onClose()}>
@@ -623,6 +631,15 @@ function BrowseDialog({
         <DialogHeader>
           <DialogTitle>Chọn thư mục trên {target?.label}</DialogTitle>
         </DialogHeader>
+        {!browse.data?.pending && dirs.length > 0 && (
+          <Input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder='Gõ để lọc thư mục…'
+            autoFocus
+            className='font-mono text-sm'
+          />
+        )}
         <div className='max-h-80 overflow-y-auto rounded-md border'>
           {browse.data?.pending ? (
             <p className='p-4 text-sm text-muted-foreground'>
@@ -634,21 +651,23 @@ function BrowseDialog({
                 ? `"${resPath}" không có thư mục con.`
                 : 'Chưa có dữ liệu.'}
             </p>
+          ) : filteredDirs.length === 0 ? (
+            <p className='p-4 text-sm text-muted-foreground'>
+              Không có thư mục nào khớp "{filter}".
+            </p>
           ) : (
             <div className='flex flex-col gap-0.5 p-2 font-mono text-sm'>
-              {entries
-                .filter((e) => e.is_dir)
-                .map((e) => (
-                  <button
-                    key={e.name}
-                    type='button'
-                    className='flex items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-accent'
-                    onClick={() => open(e, resPath)}
-                  >
-                    <Folder className='size-4 text-muted-foreground' />
-                    {e.name}
-                  </button>
-                ))}
+              {filteredDirs.map((e) => (
+                <button
+                  key={e.name}
+                  type='button'
+                  className='flex items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-accent'
+                  onClick={() => open(e, resPath)}
+                >
+                  <Folder className='size-4 text-muted-foreground' />
+                  {e.name}
+                </button>
+              ))}
             </div>
           )}
         </div>
