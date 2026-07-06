@@ -5,6 +5,7 @@ import { db } from '../db/client.js'
 import {
   clientUpdate,
   clientVersionHistory,
+  nodeRuntimeConfig,
   nodeUpdateRequests,
 } from '../db/schema.js'
 import { env } from '../env.js'
@@ -45,7 +46,13 @@ type Release = {
 // false with no way to tell them apart.
 type LatestResult = {
   enabled: boolean
-  reason?: 'disabled' | 'unsupported_variant' | 'no_release' | 'no_asset' | 'no_sha256'
+  reason?:
+    | 'disabled'
+    | 'disabled_for_device'
+    | 'unsupported_variant'
+    | 'no_release'
+    | 'no_asset'
+    | 'no_sha256'
   build?: number
   version?: string
   url?: string
@@ -155,11 +162,25 @@ async function loadConfig(): Promise<{ enabled: boolean; pinnedBuild: number | n
 export async function clientUpdatePublicRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/client/latest', async (req, reply) => {
     if (!checkSecret(req, reply)) return
-    const variant = String((req.query as { variant?: string }).variant ?? 'portable')
+    const q = req.query as { variant?: string; mac?: string }
+    const variant = String(q.variant ?? 'portable')
     const re = VARIANT_RE[variant]
     if (!re)
       return { enabled: false, reason: 'unsupported_variant' } satisfies LatestResult
     try {
+      // Ép riêng máy này (bật/tắt qua node_runtime_config.auto_update_enabled)
+      // — true/false ghi đè cấu hình toàn cục; null/không có dòng = theo toàn cục.
+      if (q.mac) {
+        const [override] = await db
+          .select({ v: nodeRuntimeConfig.autoUpdateEnabled })
+          .from(nodeRuntimeConfig)
+          .where(eq(nodeRuntimeConfig.mac, q.mac))
+        if (override?.v === false)
+          return {
+            enabled: false,
+            reason: 'disabled_for_device',
+          } satisfies LatestResult
+      }
       const [cfg, releases] = await Promise.all([loadConfig(), loadReleases(Date.now())])
       if (!cfg.enabled)
         return { enabled: false, reason: 'disabled' } satisfies LatestResult

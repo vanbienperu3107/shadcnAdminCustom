@@ -210,6 +210,7 @@ const nodeSchema = z.object({
   advertiseRoutes: z.string().nullish(),
   lanRoutes: z.string().nullish(),
   pacServerPort: z.number().int().nullish(),
+  autoUpdateEnabled: z.boolean().nullish(),
 })
 
 const pacRuleSchema = z.object({

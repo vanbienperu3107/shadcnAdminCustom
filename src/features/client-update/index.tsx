@@ -1,11 +1,18 @@
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, Dot, DownloadCloud, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Switch } from '@/components/ui/switch'
 import {
+  listOnlineDevices,
+  type OnlineDevice,
+} from '@/features/node-runtime/data/node-runtime-api'
+import {
   checkNowClientUpdate,
+  checkNowClientUpdateForMac,
   clientUpdateKeys,
   getClientUpdate,
   getVersionHistory,
@@ -92,6 +99,8 @@ export function ClientAutoUpdateCard() {
         </Button>
       </div>
 
+      <SelectedDevicesUpdate enabled={data.enabled} />
+
       {/* Pin version — đóng băng fleet ở 1 build cụ thể (rollback an toàn). */}
       <div className='flex flex-col gap-1.5 rounded-md border p-3'>
         <label className='text-sm font-medium'>Ghim build (rollback)</label>
@@ -119,6 +128,97 @@ export function ClientAutoUpdateCard() {
       </div>
 
       <VersionHistoryList />
+    </div>
+  )
+}
+
+/** Chọn 1 hoặc nhiều máy đang online để đẩy "Cập nhật ngay" riêng — không
+ *  cần đụng tới toàn fleet. Tách khỏi ClientAutoUpdateCard vì tự query danh
+ *  sách online riêng (khác chu kỳ refetch với cấu hình auto-update). */
+function SelectedDevicesUpdate({ enabled }: { enabled: boolean }) {
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const online = useQuery({
+    queryKey: ['client-update', 'online-devices'],
+    queryFn: listOnlineDevices,
+  })
+
+  const pushMut = useMutation({
+    mutationFn: async (macs: string[]) => {
+      const results = await Promise.allSettled(
+        macs.map((mac) => checkNowClientUpdateForMac(mac))
+      )
+      const failed = results.filter((r) => r.status === 'rejected').length
+      return { total: macs.length, failed }
+    },
+    onSuccess: ({ total, failed }) => {
+      if (failed === 0) {
+        toast.success(`Đã gửi yêu cầu cập nhật cho ${total} máy`)
+      } else {
+        toast.error(`Gửi thất bại ${failed}/${total} máy — thử lại`)
+      }
+      setSelected(new Set())
+    },
+    onError: () => toast.error('Gửi yêu cầu cập nhật thất bại'),
+  })
+
+  function toggle(mac: string, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(mac)
+      else next.delete(mac)
+      return next
+    })
+  }
+
+  const devices = online.data ?? []
+
+  return (
+    <div className='flex flex-col gap-2 rounded-md border p-3'>
+      <div className='flex flex-wrap items-center justify-between gap-2'>
+        <div>
+          <p className='text-sm font-medium'>Cập nhật ngay (chọn máy)</p>
+          <p className='text-xs text-muted-foreground'>
+            Chọn 1 hoặc nhiều máy đang online (report trong 5 phút gần đây) để
+            đẩy cập nhật riêng, không ảnh hưởng các máy khác.
+          </p>
+        </div>
+        <Button
+          variant='outline'
+          size='sm'
+          disabled={pushMut.isPending || !enabled || selected.size === 0}
+          onClick={() => pushMut.mutate([...selected])}
+        >
+          <RefreshCw className={pushMut.isPending ? 'animate-spin' : ''} />
+          Cập nhật {selected.size > 0 ? `(${selected.size})` : ''}
+        </Button>
+      </div>
+      <div className='max-h-56 overflow-y-auto rounded-md border'>
+        {online.isLoading ? (
+          <p className='p-3 text-xs text-muted-foreground'>Đang tải…</p>
+        ) : devices.length === 0 ? (
+          <p className='p-3 text-xs text-muted-foreground'>
+            Không có máy nào online trong 5 phút gần đây.
+          </p>
+        ) : (
+          <ul className='divide-y'>
+            {devices.map((d: OnlineDevice) => (
+              <li
+                key={d.mac}
+                className='flex items-center gap-2 px-3 py-1.5 text-sm'
+              >
+                <Checkbox
+                  checked={selected.has(d.mac)}
+                  onCheckedChange={(v) => toggle(d.mac, !!v)}
+                />
+                <span>{d.hostname}</span>
+                <span className='font-mono text-xs text-muted-foreground'>
+                  {d.mac}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   )
 }

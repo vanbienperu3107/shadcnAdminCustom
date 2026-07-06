@@ -1,6 +1,7 @@
 import { memo, useCallback, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  DownloadCloud,
   MoreHorizontal,
   Pencil,
   RefreshCw,
@@ -65,6 +66,11 @@ import {
   renameMachine,
   userName,
 } from '@/features/headscale/hs-api'
+import {
+  listNodeRuntime,
+  nodeRuntimeKeys,
+  upsertNodeRuntime,
+} from '@/features/node-runtime/data/node-runtime-api'
 
 /** Headscale node name = DNS label: chữ thường a-z0-9 và '-', không bắt đầu/kết
  *  thúc bằng '-'. Bỏ dấu tiếng Việt, hạ chữ thường, thay ký tự lạ bằng '-'. */
@@ -257,15 +263,23 @@ const MachineRow = memo(function MachineRow({
   n,
   version,
   latestBuild,
+  autoUpdateByMac,
   onUpdateNow,
+  onSetAutoUpdate,
   onAction,
 }: {
   n: HsMachine
   version?: DeviceVersionInfo
   latestBuild: number | null
+  autoUpdateByMac: Map<string, boolean | null>
   onUpdateNow: (mac: string) => void
+  onSetAutoUpdate: (mac: string, enabled: boolean | null) => void
   onAction: (kind: DialogKind, row: HsMachine) => void
 }) {
+  // null/chưa có dòng override = theo cấu hình toàn cục ("Bật" mặc định).
+  const autoUpdateOverride = version?.mac
+    ? (autoUpdateByMac.get(version.mac) ?? null)
+    : null
   return (
     <TableRow>
       <TableCell className='font-medium'>
@@ -305,6 +319,14 @@ const MachineRow = memo(function MachineRow({
                 {version.build >= latestBuild
                   ? 'Mới nhất'
                   : `Có bản mới (${latestBuild})`}
+              </Badge>
+            )}
+            {autoUpdateOverride === false && (
+              <Badge
+                variant='outline'
+                className='w-fit border-muted-foreground/30 text-muted-foreground'
+              >
+                Auto-update: tắt riêng
               </Badge>
             )}
           </div>
@@ -358,6 +380,21 @@ const MachineRow = memo(function MachineRow({
                 <RefreshCw className='me-2 size-4' /> Cập nhật ngay
               </DropdownMenuItem>
             )}
+            {version?.mac && (
+              <DropdownMenuItem
+                onClick={() =>
+                  onSetAutoUpdate(
+                    version.mac!,
+                    autoUpdateOverride === false ? null : false
+                  )
+                }
+              >
+                <DownloadCloud className='me-2 size-4' />
+                {autoUpdateOverride === false
+                  ? 'Bật lại auto-update cho máy này'
+                  : 'Tắt auto-update cho máy này'}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant='destructive'
@@ -376,13 +413,17 @@ function MachineTable({
   rows,
   versionByNodeKey,
   latestBuild,
+  autoUpdateByMac,
   onUpdateNow,
+  onSetAutoUpdate,
   onAction,
 }: {
   rows: HsMachine[]
   versionByNodeKey: Map<string, DeviceVersionInfo>
   latestBuild: number | null
+  autoUpdateByMac: Map<string, boolean | null>
   onUpdateNow: (mac: string) => void
+  onSetAutoUpdate: (mac: string, enabled: boolean | null) => void
   onAction: (kind: DialogKind, row: HsMachine) => void
 }) {
   return (
@@ -418,7 +459,9 @@ function MachineTable({
                   n.nodeKey ? versionByNodeKey.get(n.nodeKey) : undefined
                 }
                 latestBuild={latestBuild}
+                autoUpdateByMac={autoUpdateByMac}
                 onUpdateNow={onUpdateNow}
+                onSetAutoUpdate={onSetAutoUpdate}
                 onAction={onAction}
               />
             ))
@@ -446,6 +489,11 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
     queryKey: clientUpdateKeys.all,
     queryFn: getClientUpdate,
   })
+  const nodeRuntimes = useQuery({
+    queryKey: nodeRuntimeKeys.all,
+    queryFn: listNodeRuntime,
+  })
+  const qc = useQueryClient()
 
   const [dialog, setDialog] = useState<DialogKind>(null)
   const [currentRow, setCurrentRow] = useState<HsMachine | null>(null)
@@ -464,9 +512,24 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
     onError: () => toast.error('Gửi yêu cầu cập nhật thất bại'),
   })
 
+  // Ép bật/tắt auto-update riêng 1 máy (ghi đè cấu hình toàn cục) — dùng chung
+  // endpoint PUT /api/node-runtime/:mac, chỉ patch đúng field này.
+  const setAutoUpdateForMac = useMutation({
+    mutationFn: ({ mac, enabled }: { mac: string; enabled: boolean | null }) =>
+      upsertNodeRuntime(mac, { autoUpdateEnabled: enabled }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: nodeRuntimeKeys.all })
+      toast.success('Đã lưu')
+    },
+    onError: () => toast.error('Lưu thất bại'),
+  })
+
   const names = derpNameSet(derp.data ?? [])
   const typeByNodeKey = deviceTypeMap(devices.data ?? [])
   const versionByNodeKey = deviceVersionMap(devices.data ?? [])
+  const autoUpdateByMac = new Map(
+    (nodeRuntimes.data ?? []).map((r) => [r.mac, r.autoUpdateEnabled])
+  )
   const nodes = data?.nodes ?? []
   const rows = nodes
     .filter((n) =>
@@ -489,7 +552,11 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
           rows={rows}
           versionByNodeKey={versionByNodeKey}
           latestBuild={clientUpdateCfg.data?.latestBuild ?? null}
+          autoUpdateByMac={autoUpdateByMac}
           onUpdateNow={(mac) => checkNowForMac.mutate(mac)}
+          onSetAutoUpdate={(mac, enabled) =>
+            setAutoUpdateForMac.mutate({ mac, enabled })
+          }
           onAction={onAction}
         />
       )}

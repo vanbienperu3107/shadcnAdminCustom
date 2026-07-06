@@ -303,6 +303,10 @@ export async function migrate(): Promise<void> {
   await db.execute(sql`
     CREATE INDEX IF NOT EXISTS idx_node_runtime_hostname ON node_runtime_config(hostname)
   `)
+  // Ép bật/tắt auto-update riêng cho 1 máy, bất kể cấu hình toàn cục.
+  await db.execute(sql`
+    ALTER TABLE node_runtime_config ADD COLUMN IF NOT EXISTS auto_update_enabled BOOLEAN
+  `)
 
   // "Bấm Reload" cho 1 client — node launcher poll thấy requested_at moi hon
   // lan ap dung gan nhat thi tu ap lai cau hinh, khong can restart node.

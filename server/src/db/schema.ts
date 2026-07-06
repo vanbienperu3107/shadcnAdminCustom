@@ -299,6 +299,9 @@ export const nodeRuntimeConfig = pgTable('node_runtime_config', {
   advertiseRoutes: text('advertise_routes'),
   lanRoutes: text('lan_routes'),
   pacServerPort: integer('pac_server_port'),
+  // null = theo cấu hình auto-update toàn cục (client_update.enabled); true/false
+  // = ép riêng máy này, bất kể cấu hình toàn cục — xem GET /api/client/latest.
+  autoUpdateEnabled: boolean('auto_update_enabled'),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
