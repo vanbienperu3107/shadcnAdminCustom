@@ -43,6 +43,7 @@ import {
   deleteMachine,
   derpNameSet,
   deviceTypeMap,
+  deviceVersionMap,
   expireMachine,
   fetchDevices,
   fetchMachines,
@@ -242,9 +243,11 @@ type DialogKind = 'rename' | 'delete' | 'expire' | null
 // memo: bảng poll 30s -> parent re-render; chỉ vẽ lại hàng có dữ liệu đổi.
 const MachineRow = memo(function MachineRow({
   n,
+  version,
   onAction,
 }: {
   n: HsMachine
+  version?: { version: string | null; build: number | null }
   onAction: (kind: DialogKind, row: HsMachine) => void
 }) {
   return (
@@ -257,6 +260,17 @@ const MachineRow = memo(function MachineRow({
       </TableCell>
       <TableCell className='hidden font-mono text-xs lg:table-cell'>
         {n.ipAddresses?.[0] ?? '—'}
+      </TableCell>
+      <TableCell className='hidden font-mono text-xs xl:table-cell'>
+        {version?.version ? (
+          <span
+            title={version.build != null ? `build ${version.build}` : undefined}
+          >
+            {version.version}
+          </span>
+        ) : (
+          <span className='text-muted-foreground'>—</span>
+        )}
       </TableCell>
       <TableCell>
         {n.online ? (
@@ -315,9 +329,14 @@ const MachineRow = memo(function MachineRow({
 
 function MachineTable({
   rows,
+  versionByNodeKey,
   onAction,
 }: {
   rows: HsMachine[]
+  versionByNodeKey: Map<
+    string,
+    { version: string | null; build: number | null }
+  >
   onAction: (kind: DialogKind, row: HsMachine) => void
 }) {
   return (
@@ -328,6 +347,7 @@ function MachineTable({
             <TableHead>Tên</TableHead>
             <TableHead className='hidden md:table-cell'>User</TableHead>
             <TableHead className='hidden lg:table-cell'>IP</TableHead>
+            <TableHead className='hidden xl:table-cell'>Phiên bản</TableHead>
             <TableHead>Trạng thái</TableHead>
             <TableHead className='hidden lg:table-cell'>Last seen</TableHead>
             <TableHead className='text-end'>Hành động</TableHead>
@@ -337,7 +357,7 @@ function MachineTable({
           {rows.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={6}
+                colSpan={7}
                 className='h-16 text-center text-muted-foreground'
               >
                 Không có node nào.
@@ -345,7 +365,14 @@ function MachineTable({
             </TableRow>
           ) : (
             rows.map((n, i) => (
-              <MachineRow key={n.id ?? i} n={n} onAction={onAction} />
+              <MachineRow
+                key={n.id ?? i}
+                n={n}
+                version={
+                  n.nodeKey ? versionByNodeKey.get(n.nodeKey) : undefined
+                }
+                onAction={onAction}
+              />
             ))
           )}
         </TableBody>
@@ -378,6 +405,7 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
 
   const names = derpNameSet(derp.data ?? [])
   const typeByNodeKey = deviceTypeMap(devices.data ?? [])
+  const versionByNodeKey = deviceVersionMap(devices.data ?? [])
   const nodes = data?.nodes ?? []
   const rows = nodes
     .filter((n) =>
@@ -396,7 +424,11 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
       ) : !data?.configured ? (
         <NotConfigured />
       ) : (
-        <MachineTable rows={rows} onAction={onAction} />
+        <MachineTable
+          rows={rows}
+          versionByNodeKey={versionByNodeKey}
+          onAction={onAction}
+        />
       )}
 
       <RenameDialog
