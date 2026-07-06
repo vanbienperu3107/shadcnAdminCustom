@@ -37,7 +37,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { listOnlineDevices, type OnlineDevice } from '@/features/node-runtime/data/node-runtime-api'
+import {
+  listOnlineDevices,
+  type OnlineDevice,
+} from '@/features/node-runtime/data/node-runtime-api'
 import {
   createFolderShare,
   deleteFolderShare,
@@ -68,7 +71,10 @@ export function FolderSharesPage() {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [accessDraft, setAccessDraft] = useState<AccessInput[]>([])
   const [isNew, setIsNew] = useState(false)
-  const [browseFor, setBrowseFor] = useState<{ mac: string; label: string } | null>(null)
+  const [browseFor, setBrowseFor] = useState<{
+    mac: string
+    label: string
+  } | null>(null)
 
   const {
     data: shares = [],
@@ -84,13 +90,18 @@ export function FolderSharesPage() {
     enabled: false,
   })
 
-  const invalidate = () => void qc.invalidateQueries({ queryKey: folderShareKeys.all })
+  const invalidate = () =>
+    void qc.invalidateQueries({ queryKey: folderShareKeys.all })
 
   const grouped = useMemo(() => {
-    const byOwner = new Map<string, { hostname: string | null; shares: FolderShare[] }>()
+    const byOwner = new Map<
+      string,
+      { hostname: string | null; shares: FolderShare[] }
+    >()
     for (const s of shares) {
       const key = s.ownerMac
-      if (!byOwner.has(key)) byOwner.set(key, { hostname: s.ownerHostname, shares: [] })
+      if (!byOwner.has(key))
+        byOwner.set(key, { hostname: s.ownerHostname, shares: [] })
       byOwner.get(key)!.shares.push(s)
     }
     return [...byOwner.entries()].sort((a, b) =>
@@ -163,12 +174,18 @@ export function FolderSharesPage() {
   }
 
   function pickOwner(d: OnlineDevice) {
-    setDraft((prev) => (prev ? { ...prev, ownerMac: d.mac, ownerHostname: d.hostname } : prev))
+    setDraft((prev) =>
+      prev ? { ...prev, ownerMac: d.mac, ownerHostname: d.hostname } : prev
+    )
   }
 
   function handleSave() {
     if (!draft) return
-    if (!draft.ownerMac.trim() || !draft.shareName.trim() || !draft.localPath.trim()) {
+    if (
+      !draft.ownerMac.trim() ||
+      !draft.shareName.trim() ||
+      !draft.localPath.trim()
+    ) {
       toast.error('Cần chọn PC, tên chia sẻ và đường dẫn')
       return
     }
@@ -237,7 +254,8 @@ export function FolderSharesPage() {
 
       {isError ? (
         <div className='rounded-md border border-destructive/40 p-4 text-sm text-destructive'>
-          Không tải được danh sách chia sẻ. Kiểm tra backend (/api/folder-shares).
+          Không tải được danh sách chia sẻ. Kiểm tra backend
+          (/api/folder-shares).
         </div>
       ) : isLoading ? (
         <div className='text-sm text-muted-foreground'>Đang tải…</div>
@@ -252,7 +270,9 @@ export function FolderSharesPage() {
               <div className='flex items-center gap-2 border-b bg-muted/40 px-4 py-2.5'>
                 <FolderTree className='size-4 text-muted-foreground' />
                 <span className='font-medium'>{g.hostname ?? mac}</span>
-                <span className='font-mono text-xs text-muted-foreground'>{mac}</span>
+                <span className='font-mono text-xs text-muted-foreground'>
+                  {mac}
+                </span>
               </div>
               <Table>
                 <TableHeader>
@@ -267,14 +287,18 @@ export function FolderSharesPage() {
                 <TableBody>
                   {g.shares.map((s) => (
                     <TableRow key={s.id}>
-                      <TableCell className='font-mono text-sm'>{s.shareName}</TableCell>
+                      <TableCell className='font-mono text-sm'>
+                        {s.shareName}
+                      </TableCell>
                       <TableCell className='font-mono text-xs text-muted-foreground'>
                         {s.localPath}
                       </TableCell>
                       <TableCell>
                         <div className='flex flex-wrap gap-1'>
                           {s.access.length === 0 ? (
-                            <span className='text-xs text-muted-foreground'>— chưa cấp —</span>
+                            <span className='text-xs text-muted-foreground'>
+                              — chưa cấp —
+                            </span>
                           ) : (
                             s.access.map((a) => (
                               <Badge
@@ -299,15 +323,25 @@ export function FolderSharesPage() {
                       <TableCell>
                         <Switch
                           checked={s.enabled}
-                          onCheckedChange={(v) => save.mutate({ ...s, id: s.id, enabled: v })}
+                          onCheckedChange={(v) =>
+                            save.mutate({ ...s, id: s.id, enabled: v })
+                          }
                         />
                       </TableCell>
                       <TableCell>
                         <div className='flex gap-1'>
-                          <Button size='icon' variant='ghost' onClick={() => openEdit(s)}>
+                          <Button
+                            size='icon'
+                            variant='ghost'
+                            onClick={() => openEdit(s)}
+                          >
                             <Pencil className='size-4' />
                           </Button>
-                          <Button size='icon' variant='ghost' onClick={() => remove.mutate(s.id)}>
+                          <Button
+                            size='icon'
+                            variant='ghost'
+                            onClick={() => remove.mutate(s.id)}
+                          >
                             <Trash2 className='size-4 text-destructive' />
                           </Button>
                         </div>
@@ -335,7 +369,9 @@ export function FolderSharesPage() {
               {isNew && (
                 <Field label='Máy chia sẻ'>
                   {online.isFetching ? (
-                    <p className='text-xs text-muted-foreground'>Đang tải danh sách…</p>
+                    <p className='text-xs text-muted-foreground'>
+                      Đang tải danh sách…
+                    </p>
                   ) : (online.data ?? []).length === 0 ? (
                     <p className='text-xs text-muted-foreground'>
                       Không có thiết bị nào online trong 5 phút gần đây.
@@ -368,14 +404,18 @@ export function FolderSharesPage() {
                     className='font-mono'
                     value={draft.shareName}
                     placeholder='du_lieu_chung'
-                    onChange={(e) => setDraft({ ...draft, shareName: e.target.value })}
+                    onChange={(e) =>
+                      setDraft({ ...draft, shareName: e.target.value })
+                    }
                   />
                 </Field>
                 <Field label='Bật chia sẻ'>
                   <div className='flex h-9 items-center'>
                     <Switch
                       checked={draft.enabled ?? true}
-                      onCheckedChange={(v) => setDraft({ ...draft, enabled: v })}
+                      onCheckedChange={(v) =>
+                        setDraft({ ...draft, enabled: v })
+                      }
                     />
                   </div>
                 </Field>
@@ -386,7 +426,9 @@ export function FolderSharesPage() {
                     className='font-mono'
                     value={draft.localPath}
                     placeholder='D:\Share\DuLieuChung'
-                    onChange={(e) => setDraft({ ...draft, localPath: e.target.value })}
+                    onChange={(e) =>
+                      setDraft({ ...draft, localPath: e.target.value })
+                    }
                   />
                   <Button
                     type='button'
@@ -394,8 +436,14 @@ export function FolderSharesPage() {
                     disabled={!draft.ownerMac}
                     onClick={() => {
                       if (!draft.ownerMac) return
-                      setBrowseFor({ mac: draft.ownerMac, label: draft.ownerHostname ?? draft.ownerMac })
-                      void requestBrowse(draft.ownerMac, draft.localPath || 'D:\\')
+                      setBrowseFor({
+                        mac: draft.ownerMac,
+                        label: draft.ownerHostname ?? draft.ownerMac,
+                      })
+                      void requestBrowse(
+                        draft.ownerMac,
+                        draft.localPath || 'D:\\'
+                      )
                     }}
                   >
                     <FolderOpen className='size-4' /> Duyệt…
@@ -423,23 +471,32 @@ export function FolderSharesPage() {
                     {(online.data ?? [])
                       .filter((d) => d.mac !== draft.ownerMac)
                       .map((d) => {
-                        const a = accessDraft.find((x) => x.granteeMac === d.mac)
+                        const a = accessDraft.find(
+                          (x) => x.granteeMac === d.mac
+                        )
                         const checked = !!a
                         return (
-                          <TableRow key={d.mac} className={!checked ? 'opacity-60' : ''}>
+                          <TableRow
+                            key={d.mac}
+                            className={!checked ? 'opacity-60' : ''}
+                          >
                             <TableCell>
                               <Checkbox
                                 checked={checked}
                                 onCheckedChange={(v) => toggleGrantee(d, !!v)}
                               />
                             </TableCell>
-                            <TableCell className='text-sm'>{d.hostname}</TableCell>
+                            <TableCell className='text-sm'>
+                              {d.hostname}
+                            </TableCell>
                             <TableCell>
                               <Select
                                 value={a?.access ?? 'rw'}
                                 disabled={!checked}
                                 onValueChange={(v) =>
-                                  patchGrantee(d.mac, { access: v as 'ro' | 'rw' })
+                                  patchGrantee(d.mac, {
+                                    access: v as 'ro' | 'rw',
+                                  })
                                 }
                               >
                                 <SelectTrigger className='h-8'>
@@ -455,7 +512,9 @@ export function FolderSharesPage() {
                               <Switch
                                 checked={a?.autoMount ?? false}
                                 disabled={!checked}
-                                onCheckedChange={(v) => patchGrantee(d.mac, { autoMount: v })}
+                                onCheckedChange={(v) =>
+                                  patchGrantee(d.mac, { autoMount: v })
+                                }
                               />
                             </TableCell>
                             <TableCell>
@@ -464,15 +523,23 @@ export function FolderSharesPage() {
                                 placeholder='Z:'
                                 value={a?.mountDrive ?? ''}
                                 disabled={!checked || !(a?.autoMount ?? false)}
-                                onChange={(e) => patchGrantee(d.mac, { mountDrive: e.target.value })}
+                                onChange={(e) =>
+                                  patchGrantee(d.mac, {
+                                    mountDrive: e.target.value,
+                                  })
+                                }
                               />
                             </TableCell>
                           </TableRow>
                         )
                       })}
-                    {(online.data ?? []).filter((d) => d.mac !== draft.ownerMac).length === 0 && (
+                    {(online.data ?? []).filter((d) => d.mac !== draft.ownerMac)
+                      .length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} className='text-center text-xs text-muted-foreground'>
+                        <TableCell
+                          colSpan={5}
+                          className='text-center text-xs text-muted-foreground'
+                        >
                           Không có PC online khác để cấp quyền.
                         </TableCell>
                       </TableRow>
@@ -486,8 +553,13 @@ export function FolderSharesPage() {
             <Button variant='outline' onClick={() => setDraft(null)}>
               Hủy
             </Button>
-            <Button onClick={handleSave} disabled={save.isPending || saveAccess.isPending}>
-              {save.isPending || saveAccess.isPending ? 'Đang lưu…' : 'Lưu & áp dụng'}
+            <Button
+              onClick={handleSave}
+              disabled={save.isPending || saveAccess.isPending}
+            >
+              {save.isPending || saveAccess.isPending
+                ? 'Đang lưu…'
+                : 'Lưu & áp dụng'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -558,7 +630,9 @@ function BrowseDialog({
             </p>
           ) : entries.length === 0 ? (
             <p className='p-4 text-sm text-muted-foreground'>
-              {resPath ? `"${resPath}" không có thư mục con.` : 'Chưa có dữ liệu.'}
+              {resPath
+                ? `"${resPath}" không có thư mục con.`
+                : 'Chưa có dữ liệu.'}
             </p>
           ) : (
             <div className='flex flex-col gap-0.5 p-2 font-mono text-sm'>
@@ -586,7 +660,10 @@ function BrowseDialog({
             <Button variant='outline' onClick={onClose}>
               Hủy
             </Button>
-            <Button disabled={!(path || resPath)} onClick={() => onPick(path || resPath)}>
+            <Button
+              disabled={!(path || resPath)}
+              onClick={() => onPick(path || resPath)}
+            >
               Chọn
             </Button>
           </div>

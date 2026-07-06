@@ -76,8 +76,8 @@ export function ClientAutoUpdateCard() {
         <div>
           <p className='text-sm font-medium'>Cập nhật ngay (toàn fleet)</p>
           <p className='text-xs text-muted-foreground'>
-            Báo mọi client kiểm tra + tự cập nhật liền qua vòng poll 20s, thay vì
-            chờ chu kỳ 6h. Chỉ có tác dụng khi đang bật auto-update.
+            Báo mọi client kiểm tra + tự cập nhật liền qua vòng poll 20s, thay
+            vì chờ chu kỳ 6h. Chỉ có tác dụng khi đang bật auto-update.
           </p>
         </div>
         <Button
@@ -86,9 +86,7 @@ export function ClientAutoUpdateCard() {
           disabled={checkNowMut.isPending || !data.enabled}
           onClick={() => checkNowMut.mutate()}
         >
-          <RefreshCw
-            className={checkNowMut.isPending ? 'animate-spin' : ''}
-          />
+          <RefreshCw className={checkNowMut.isPending ? 'animate-spin' : ''} />
           Cập nhật ngay
         </Button>
       </div>
@@ -138,7 +136,9 @@ function VersionHistoryList() {
 
   return (
     <div className='flex flex-col gap-2 rounded-md border p-3'>
-      <label className='text-sm font-medium'>Lịch sử nâng/hạ cấp phiên bản</label>
+      <label className='text-sm font-medium'>
+        Lịch sử nâng/hạ cấp phiên bản
+      </label>
       {isLoading ? (
         <p className='text-xs text-muted-foreground'>Đang tải…</p>
       ) : isError ? (
@@ -161,9 +161,17 @@ function VersionHistoryList() {
 function VersionHistoryItem({ row }: { row: VersionHistoryRow }) {
   const meta =
     row.direction === 'upgrade'
-      ? { Icon: ArrowUp, cls: 'text-emerald-600 dark:text-emerald-400', label: 'Nâng cấp' }
+      ? {
+          Icon: ArrowUp,
+          cls: 'text-emerald-600 dark:text-emerald-400',
+          label: 'Nâng cấp',
+        }
       : row.direction === 'downgrade'
-        ? { Icon: ArrowDown, cls: 'text-amber-600 dark:text-amber-400', label: 'Hạ cấp' }
+        ? {
+            Icon: ArrowDown,
+            cls: 'text-amber-600 dark:text-amber-400',
+            label: 'Hạ cấp',
+          }
         : { Icon: Dot, cls: 'text-muted-foreground', label: 'Lần đầu' }
   const { Icon } = meta
   return (
