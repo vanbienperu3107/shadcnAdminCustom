@@ -264,7 +264,7 @@ const MachineRow = memo(function MachineRow({
             variant='outline'
             className='border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
           >
-            <span className='me-1 inline-block size-2 rounded-full bg-emerald-500' />
+            <span className='me-1 inline-block size-2 animate-pulse rounded-full bg-emerald-500' />
             Connected
           </Badge>
         ) : (
