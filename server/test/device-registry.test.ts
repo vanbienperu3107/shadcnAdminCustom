@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   resolveClientDeviceAction,
   normalizeNodeKey,
+  normalizeHostForMatch,
+  staleNodesHoldingIp,
   versionChangeDirection,
 } from '../src/lib/device-registry'
 
@@ -71,5 +73,55 @@ describe('normalizeNodeKey', () => {
     expect(normalizeNodeKey('')).toBeNull()
     expect(normalizeNodeKey(null)).toBeNull()
     expect(normalizeNodeKey('   ')).toBeNull()
+  })
+})
+
+describe('normalizeHostForMatch', () => {
+  it('hạ chữ thường + bỏ hậu tố dedup -N', () => {
+    expect(normalizeHostForMatch('ITOP-THANHHN5')).toBe('itop-thanhhn5')
+    expect(normalizeHostForMatch('itop-thanhhn5-1')).toBe('itop-thanhhn5')
+    expect(normalizeHostForMatch('VOTAM-PC-12')).toBe('votam-pc')
+    expect(normalizeHostForMatch(null)).toBe('')
+    expect(normalizeHostForMatch('  Máy-2 ')).toBe('máy')
+  })
+})
+
+describe('staleNodesHoldingIp', () => {
+  const nodes = [
+    // dup cũ CÙNG máy, OFFLINE, đang giữ IP đích -> phải thu hồi
+    { id: '50', givenName: 'ITOP-THANHHN5', ipAddresses: ['100.64.0.14', 'fd7a::e'], online: false },
+    { id: '49', givenName: 'votam-pc', ipAddresses: ['100.64.0.12'], online: true }, // máy khác
+    { id: '18', givenName: 'vpn4', ipAddresses: ['100.64.0.4'], online: true },
+  ]
+
+  it('thu hồi node CÙNG máy, OFFLINE, đang giữ IP đích', () => {
+    expect(staleNodesHoldingIp('100.64.0.14', 'itop-thanhhn5', nodes)).toEqual(['50'])
+  })
+  it('khớp kể cả khác hoa/thường và có hậu tố dedup', () => {
+    const n = [{ id: '7', name: 'ITOP-THANHHN5-1', ipAddresses: ['100.64.0.14'], online: false }]
+    expect(staleNodesHoldingIp('100.64.0.14', 'itop-thanhhn5', n)).toEqual(['7'])
+  })
+  it('KHÔNG xóa node đang ONLINE dù trùng tên + giữ IP (an toàn)', () => {
+    const n = [{ id: '9', givenName: 'ITOP-THANHHN5', ipAddresses: ['100.64.0.14'], online: true }]
+    expect(staleNodesHoldingIp('100.64.0.14', 'itop-thanhhn5', n)).toEqual([])
+  })
+  it('KHÔNG xóa node online=undefined (không rõ trạng thái)', () => {
+    const n = [{ id: '9', givenName: 'ITOP-THANHHN5', ipAddresses: ['100.64.0.14'] }]
+    expect(staleNodesHoldingIp('100.64.0.14', 'itop-thanhhn5', n)).toEqual([])
+  })
+  it('KHÔNG đụng máy KHÁC dù nó đang giữ IP đích (tránh xóa nhầm)', () => {
+    const n = [{ id: '49', givenName: 'votam-pc', ipAddresses: ['100.64.0.12'], online: false }]
+    expect(staleNodesHoldingIp('100.64.0.12', 'itop-thanhhn5', n)).toEqual([])
+  })
+  it('không có node nào giữ IP -> rỗng', () => {
+    expect(staleNodesHoldingIp('100.64.0.99', 'itop-thanhhn5', nodes)).toEqual([])
+  })
+  it('thiếu ip/hostname -> rỗng (an toàn)', () => {
+    expect(staleNodesHoldingIp('', 'itop', nodes)).toEqual([])
+    expect(staleNodesHoldingIp('100.64.0.14', '', nodes)).toEqual([])
+  })
+  it('bỏ qua node không có id', () => {
+    const n = [{ givenName: 'itop-thanhhn5', ipAddresses: ['100.64.0.14'], online: false }]
+    expect(staleNodesHoldingIp('100.64.0.14', 'itop-thanhhn5', n)).toEqual([])
   })
 })
