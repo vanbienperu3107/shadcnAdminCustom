@@ -7,6 +7,7 @@ import {
   folderBrowse,
   folderShareAccess,
   folderShares,
+  folderShareStatus,
   nodeReloadRequests,
 } from '../db/schema.js'
 import { requireAuth } from '../auth/middleware.js'
@@ -117,6 +118,25 @@ export async function folderSharesPublicRoutes(app: FastifyInstance): Promise<vo
       .where(eq(folderBrowse.mac, mac))
     return { ok: true }
   })
+
+  // Client báo kết quả áp folder-share (sau reconcile). 1 dòng/mac, đè bản cũ.
+  app.post('/api/internal/foldershare-status', async (req, reply) => {
+    if (!checkSecret(req, reply)) return
+    const parsed = shareStatusSchema.safeParse(req.body)
+    if (!parsed.success)
+      return reply.code(400).send({ error: parsed.error.flatten() })
+    const { mac, hostname, shares, mounts } = parsed.data
+    const payload = JSON.stringify({ shares, mounts })
+    const now = new Date()
+    await db
+      .insert(folderShareStatus)
+      .values({ mac, hostname: hostname ?? null, payload, reportedAt: now })
+      .onConflictDoUpdate({
+        target: folderShareStatus.mac,
+        set: { hostname: hostname ?? null, payload, reportedAt: now },
+      })
+    return { ok: true }
+  })
 }
 
 // ---- validation ----
@@ -163,6 +183,69 @@ const browseResultSchema = z.object({
   entries: z.array(z.object({ name: z.string(), is_dir: z.boolean() })).max(5000),
 })
 
+// Client tự báo kết quả áp folder-share sau reconcile. ok=false kèm error text
+// (vd "System error 67") để dashboard chỉ đúng máy nào/khâu nào hỏng.
+const shareStatusSchema = z.object({
+  mac: z.string().min(1),
+  hostname: z.string().nullish(),
+  shares: z
+    .array(
+      z.object({
+        name: z.string(),
+        path: z.string().nullish(),
+        ok: z.boolean(),
+        error: z.string().nullish(),
+      })
+    )
+    .max(200)
+    .default([]),
+  mounts: z
+    .array(
+      z.object({
+        share: z.string(),
+        machine: z.string().nullish(),
+        drive: z.string().nullish(),
+        ok: z.boolean(),
+        error: z.string().nullish(),
+      })
+    )
+    .max(200)
+    .default([]),
+})
+
+/** Chuẩn hoá 1 dòng folder_share_status thô (payload JSON string) thành object
+ *  {mac,hostname,reportedAt,shares[],mounts[]} cho admin API. payload hỏng/null
+ *  → shares/mounts rỗng (không ném lỗi). Tách riêng để unit-test không cần DB. */
+export function parseShareStatusRow(row: {
+  mac: string
+  hostname: string | null
+  payload: string | null
+  reportedAt: Date | string | null
+}): {
+  mac: string
+  hostname: string | null
+  reportedAt: Date | string | null
+  shares: unknown[]
+  mounts: unknown[]
+} {
+  let shares: unknown[] = []
+  let mounts: unknown[] = []
+  try {
+    const p = row.payload ? JSON.parse(row.payload) : {}
+    if (Array.isArray(p.shares)) shares = p.shares
+    if (Array.isArray(p.mounts)) mounts = p.mounts
+  } catch {
+    // payload hỏng → giữ rỗng
+  }
+  return {
+    mac: row.mac,
+    hostname: row.hostname,
+    reportedAt: row.reportedAt,
+    shares,
+    mounts,
+  }
+}
+
 /** Admin CRUD — yêu cầu đăng nhập. */
 export async function folderSharesRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', requireAuth)
@@ -181,6 +264,13 @@ export async function folderSharesRoutes(app: FastifyInstance): Promise<void> {
       byShare.set(a.shareId, arr)
     }
     return shares.map((s) => ({ ...s, access: byShare.get(s.id) ?? [] }))
+  })
+
+  // Trạng thái áp share do client báo (theo mac). Dashboard đối chiếu với
+  // shares/access để hiện owner serve ✓/✗ và grantee mount ✓/✗ + lỗi.
+  app.get('/api/folder-shares/status', async () => {
+    const rows = await db.select().from(folderShareStatus)
+    return rows.map(parseShareStatusRow)
   })
 
   // Tạo share mới.
