@@ -313,6 +313,17 @@ export function deviceVersionMap(
   return m
 }
 
+/** Map nodeKey -> Device (bản ghi device_identity đầy đủ) — dùng khi UI cần
+ *  cả id + staticIpv4 của 1 machine (vd dialog gán IP tĩnh) chứ không chỉ
+ *  version. */
+export function deviceByNodeKey(devices: Device[]): Map<string, Device> {
+  const m = new Map<string, Device>()
+  for (const d of devices) {
+    if (d.nodeKey) m.set(d.nodeKey, d)
+  }
+  return m
+}
+
 /**
  * Phân loại machine: ưu tiên tra `deviceTypeMap` theo nodeKey (nguồn đúng,
  * không đoán); machine chưa có trong bảng thì rơi về cách đoán tên cũ

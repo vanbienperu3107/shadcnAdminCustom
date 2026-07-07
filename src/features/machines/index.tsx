@@ -4,6 +4,7 @@ import {
   DownloadCloud,
   MoreHorizontal,
   Pencil,
+  Pin,
   RefreshCw,
   RotateCcw,
   Trash2,
@@ -52,8 +53,10 @@ import {
 } from '@/features/client-update/data/client-update-api'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
 import {
+  type Device,
   deleteMachine,
   derpNameSet,
+  deviceByNodeKey,
   type DeviceVersionInfo,
   deviceTypeMap,
   deviceVersionMap,
@@ -64,6 +67,7 @@ import {
   hsKeys,
   isDerpNodeV2,
   renameMachine,
+  updateDevice,
   userName,
 } from '@/features/headscale/hs-api'
 import {
@@ -256,7 +260,111 @@ function ExpireDialog({
   )
 }
 
-type DialogKind = 'rename' | 'delete' | 'expire' | null
+type DialogKind = 'rename' | 'delete' | 'expire' | 'static-ip' | null
+
+/** IPv4 hợp lệ dạng a.b.c.d, mỗi octet 0–255. Rỗng = hợp lệ (nghĩa là gỡ pin). */
+function isValidIpv4OrEmpty(s: string): boolean {
+  const v = s.trim()
+  if (v === '') return true
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(v)
+  if (!m) return false
+  return m.slice(1).every((o) => Number(o) <= 255)
+}
+
+// Gán IP tĩnh (device_identity.static_ipv4) cho 1 máy. Headscale đọc giá trị
+// này lúc đăng ký node (GET /api/internal/reserved-ip, ưu tiên hơn lastIpv4)
+// để LUÔN cấp đúng IP đó cho MAC này — pin CỨNG, không trôi. Bỏ trống = gỡ
+// pin, quay lại pin mềm theo lastIpv4.
+function StaticIpDialog({
+  open,
+  onOpenChange,
+  row,
+  device,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  row: HsMachine | null
+  device: Device | undefined
+}) {
+  const qc = useQueryClient()
+  const [ip, setIp] = useState('')
+  const valid = isValidIpv4OrEmpty(ip)
+
+  const mut = useMutation({
+    mutationFn: () =>
+      updateDevice(device!.id, { staticIpv4: ip.trim() || null }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['devices'] })
+      toast.success(
+        ip.trim()
+          ? 'Đã gán IP tĩnh — áp dụng khi máy đăng ký lại (khởi động client)'
+          : 'Đã gỡ IP tĩnh'
+      )
+      onOpenChange(false)
+    },
+    onError: (e) =>
+      toast.error(
+        `Lưu IP tĩnh thất bại: ${e instanceof Error ? e.message : String(e)}`
+      ),
+  })
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        onOpenChange(o)
+        if (o) setIp(device?.staticIpv4 ?? '')
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Gán IP tĩnh</DialogTitle>
+          <DialogDescription>
+            Ép <b>{row?.givenName || row?.name}</b> luôn nhận đúng 1 IP tailnet
+            (pin cứng theo MAC). Bỏ trống để gỡ pin (quay lại IP tự động). IP
+            hiện tại:{' '}
+            <span className='font-mono'>
+              {device?.lastIpv4 ?? row?.ipAddresses?.[0] ?? '—'}
+            </span>
+            .
+          </DialogDescription>
+        </DialogHeader>
+        {!device ? (
+          <p className='text-sm text-muted-foreground'>
+            Máy này chưa có bản ghi thiết bị (device_identity) — cần client báo
+            danh tính (MAC) về trước khi gán được IP tĩnh.
+          </p>
+        ) : (
+          <>
+            <Input
+              value={ip}
+              onChange={(e) => setIp(e.target.value)}
+              placeholder='100.64.0.12'
+              className='font-mono'
+              autoFocus
+            />
+            {!valid && (
+              <p className='text-xs text-destructive'>
+                IPv4 không hợp lệ (dạng a.b.c.d, mỗi số 0–255).
+              </p>
+            )}
+          </>
+        )}
+        <DialogFooter>
+          <Button variant='outline' onClick={() => onOpenChange(false)}>
+            Hủy
+          </Button>
+          <Button
+            onClick={() => mut.mutate()}
+            disabled={!device || !valid || mut.isPending}
+          >
+            Lưu
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 // memo: bảng poll 30s -> parent re-render; chỉ vẽ lại hàng có dữ liệu đổi.
 const MachineRow = memo(function MachineRow({
@@ -264,6 +372,7 @@ const MachineRow = memo(function MachineRow({
   version,
   latestBuild,
   autoUpdateByMac,
+  staticIp,
   onUpdateNow,
   onSetAutoUpdate,
   onAction,
@@ -272,6 +381,7 @@ const MachineRow = memo(function MachineRow({
   version?: DeviceVersionInfo
   latestBuild: number | null
   autoUpdateByMac: Map<string, boolean | null>
+  staticIp: string | null
   onUpdateNow: (mac: string) => void
   onSetAutoUpdate: (mac: string, enabled: boolean | null) => void
   onAction: (kind: DialogKind, row: HsMachine) => void
@@ -289,7 +399,18 @@ const MachineRow = memo(function MachineRow({
         {userName(n.user)}
       </TableCell>
       <TableCell className='hidden font-mono text-xs lg:table-cell'>
-        {n.ipAddresses?.[0] ?? '—'}
+        <div className='flex flex-col gap-0.5'>
+          <span>{n.ipAddresses?.[0] ?? '—'}</span>
+          {staticIp && (
+            <Badge
+              variant='outline'
+              className='w-fit border-sky-500/40 text-sky-600 dark:text-sky-400'
+              title='IP tĩnh đã gán (pin cứng theo MAC)'
+            >
+              <Pin className='me-1 size-3' /> {staticIp}
+            </Badge>
+          )}
+        </div>
       </TableCell>
       <TableCell className='hidden font-mono text-xs xl:table-cell'>
         {version?.version ? (
@@ -372,6 +493,9 @@ const MachineRow = memo(function MachineRow({
             <DropdownMenuItem onClick={() => onAction('rename', n)}>
               <Pencil className='me-2 size-4' /> Đổi tên
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAction('static-ip', n)}>
+              <Pin className='me-2 size-4' /> Gán IP tĩnh
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onAction('expire', n)}>
               <RotateCcw className='me-2 size-4' /> Thu hồi key
             </DropdownMenuItem>
@@ -414,6 +538,7 @@ function MachineTable({
   versionByNodeKey,
   latestBuild,
   autoUpdateByMac,
+  staticIpByNodeKey,
   onUpdateNow,
   onSetAutoUpdate,
   onAction,
@@ -422,6 +547,7 @@ function MachineTable({
   versionByNodeKey: Map<string, DeviceVersionInfo>
   latestBuild: number | null
   autoUpdateByMac: Map<string, boolean | null>
+  staticIpByNodeKey: Map<string, string | null>
   onUpdateNow: (mac: string) => void
   onSetAutoUpdate: (mac: string, enabled: boolean | null) => void
   onAction: (kind: DialogKind, row: HsMachine) => void
@@ -460,6 +586,9 @@ function MachineTable({
                 }
                 latestBuild={latestBuild}
                 autoUpdateByMac={autoUpdateByMac}
+                staticIp={
+                  n.nodeKey ? (staticIpByNodeKey.get(n.nodeKey) ?? null) : null
+                }
                 onUpdateNow={onUpdateNow}
                 onSetAutoUpdate={onSetAutoUpdate}
                 onAction={onAction}
@@ -527,6 +656,10 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
   const names = derpNameSet(derp.data ?? [])
   const typeByNodeKey = deviceTypeMap(devices.data ?? [])
   const versionByNodeKey = deviceVersionMap(devices.data ?? [])
+  const deviceMap = deviceByNodeKey(devices.data ?? [])
+  const staticIpByNodeKey = new Map(
+    (devices.data ?? []).map((d) => [d.nodeKey ?? '', d.staticIpv4])
+  )
   const autoUpdateByMac = new Map(
     (nodeRuntimes.data ?? []).map((r) => [r.mac, r.autoUpdateEnabled])
   )
@@ -553,6 +686,7 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
           versionByNodeKey={versionByNodeKey}
           latestBuild={clientUpdateCfg.data?.latestBuild ?? null}
           autoUpdateByMac={autoUpdateByMac}
+          staticIpByNodeKey={staticIpByNodeKey}
           onUpdateNow={(mac) => checkNowForMac.mutate(mac)}
           onSetAutoUpdate={(mac, enabled) =>
             setAutoUpdateForMac.mutate({ mac, enabled })
@@ -575,6 +709,14 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
         open={dialog === 'expire'}
         onOpenChange={(o) => !o && setDialog(null)}
         row={currentRow}
+      />
+      <StaticIpDialog
+        open={dialog === 'static-ip'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        row={currentRow}
+        device={
+          currentRow?.nodeKey ? deviceMap.get(currentRow.nodeKey) : undefined
+        }
       />
     </>
   )
