@@ -8,7 +8,7 @@ describe('buildTaildriveGrants', () => {
     ['grantee2-mac', '100.64.0.3'],
   ])
 
-  it('sinh nodeAttrs owner+grantee và grant drive+drive-sharer cho 1 quyền enabled', () => {
+  it('sinh nodeAttrs owner+grantee và grant drive cho 1 quyền enabled', () => {
     const shares = [{ id: 1, ownerMac: 'owner-mac', shareName: 'dulieu', enabled: true }]
     const access = [
       { shareId: 1, granteeMac: 'grantee-mac', access: 'rw', enabled: true },
@@ -19,16 +19,16 @@ describe('buildTaildriveGrants', () => {
       { target: ['100.64.0.1/32'], attr: ['drive:share'] },
       { target: ['100.64.0.2/32'], attr: ['drive:access'] },
     ])
-    expect(grants).toContainEqual({
-      src: ['100.64.0.2/32'],
-      dst: ['100.64.0.1/32'],
-      app: { 'tailscale.com/cap/drive': [{ shares: ['dulieu'], access: 'rw' }] },
-    })
-    expect(grants).toContainEqual({
-      src: ['100.64.0.1/32'],
-      dst: ['100.64.0.2/32'],
-      app: { 'tailscale.com/cap/drive-sharer': [{}] },
-    })
+    // CHỈ "tailscale.com/cap/drive" — "drive-sharer" là companion cap
+    // headscale tự sinh phía server (xem comment trong taildrive-policy.ts);
+    // admin tự khai sẽ bị headscale từ chối cả request (400).
+    expect(grants).toEqual([
+      {
+        src: ['100.64.0.2/32'],
+        dst: ['100.64.0.1/32'],
+        app: { 'tailscale.com/cap/drive': [{ shares: ['dulieu'], access: 'rw' }] },
+      },
+    ])
   })
 
   it('bỏ qua share/access đã tắt (enabled=false)', () => {
@@ -47,7 +47,7 @@ describe('buildTaildriveGrants', () => {
     expect(grants).toEqual([])
   })
 
-  it('gộp 1 drive-sharer grant duy nhất khi grantee truy cập nhiều share của cùng 1 owner', () => {
+  it('grantee truy cập nhiều share của cùng 1 owner -> 1 grant drive riêng mỗi share, không có drive-sharer nào', () => {
     const shares = [
       { id: 1, ownerMac: 'owner-mac', shareName: 'dulieu', enabled: true },
       { id: 2, ownerMac: 'owner-mac', shareName: 'backup', enabled: true },
@@ -57,8 +57,7 @@ describe('buildTaildriveGrants', () => {
       { shareId: 2, granteeMac: 'grantee-mac', access: 'ro', enabled: true },
     ]
     const { grants } = buildTaildriveGrants(shares, access, macIp)
-    const sharerGrants = grants.filter((g) => 'tailscale.com/cap/drive-sharer' in g.app)
-    expect(sharerGrants).toHaveLength(1)
+    expect(grants.every((g) => !('tailscale.com/cap/drive-sharer' in g.app))).toBe(true)
     const driveGrants = grants.filter((g) => 'tailscale.com/cap/drive' in g.app)
     expect(driveGrants).toHaveLength(2)
   })
