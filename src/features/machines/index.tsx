@@ -53,7 +53,6 @@ import {
 } from '@/features/client-update/data/client-update-api'
 import { derpKeys, listDerp } from '@/features/derp/data/derp-api'
 import {
-  type Device,
   deleteMachine,
   derpNameSet,
   deviceByNodeKey,
@@ -809,10 +808,12 @@ export function LiveUsersTable() {
     setDialog(kind)
   }
 
-  const rows = [...devices].sort(
-    (a, b) =>
-      Number(b.online) - Number(a.online) || a.name.localeCompare(b.name)
-  )
+  const rows = devices
+    .slice()
+    .sort(
+      (a, b) =>
+        Number(b.online) - Number(a.online) || a.name.localeCompare(b.name)
+    )
 
   return (
     <>
