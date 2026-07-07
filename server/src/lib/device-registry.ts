@@ -366,3 +366,42 @@ export async function backfillDeviceRegistry(): Promise<{
 
   return { derpMatched, derpUnmatched, clientsBackfilled }
 }
+
+/** Chuẩn hoá hostname để so khớp "cùng máy": bỏ hậu tố dedup "-N" headscale
+ *  thêm khi tên trùng, hạ chữ thường, trim. Thuần — unit-test. */
+export function normalizeHostForMatch(h: string | null | undefined): string {
+  return (h ?? '')
+    .toLowerCase()
+    .trim()
+    .replace(/-\d+$/, '')
+}
+
+/** Từ danh sách node headscale, trả id các node ĐANG GIỮ targetIp và thuộc
+ *  CÙNG máy (hostname khớp) VÀ đang OFFLINE — node cũ còn sót từ lần đăng ký
+ *  trước, cần thu hồi để giải phóng IP cho node mới nhận đúng IP DB đã gán.
+ *  Hai lớp an toàn: (1) chỉ khớp cùng-hostname → không đụng máy khác; (2) chỉ
+ *  xoá node OFFLINE (online === false) → không bao giờ ngắt 1 node đang chạy,
+ *  kể cả trùng tên. Node có online=undefined (không rõ) cũng KHÔNG xoá.
+ *  Thuần — unit-test. */
+export function staleNodesHoldingIp(
+  targetIp: string,
+  hostname: string,
+  nodes: Array<{
+    id?: string | null
+    name?: string | null
+    givenName?: string | null
+    ipAddresses?: string[] | null
+    online?: boolean | null
+  }>
+): string[] {
+  const host = normalizeHostForMatch(hostname)
+  if (!targetIp || !host) return []
+  const out: string[] = []
+  for (const n of nodes) {
+    if (!n.id) continue
+    if (n.online !== false) continue // chỉ thu hồi node offline (an toàn)
+    if (!(n.ipAddresses ?? []).includes(targetIp)) continue
+    if (normalizeHostForMatch(n.givenName || n.name) === host) out.push(n.id)
+  }
+  return out
+}

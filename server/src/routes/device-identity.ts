@@ -4,7 +4,10 @@ import { db } from '../db/client.js'
 import { deviceIdentity } from '../db/schema.js'
 import { env } from '../env.js'
 import { hsApi, isHsConfigured } from '../lib/headscale.js'
-import { upsertClientDevice } from '../lib/device-registry.js'
+import {
+  staleNodesHoldingIp,
+  upsertClientDevice,
+} from '../lib/device-registry.js'
 
 function checkSecret(req: FastifyRequest, reply: FastifyReply): boolean {
   if (!env.HEADSCALE_DASHBOARD_SECRET) return true
@@ -19,6 +22,8 @@ type HsNode = {
   nodeKey?: string
   givenName?: string
   name?: string
+  ipAddresses?: string[]
+  online?: boolean
 }
 
 /**
@@ -134,9 +139,16 @@ export async function deviceIdentityPublicRoutes(
 
   // Public — gọi bởi headscale fork lúc đăng ký node MỚI (state.go, ngay
   // trước ipAlloc.Next()), đọc Hostinfo.WoLMACs[0] client gửi lên làm MAC
-  // hint. Trả IP nên dùng (ưu tiên staticIpv4 admin gán tay, sau đó lastIpv4
-  // lịch sử tự động) — headscale tự quyết định fallback nếu IP đã bị chiếm
-  // hoặc endpoint này lỗi/timeout, KHÔNG chặn đăng ký trong mọi trường hợp.
+  // hint. DB LÀ NGUỒN THẬT của cặp MAC↔IP: trả staticIpv4 (admin gán, cố định
+  // vĩnh viễn) ưu tiên, sau đó lastIpv4.
+  //
+  // Quan trọng — vì sao IP hay "trôi": mỗi lần client đăng ký lại thường tạo
+  // node MỚI; node cũ (offline) vẫn GIỮ IP cũ, nên headscale không cấp lại
+  // được IP đã pin → rơi sang IP khác. Để MAC↔IP cố định thật sự, ở đây ta
+  // THU HỒI (xóa) node cũ CÙNG MÁY (khớp hostname) đang giữ IP đích trước khi
+  // trả IP → headscale vừa gọi xong sẽ cấp đúng IP đó cho node mới. Chỉ xóa
+  // node trùng hostname nên không bao giờ đụng máy khác. Best-effort: lỗi/dọn
+  // không được thì vẫn trả IP, không chặn đăng ký.
   app.get('/api/internal/reserved-ip', async (req, reply) => {
     if (!checkSecret(req, reply)) return
     const q = req.query as { mac?: string }
@@ -147,10 +159,26 @@ export async function deviceIdentityPublicRoutes(
         .select({
           staticIpv4: deviceIdentity.staticIpv4,
           lastIpv4: deviceIdentity.lastIpv4,
+          hostname: deviceIdentity.hostname,
         })
         .from(deviceIdentity)
         .where(eq(deviceIdentity.mac, mac))
-      return { ipv4: row?.staticIpv4 || row?.lastIpv4 || null }
+      const ip = row?.staticIpv4 || row?.lastIpv4 || null
+      if (ip && row?.hostname && (await isHsConfigured())) {
+        try {
+          const list = await hsApi<{ nodes?: HsNode[] }>('/api/v1/node')
+          const stale = staleNodesHoldingIp(ip, row.hostname, list.nodes ?? [])
+          for (const id of stale) {
+            await hsApi(`/api/v1/node/${encodeURIComponent(id)}`, {
+              method: 'DELETE',
+            })
+          }
+        } catch {
+          // Dọn không được (headscale lỗi/timeout) → vẫn trả IP; headscale tự
+          // fallback nếu IP còn bị chiếm. Không chặn đăng ký.
+        }
+      }
+      return { ipv4: ip }
     } catch (e) {
       return reply.code(502).send({ error: String(e) })
     }
