@@ -406,6 +406,17 @@ export function staleNodesHoldingIp(
   return out
 }
 
+/** Hostname là của máy runner CI (GitHub Actions) tự chạy trong smoke-test,
+ *  KHÔNG phải máy người dùng thật — dùng để device-register bỏ qua, tránh mỗi
+ *  lần build lại tạo 1 dòng device_identity rác (vd "runnervmuktm0"). Bắt các
+ *  mẫu runner GitHub-hosted: "runnervm…" (Windows) và "fv-az…" (Azure/Linux).
+ *  Thuần — unit-test. */
+export function isCiRunnerHostname(h: string | null | undefined): boolean {
+  const s = (h ?? '').toLowerCase().trim()
+  if (!s) return false
+  return /^runnervm[a-z0-9-]*$/.test(s) || /^fv-az[a-z0-9-]*$/.test(s)
+}
+
 /** Máy ONLINE nếu có tín hiệu telemetry (home-derp/last report) trong
  *  `windowMs` gần đây. Thuần — unit-test. lastSeenMs=null (chưa từng báo) →
  *  offline. */
