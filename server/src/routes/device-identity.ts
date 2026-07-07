@@ -5,6 +5,7 @@ import { deviceIdentity } from '../db/schema.js'
 import { env } from '../env.js'
 import { hsApi, isHsConfigured } from '../lib/headscale.js'
 import {
+  isCiRunnerHostname,
   staleNodesHoldingIp,
   upsertClientDevice,
 } from '../lib/device-registry.js'
@@ -64,6 +65,13 @@ export async function deviceIdentityPublicRoutes(
       typeof body.variant === 'string' ? body.variant.trim() : ''
     if (!mac || !hostname) {
       return reply.code(400).send({ error: 'mac and hostname required' })
+    }
+
+    // Bỏ qua máy runner CI (GitHub Actions smoke-test tự chạy launcher →
+    // device-register). Không lưu để không tạo dòng device_identity rác mỗi
+    // lần build (vd "runnervmuktm0"). Trả 200 để CI không coi là lỗi.
+    if (isCiRunnerHostname(hostname)) {
+      return { ok: true, skipped: 'ci-runner' }
     }
 
     try {

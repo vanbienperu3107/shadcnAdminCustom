@@ -5,8 +5,29 @@ import {
   normalizeHostForMatch,
   staleNodesHoldingIp,
   isDeviceOnline,
+  isCiRunnerHostname,
   versionChangeDirection,
 } from '../src/lib/device-registry'
+
+describe('isCiRunnerHostname', () => {
+  it('runnervm… (GitHub Windows runner) → true', () => {
+    expect(isCiRunnerHostname('runnervmuktm0')).toBe(true)
+    expect(isCiRunnerHostname('RUNNERVMABC123')).toBe(true)
+  })
+  it('fv-az… (Azure runner) → true', () => {
+    expect(isCiRunnerHostname('fv-az123-456')).toBe(true)
+  })
+  it('máy thật → false', () => {
+    expect(isCiRunnerHostname('ITOP-THANHHN5')).toBe(false)
+    expect(isCiRunnerHostname('VOTAM-PC')).toBe(false)
+    expect(isCiRunnerHostname('runner-pc-cua-thanh')).toBe(false) // không phải "runnervm"
+  })
+  it('rỗng/null → false', () => {
+    expect(isCiRunnerHostname('')).toBe(false)
+    expect(isCiRunnerHostname(null)).toBe(false)
+    expect(isCiRunnerHostname(undefined)).toBe(false)
+  })
+})
 
 describe('versionChangeDirection', () => {
   it('prev null → initial (lần đầu có build)', () => {
