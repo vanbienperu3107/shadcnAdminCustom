@@ -47,7 +47,6 @@ export function buildTaildriveGrants(
   const shareOwnerMacs = new Set<string>()
   const accessGranteeMacs = new Set<string>()
   const driveGrants: Grant[] = []
-  const sharerPairs = new Map<string, Grant>() // key: "ownerMac|granteeMac" -> grant (dedup)
 
   for (const a of access) {
     if (!a.enabled) continue
@@ -61,6 +60,16 @@ export function buildTaildriveGrants(
     shareOwnerMacs.add(share.ownerMac)
     accessGranteeMacs.add(a.granteeMac)
 
+    // CHỈ push "tailscale.com/cap/drive" — đây là capability DUY NHẤT trong
+    // cặp mà headscale cho phép admin tự khai qua policy (allowlist trong
+    // validateCapabilityName, hscontrol/policy/v2/types.go). Capability đôi
+    // "tailscale.com/cap/drive-sharer" (chiều owner nhận biết grantee) là
+    // "companion cap" headscale TỰ SINH RA phía server khi thấy grant drive
+    // (xem companionCapGrantRules, hscontrol/policy/v2/filter.go) — admin tự
+    // khai sẽ bị từ chối cả request với lỗi "capability name must not be in
+    // the tailscale.com domain", làm rớt luôn phần drive hợp lệ trong cùng
+    // request. Từng tự khai cả 2 ở đây → mọi lần push đều bị 400 âm thầm,
+    // khiến nodeAttrs/grants không bao giờ lên được ACL thật.
     driveGrants.push({
       src: [granteeIp],
       dst: [ownerIp],
@@ -70,15 +79,6 @@ export function buildTaildriveGrants(
         ],
       },
     })
-
-    const pairKey = `${share.ownerMac}|${a.granteeMac}`
-    if (!sharerPairs.has(pairKey)) {
-      sharerPairs.set(pairKey, {
-        src: [ownerIp],
-        dst: [granteeIp],
-        app: { 'tailscale.com/cap/drive-sharer': [{}] },
-      })
-    }
   }
 
   const nodeAttrs: NodeAttrGrant[] = []
@@ -87,7 +87,7 @@ export function buildTaildriveGrants(
   if (ownerTargets.length > 0) nodeAttrs.push({ target: ownerTargets, attr: ['drive:share'] })
   if (granteeTargets.length > 0) nodeAttrs.push({ target: granteeTargets, attr: ['drive:access'] })
 
-  return { nodeAttrs, grants: [...driveGrants, ...sharerPairs.values()] }
+  return { nodeAttrs, grants: driveGrants }
 }
 
 /** Đọc toàn bộ folder_shares/folder_share_access (enabled hoặc không — lọc ở
