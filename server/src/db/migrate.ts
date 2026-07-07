@@ -507,4 +507,16 @@ export async function migrate(): Promise<void> {
       result_at    TIMESTAMPTZ
     )
   `)
+
+  // Trạng thái áp folder-share do client tự báo về (sau reconcile). 1 dòng/mac,
+  // payload JSON gồm shares[] + mounts[] kèm ok/error để dashboard hiển thị máy
+  // nào serve/mount được và lỗi gì.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS folder_share_status (
+      mac         TEXT PRIMARY KEY,
+      hostname    TEXT,
+      payload     TEXT,
+      reported_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
 }

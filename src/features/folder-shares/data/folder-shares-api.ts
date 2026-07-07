@@ -2,6 +2,7 @@ import { api } from '@/lib/api-client'
 
 export const folderShareKeys = {
   all: ['folder-shares'] as const,
+  status: ['folder-shares', 'status'] as const,
 }
 
 export type FolderAccess = {
@@ -89,6 +90,33 @@ export type BrowseResult = {
 
 export async function requestBrowse(mac: string, path: string): Promise<void> {
   await api.post('/folder-shares/browse', { mac, path })
+}
+
+// ---- Trạng thái áp share do client báo về (theo mac) ----
+export type ShareStatusItem = {
+  name: string
+  path?: string | null
+  ok: boolean
+  error?: string | null
+}
+export type MountStatusItem = {
+  share: string
+  machine?: string | null
+  drive?: string | null
+  ok: boolean
+  error?: string | null
+}
+export type FolderShareStatus = {
+  mac: string
+  hostname: string | null
+  reportedAt: string | null
+  shares: ShareStatusItem[]
+  mounts: MountStatusItem[]
+}
+
+export async function listFolderShareStatus(): Promise<FolderShareStatus[]> {
+  const { data } = await api.get<FolderShareStatus[]>('/folder-shares/status')
+  return data
 }
 
 export async function getBrowse(mac: string): Promise<BrowseResult> {

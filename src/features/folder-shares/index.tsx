@@ -1,6 +1,9 @@
 import { type ReactNode, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  CircleAlert,
+  CircleCheck,
+  CircleX,
   Folder,
   FolderOpen,
   FolderTree,
@@ -47,6 +50,7 @@ import {
   folderShareKeys,
   getBrowse,
   listFolderShares,
+  listFolderShareStatus,
   requestBrowse,
   setFolderAccess,
   updateFolderShare,
@@ -54,12 +58,41 @@ import {
   type BrowseEntry,
   type FolderShare,
   type FolderShareInput,
+  type FolderShareStatus,
 } from './data/folder-shares-api'
+import { granteeMountStatus, ownerServeStatus } from './status-helpers'
 
 // Yêu cầu client liệt kê Ổ ĐĨA THẬT có trên máy thay vì đoán 1 ổ cố định
 // ("D:\" cũ — lỗi ngay trên máy không có ổ D). Phải khớp
 // nodeBrowseDrivesSentinel bên tailscale_mod (cmd/tailscaled/foldershare.go).
 const DRIVES_SENTINEL = '::drives::'
+
+/** Chấm trạng thái: null=chưa báo (vàng), ok=xanh, lỗi=đỏ (hover xem error). */
+function StatusIcon({
+  st,
+  pending,
+}: {
+  st: { ok: boolean; error?: string | null } | null
+  pending: string
+}) {
+  if (!st)
+    return (
+      <span title={pending} className='inline-flex'>
+        <CircleAlert className='size-3.5 text-amber-500' />
+      </span>
+    )
+  if (st.ok)
+    return (
+      <span title='OK' className='inline-flex'>
+        <CircleCheck className='size-3.5 text-emerald-600 dark:text-emerald-400' />
+      </span>
+    )
+  return (
+    <span title={st.error || 'Lỗi'} className='inline-flex'>
+      <CircleX className='size-3.5 text-red-600 dark:text-red-400' />
+    </span>
+  )
+}
 
 type Draft = FolderShareInput & { id?: number }
 
@@ -94,6 +127,19 @@ export function FolderSharesPage() {
     queryFn: listOnlineDevices,
     enabled: false,
   })
+
+  // Trạng thái áp share do client báo về — poll 5s để dashboard thấy máy nào
+  // serve/mount được và lỗi gì gần như realtime.
+  const status = useQuery({
+    queryKey: folderShareKeys.status,
+    queryFn: listFolderShareStatus,
+    refetchInterval: 5000,
+  })
+  const statusByMac = useMemo(() => {
+    const m = new Map<string, FolderShareStatus>()
+    for (const s of status.data ?? []) m.set(s.mac, s)
+    return m
+  }, [status.data])
 
   const invalidate = () =>
     void qc.invalidateQueries({ queryKey: folderShareKeys.all })
@@ -284,6 +330,7 @@ export function FolderSharesPage() {
                   <TableRow>
                     <TableHead>Thư mục</TableHead>
                     <TableHead>Đường dẫn</TableHead>
+                    <TableHead className='w-28'>Serve</TableHead>
                     <TableHead>Được truy cập bởi</TableHead>
                     <TableHead className='w-20'>Bật</TableHead>
                     <TableHead className='w-24'></TableHead>
@@ -299,6 +346,28 @@ export function FolderSharesPage() {
                         {s.localPath}
                       </TableCell>
                       <TableCell>
+                        <div className='flex items-center gap-1.5 text-xs'>
+                          <StatusIcon
+                            st={ownerServeStatus(
+                              statusByMac.get(mac),
+                              s.shareName
+                            )}
+                            pending='Máy chủ share chưa báo trạng thái (client chưa poll / bản cũ)'
+                          />
+                          <span className='text-muted-foreground'>
+                            {ownerServeStatus(statusByMac.get(mac), s.shareName)
+                              ?.ok
+                              ? 'đang share'
+                              : ownerServeStatus(
+                                    statusByMac.get(mac),
+                                    s.shareName
+                                  )
+                                ? 'lỗi'
+                                : 'chờ…'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <div className='flex flex-wrap gap-1'>
                           {s.access.length === 0 ? (
                             <span className='text-xs text-muted-foreground'>
@@ -311,6 +380,15 @@ export function FolderSharesPage() {
                                 variant={a.enabled ? 'secondary' : 'outline'}
                                 className='gap-1'
                               >
+                                {a.autoMount && (
+                                  <StatusIcon
+                                    st={granteeMountStatus(
+                                      statusByMac.get(a.granteeMac),
+                                      s.shareName
+                                    )}
+                                    pending='Máy này chưa báo trạng thái mount'
+                                  />
+                                )}
                                 {a.granteeHostname ?? a.granteeMac}
                                 <span className='font-mono text-[10px] opacity-70'>
                                   {a.access.toUpperCase()}

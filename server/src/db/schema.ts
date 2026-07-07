@@ -395,6 +395,20 @@ export const folderShareAccess = pgTable('folder_share_access', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+/** Trạng thái áp folder-share do CHÍNH client báo về sau mỗi vòng reconcile
+ *  (theo MAC). payload = JSON { shares:[{name,path,ok,error}],
+ *  mounts:[{share,machine,drive,ok,error}] } — dashboard đọc để hiển thị máy
+ *  nào serve/mount được, lỗi gì (vd "System error 67"). 1 dòng/mac (bản mới
+ *  đè bản cũ). */
+export const folderShareStatus = pgTable('folder_share_status', {
+  mac: text('mac').primaryKey(),
+  hostname: text('hostname'),
+  payload: text('payload'), // JSON: { shares:[...], mounts:[...] }
+  reportedAt: timestamp('reported_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
 /** Phiên "duyệt cây thư mục" của 1 PC (theo MAC). Admin đặt req_path; client
  *  poll GET /api/client/browse-request, liệt kê rồi POST kết quả về entries. */
 export const folderBrowse = pgTable('folder_browse', {
@@ -426,5 +440,6 @@ export type DnsSplitRule = typeof dnsSplitRules.$inferSelect
 export type ClientHomeDerp = typeof clientHomeDerp.$inferSelect
 export type FolderShare = typeof folderShares.$inferSelect
 export type FolderShareAccess = typeof folderShareAccess.$inferSelect
+export type FolderShareStatus = typeof folderShareStatus.$inferSelect
 export type FolderBrowse = typeof folderBrowse.$inferSelect
 export type ClientDerpPing = typeof clientDerpPing.$inferSelect
