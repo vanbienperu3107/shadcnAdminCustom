@@ -4,6 +4,7 @@ import {
   normalizeNodeKey,
   normalizeHostForMatch,
   staleNodesHoldingIp,
+  isDeviceOnline,
   versionChangeDirection,
 } from '../src/lib/device-registry'
 
@@ -123,5 +124,24 @@ describe('staleNodesHoldingIp', () => {
   it('bỏ qua node không có id', () => {
     const n = [{ givenName: 'itop-thanhhn5', ipAddresses: ['100.64.0.14'], online: false }]
     expect(staleNodesHoldingIp('100.64.0.14', 'itop-thanhhn5', n)).toEqual([])
+  })
+})
+
+describe('isDeviceOnline', () => {
+  const now = 1_000_000_000_000
+  it('online nếu thấy trong 60s', () => {
+    expect(isDeviceOnline(now - 5_000, now)).toBe(true)
+    expect(isDeviceOnline(now - 59_000, now)).toBe(true)
+  })
+  it('offline nếu quá 60s', () => {
+    expect(isDeviceOnline(now - 61_000, now)).toBe(false)
+    expect(isDeviceOnline(now - 3_600_000, now)).toBe(false)
+  })
+  it('chưa từng báo (null) -> offline', () => {
+    expect(isDeviceOnline(null, now)).toBe(false)
+  })
+  it('cửa sổ tuỳ chỉnh', () => {
+    expect(isDeviceOnline(now - 90_000, now, 120_000)).toBe(true)
+    expect(isDeviceOnline(now - 90_000, now, 30_000)).toBe(false)
   })
 })

@@ -405,3 +405,15 @@ export function staleNodesHoldingIp(
   }
   return out
 }
+
+/** Máy ONLINE nếu có tín hiệu telemetry (home-derp/last report) trong
+ *  `windowMs` gần đây. Thuần — unit-test. lastSeenMs=null (chưa từng báo) →
+ *  offline. */
+export function isDeviceOnline(
+  lastSeenMs: number | null,
+  nowMs: number,
+  windowMs = 60_000
+): boolean {
+  if (lastSeenMs == null) return false
+  return nowMs - lastSeenMs < windowMs
+}

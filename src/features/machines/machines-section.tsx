@@ -12,7 +12,7 @@ import { ForceRoutes } from '@/features/force-routes'
 import { HomeDerp } from '@/features/home-derp'
 import { HsRoutes } from '@/features/hs-routes'
 import { Latency } from '@/features/latency'
-import { DevicesTable } from '@/features/machines'
+import { DevicesTable, LiveUsersTable } from '@/features/machines'
 import { NodeAssignments } from '@/features/node-assignments'
 import { NodeRuntimePage } from '@/features/node-runtime'
 import { PacRulesPage } from '@/features/pac-rules'
@@ -29,7 +29,7 @@ const GROUPS: Record<MachineGroup, Leaf[]> = {
     {
       key: 'users',
       label: 'Người dùng',
-      render: () => <DevicesTable variant='users' />,
+      render: () => <LiveUsersTable />,
     },
     {
       key: 'infra',

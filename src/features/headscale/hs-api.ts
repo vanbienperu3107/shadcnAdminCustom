@@ -256,6 +256,27 @@ export async function fetchDevices(): Promise<Device[]> {
   return data
 }
 
+/** 1 dòng máy cho màn hình Machines realtime — MỌI trường lấy từ DB
+ *  (GET /api/devices/live), không phụ thuộc headscale. */
+export type LiveDevice = {
+  id: number
+  mac: string | null
+  nodeKey: string | null
+  name: string
+  ip: string | null
+  staticIp: string | null
+  version: string | null
+  build: number | null
+  variant: string | null
+  lastSeen: string | null
+  online: boolean
+}
+
+export async function fetchLiveDevices(): Promise<LiveDevice[]> {
+  const { data } = await api.get<LiveDevice[]>('/devices/live')
+  return data
+}
+
 export async function updateDevice(
   id: number,
   patch: { managedUser?: string | null; staticIpv4?: string | null }

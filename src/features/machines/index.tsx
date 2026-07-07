@@ -62,10 +62,12 @@ import {
   deviceVersionMap,
   expireMachine,
   fetchDevices,
+  fetchLiveDevices,
   fetchMachines,
   type HsMachine,
   hsKeys,
   isDerpNodeV2,
+  type LiveDevice,
   renameMachine,
   updateDevice,
   userName,
@@ -275,6 +277,14 @@ function isValidIpv4OrEmpty(s: string): boolean {
 // này lúc đăng ký node (GET /api/internal/reserved-ip, ưu tiên hơn lastIpv4)
 // để LUÔN cấp đúng IP đó cho MAC này — pin CỨNG, không trôi. Bỏ trống = gỡ
 // pin, quay lại pin mềm theo lastIpv4.
+// Chỉ cần 3 trường của Device — structural type để cả nguồn /api/devices
+// (Device) lẫn /api/devices/live (LiveDevice) đều truyền vào được.
+type StaticIpTarget = {
+  id: number
+  staticIpv4: string | null
+  lastIpv4: string | null
+}
+
 function StaticIpDialog({
   open,
   onOpenChange,
@@ -284,7 +294,7 @@ function StaticIpDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
   row: HsMachine | null
-  device: Device | undefined
+  device: StaticIpTarget | undefined
 }) {
   const qc = useQueryClient()
   const [ip, setIp] = useState('')
@@ -717,6 +727,318 @@ export function DevicesTable({ variant }: { variant: 'users' | 'derp' }) {
         device={
           currentRow?.nodeKey ? deviceMap.get(currentRow.nodeKey) : undefined
         }
+      />
+    </>
+  )
+}
+
+/** Bảng máy người dùng — MỌI dòng lấy từ DB (GET /api/devices/live), poll 1s.
+ *  Cột: MAC | Name | IP | Version | State | Last seen | Action. Trạng thái
+ *  online + last seen suy từ telemetry trong DB (không phụ thuộc headscale).
+ *  Chỉ query /machines nền (30s) để lấy headscale node id cho các nút cần nó
+ *  (đổi tên / thu hồi / xóa). */
+export function LiveUsersTable() {
+  const qc = useQueryClient()
+  const {
+    data: devices = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['devices', 'live'],
+    queryFn: fetchLiveDevices,
+    refetchInterval: 1000,
+  })
+  // Nền 30s: bản đồ nodeKey -> HsMachine (lấy headscale node id cho hành động).
+  const machines = useQuery({
+    queryKey: hsKeys.machines,
+    queryFn: fetchMachines,
+    refetchInterval: 30_000,
+  })
+  const clientUpdateCfg = useQuery({
+    queryKey: clientUpdateKeys.all,
+    queryFn: getClientUpdate,
+  })
+  const nodeRuntimes = useQuery({
+    queryKey: nodeRuntimeKeys.all,
+    queryFn: listNodeRuntime,
+  })
+
+  const [dialog, setDialog] = useState<DialogKind>(null)
+  const [currentRow, setCurrentRow] = useState<HsMachine | null>(null)
+  const [currentDevice, setCurrentDevice] = useState<
+    StaticIpTarget | undefined
+  >(undefined)
+
+  const checkNowForMac = useMutation({
+    mutationFn: (mac: string) => checkNowClientUpdateForMac(mac),
+    onSuccess: () =>
+      toast.success('Đã gửi yêu cầu — máy sẽ kiểm tra trong ít giây'),
+    onError: () => toast.error('Gửi yêu cầu cập nhật thất bại'),
+  })
+  const setAutoUpdateForMac = useMutation({
+    mutationFn: ({ mac, enabled }: { mac: string; enabled: boolean | null }) =>
+      upsertNodeRuntime(mac, { autoUpdateEnabled: enabled }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: nodeRuntimeKeys.all })
+      toast.success('Đã lưu')
+    },
+    onError: () => toast.error('Lưu thất bại'),
+  })
+
+  const latestBuild = clientUpdateCfg.data?.latestBuild ?? null
+  const autoUpdateByMac = new Map(
+    (nodeRuntimes.data ?? []).map((r) => [r.mac, r.autoUpdateEnabled])
+  )
+  const hsByNodeKey = new Map(
+    (machines.data?.nodes ?? [])
+      .filter((n) => n.nodeKey)
+      .map((n) => [n.nodeKey as string, n])
+  )
+
+  function openDialog(kind: DialogKind, d: LiveDevice) {
+    const hs = d.nodeKey ? hsByNodeKey.get(d.nodeKey) : undefined
+    setCurrentRow(
+      hs ?? {
+        givenName: d.name,
+        name: d.name,
+        nodeKey: d.nodeKey ?? undefined,
+        ipAddresses: d.ip ? [d.ip] : [],
+      }
+    )
+    setCurrentDevice({ id: d.id, staticIpv4: d.staticIp, lastIpv4: d.ip })
+    setDialog(kind)
+  }
+
+  const rows = [...devices].sort(
+    (a, b) =>
+      Number(b.online) - Number(a.online) || a.name.localeCompare(b.name)
+  )
+
+  return (
+    <>
+      <div className='overflow-x-auto rounded-md border'>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className='font-mono'>MAC</TableHead>
+              <TableHead>Tên</TableHead>
+              <TableHead>IP</TableHead>
+              <TableHead className='hidden lg:table-cell'>Phiên bản</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead className='hidden md:table-cell'>Last seen</TableHead>
+              <TableHead className='text-end'>Hành động</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isError ? (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className='h-16 text-center text-destructive'
+                >
+                  Không tải được danh sách máy (/api/devices/live).
+                </TableCell>
+              </TableRow>
+            ) : isLoading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className='h-16 text-center text-muted-foreground'
+                >
+                  Đang tải…
+                </TableCell>
+              </TableRow>
+            ) : rows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className='h-16 text-center text-muted-foreground'
+                >
+                  Chưa có máy client nào trong cơ sở dữ liệu.
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((d) => {
+                const hasHs = !!(d.nodeKey && hsByNodeKey.get(d.nodeKey)?.id)
+                const overrideOff =
+                  d.mac && autoUpdateByMac.get(d.mac) === false
+                const outdated =
+                  d.build != null &&
+                  latestBuild != null &&
+                  d.build < latestBuild
+                return (
+                  <TableRow key={d.id} className={d.online ? '' : 'opacity-60'}>
+                    <TableCell className='font-mono text-xs text-muted-foreground'>
+                      {d.mac ?? '—'}
+                    </TableCell>
+                    <TableCell className='font-medium'>{d.name}</TableCell>
+                    <TableCell className='font-mono text-xs'>
+                      <div className='flex flex-col gap-0.5'>
+                        <span>{d.ip ?? '—'}</span>
+                        {d.staticIp && (
+                          <Badge
+                            variant='outline'
+                            className='w-fit border-sky-500/40 text-sky-600 dark:text-sky-400'
+                            title='IP tĩnh (pin cứng theo MAC)'
+                          >
+                            <Pin className='me-1 size-3' /> tĩnh
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className='hidden font-mono text-xs lg:table-cell'>
+                      {d.version ? (
+                        <div className='flex flex-col gap-1'>
+                          <span
+                            title={
+                              d.build != null ? `build ${d.build}` : undefined
+                            }
+                          >
+                            {d.version}
+                            {d.variant && (
+                              <span className='text-muted-foreground'>
+                                {' '}
+                                · {d.variant}
+                              </span>
+                            )}
+                          </span>
+                          {outdated && (
+                            <Badge
+                              variant='outline'
+                              className='w-fit border-amber-500/40 text-amber-600 dark:text-amber-400'
+                            >
+                              Có bản mới ({latestBuild})
+                            </Badge>
+                          )}
+                          {overrideOff && (
+                            <Badge
+                              variant='outline'
+                              className='w-fit border-muted-foreground/30 text-muted-foreground'
+                            >
+                              Auto-update: tắt
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <span className='text-muted-foreground'>—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {d.online ? (
+                        <Badge
+                          variant='outline'
+                          className='border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                        >
+                          <span className='me-1 inline-block size-2 animate-pulse rounded-full bg-emerald-500' />
+                          Online
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant='outline'
+                          className='border-muted-foreground/30 text-muted-foreground'
+                        >
+                          <span className='me-1 inline-block size-2 rounded-full bg-muted-foreground' />
+                          Offline
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className='hidden text-xs text-muted-foreground md:table-cell'>
+                      {d.lastSeen ? new Date(d.lastSeen).toLocaleString() : '—'}
+                    </TableCell>
+                    <TableCell className='text-end'>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant='ghost'
+                            size='icon'
+                            className='size-8'
+                          >
+                            <MoreHorizontal className='size-4' />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align='end'>
+                          <DropdownMenuItem
+                            onClick={() => openDialog('static-ip', d)}
+                          >
+                            <Pin className='me-2 size-4' /> Gán IP tĩnh
+                          </DropdownMenuItem>
+                          {d.mac && (
+                            <DropdownMenuItem
+                              onClick={() => checkNowForMac.mutate(d.mac!)}
+                            >
+                              <RefreshCw className='me-2 size-4' /> Cập nhật
+                              ngay
+                            </DropdownMenuItem>
+                          )}
+                          {d.mac && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setAutoUpdateForMac.mutate({
+                                  mac: d.mac!,
+                                  enabled: overrideOff ? null : false,
+                                })
+                              }
+                            >
+                              <DownloadCloud className='me-2 size-4' />
+                              {overrideOff
+                                ? 'Bật lại auto-update'
+                                : 'Tắt auto-update'}
+                            </DropdownMenuItem>
+                          )}
+                          {hasHs && (
+                            <DropdownMenuItem
+                              onClick={() => openDialog('rename', d)}
+                            >
+                              <Pencil className='me-2 size-4' /> Đổi tên
+                            </DropdownMenuItem>
+                          )}
+                          {hasHs && (
+                            <DropdownMenuItem
+                              onClick={() => openDialog('expire', d)}
+                            >
+                              <RotateCcw className='me-2 size-4' /> Thu hồi key
+                            </DropdownMenuItem>
+                          )}
+                          {hasHs && <DropdownMenuSeparator />}
+                          {hasHs && (
+                            <DropdownMenuItem
+                              variant='destructive'
+                              onClick={() => openDialog('delete', d)}
+                            >
+                              <Trash2 className='me-2 size-4' /> Xóa
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <RenameDialog
+        open={dialog === 'rename'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        row={currentRow}
+      />
+      <DeleteDialog
+        open={dialog === 'delete'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        row={currentRow}
+      />
+      <ExpireDialog
+        open={dialog === 'expire'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        row={currentRow}
+      />
+      <StaticIpDialog
+        open={dialog === 'static-ip'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        row={currentRow}
+        device={currentDevice}
       />
     </>
   )

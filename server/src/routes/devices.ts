@@ -3,8 +3,11 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware.js'
 import { db } from '../db/client.js'
-import { deviceIdentity } from '../db/schema.js'
-import { backfillDeviceRegistry } from '../lib/device-registry.js'
+import { clientHomeDerp, deviceIdentity } from '../db/schema.js'
+import {
+  backfillDeviceRegistry,
+  isDeviceOnline,
+} from '../lib/device-registry.js'
 
 const patchSchema = z.object({
   managedUser: z.string().nullish(),
@@ -60,6 +63,55 @@ export async function devicesRoutes(app: FastifyInstance): Promise<void> {
       .returning()
     if (!row) return reply.code(404).send({ error: 'not found' })
     return row
+  })
+
+  // Màn hình Machines realtime (poll 1s): MỖI DÒNG LẤY TỪ DB, không gọi
+  // headscale (nhanh, chịu được poll 1s). MAC | Name | IP | Version | State |
+  // Last seen. IP = static_ipv4 (admin gán) ưu tiên, sau đó last_ipv4. Trạng
+  // thái online suy từ tín hiệu telemetry mới nhất trong DB (client_home_derp
+  // client mod báo ~3s/lần), không phụ thuộc headscale. nodeKey/id kèm theo để
+  // các nút hành động (đổi tên/thu hồi/xóa/IP tĩnh) tra ngược khi cần.
+  app.get('/api/devices/live', async () => {
+    const devs = await db
+      .select({
+        id: deviceIdentity.id,
+        mac: deviceIdentity.mac,
+        nodeKey: deviceIdentity.nodeKey,
+        hostname: deviceIdentity.hostname,
+        lastIpv4: deviceIdentity.lastIpv4,
+        staticIpv4: deviceIdentity.staticIpv4,
+        clientVersion: deviceIdentity.clientVersion,
+        clientBuild: deviceIdentity.clientBuild,
+        clientVariant: deviceIdentity.clientVariant,
+        updatedAt: deviceIdentity.updatedAt,
+      })
+      .from(deviceIdentity)
+      .where(eq(deviceIdentity.deviceType, 'client'))
+    const home = await db
+      .select({ mac: clientHomeDerp.mac, reportedAt: clientHomeDerp.reportedAt })
+      .from(clientHomeDerp)
+    const homeMap = new Map(home.map((h) => [h.mac, h.reportedAt]))
+    const now = Date.now()
+    return devs.map((d) => {
+      // Tín hiệu "thấy gần nhất": ưu tiên home-derp (báo ~3s/lần khi online),
+      // fallback updatedAt (lần register gần nhất).
+      const homeSeen = d.mac ? homeMap.get(d.mac) : undefined
+      const seen = homeSeen ?? d.updatedAt
+      const seenMs = seen ? new Date(seen).getTime() : null
+      return {
+        id: d.id,
+        mac: d.mac,
+        nodeKey: d.nodeKey,
+        name: d.hostname,
+        ip: d.staticIpv4 || d.lastIpv4,
+        staticIp: d.staticIpv4,
+        version: d.clientVersion,
+        build: d.clientBuild,
+        variant: d.clientVariant,
+        lastSeen: seen ? new Date(seen).toISOString() : null,
+        online: isDeviceOnline(seenMs, now),
+      }
+    })
   })
 
   // Backfill 1 lần — kích hoạt tay từ CMS, KHÔNG chạy tự động lúc migrate/boot
