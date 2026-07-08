@@ -5,6 +5,7 @@ import { db } from '../db/client.js'
 import { latencySamples } from '../db/schema.js'
 import { env } from '../env.js'
 import { hsApi, isHsConfigured, isHsNotFound } from '../lib/headscale.js'
+import { matchHsUserId, type HsUserLite } from '../lib/hs-users.js'
 import { cascadeDeleteNodeData } from '../lib/node-cascade-delete.js'
 
 type MetricsSample = {
@@ -21,6 +22,7 @@ type MetricsBody = {
   mac?: unknown
   samples?: unknown
 }
+
 
 /** Public — không cần auth. Nhận báo cáo từ metrics-report.ps1 trên các client. */
 export async function headscalePublicRoutes(
@@ -308,14 +310,16 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
   // ── Pre-auth Keys ────────────────────────────────────────────────────────────
   //
   // headscale's /api/v1/preauthkey expects a numeric user ID (uint64), not a
-  // username. resolveUserNumericID translates a display name → numeric ID via
-  // GET /api/v1/user?name=<name>, then the actual preauthkey calls use that ID.
+  // username. resolveUserNumericID translates any identifier (name/email/display/
+  // id) → numeric ID by listing all users and matching locally (matchHsUserId),
+  // then the actual preauthkey calls use that ID.
 
   async function resolveUserNumericID(name: string): Promise<string> {
-    const d = await hsApi<{ users?: { id?: string; name?: string }[] }>(
-      `/api/v1/user?name=${encodeURIComponent(name)}`
-    )
-    const id = d.users?.[0]?.id
+    if (/^\d+$/.test(name)) return name
+    // Lấy TOÀN BỘ user rồi match local (xem matchHsUserId) — KHÔNG dùng filter
+    // ?name= của headscale vì nó trả rỗng cho user OIDC (name = email).
+    const d = await hsApi<{ users?: HsUserLite[] }>('/api/v1/user')
+    const id = matchHsUserId(d.users ?? [], name)
     if (!id)
       throw Object.assign(new Error(`user not found: ${name}`), { status: 404 })
     return id
