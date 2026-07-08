@@ -36,6 +36,8 @@ import {
   fetchPreAuthKeys,
   type HsPreAuthKey,
   hsKeys,
+  preAuthKeyUserId,
+  userName,
 } from '@/features/headscale/hs-api'
 import { ErrorBox, NotConfigured } from '@/features/machines'
 
@@ -191,7 +193,7 @@ function KeyRow({
       <TableCell className='font-mono text-xs'>
         {k.key ? `${k.key.slice(0, 12)}…` : '—'}
       </TableCell>
-      <TableCell>{k.user ?? '—'}</TableCell>
+      <TableCell>{userName(k.user)}</TableCell>
       <TableCell>
         <div className='flex flex-wrap gap-1'>
           {k.reusable && <Badge variant='secondary'>Reusable</Badge>}
@@ -255,6 +257,12 @@ export function PreAuthKeys() {
     onError: (e: Error) => toast.error(`Lỗi: ${e.message}`),
   })
 
+  // headscale bỏ qua filter ?user= và trả VỀ TẤT CẢ key → lọc client theo user
+  // đang chọn để chỉ hiện key của user đó.
+  const rows = (keysQ.data?.preAuthKeys ?? []).filter(
+    (k) => userName(k.user) === selectedUser
+  )
+
   return (
     <div className='flex flex-1 flex-col gap-4 sm:gap-6'>
       <div className='flex items-start justify-between'>
@@ -309,7 +317,7 @@ export function PreAuthKeys() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(keysQ.data?.preAuthKeys ?? []).length === 0 ? (
+                    {rows.length === 0 ? (
                       <TableRow>
                         <TableCell
                           colSpan={5}
@@ -319,16 +327,16 @@ export function PreAuthKeys() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      (keysQ.data?.preAuthKeys ?? []).map((k, i) => (
+                      rows.map((k, i) => (
                         <KeyRow
                           key={k.id ?? i}
                           k={k}
                           loading={expireMut.isPending}
-                          onExpire={() =>
-                            k.user &&
-                            k.key &&
-                            expireMut.mutate({ user: k.user, key: k.key })
-                          }
+                          onExpire={() => {
+                            const uid = preAuthKeyUserId(k.user)
+                            if (uid && k.key)
+                              expireMut.mutate({ user: uid, key: k.key })
+                          }}
                         />
                       ))
                     )}
