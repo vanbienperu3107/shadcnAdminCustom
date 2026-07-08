@@ -214,6 +214,11 @@ export function preAuthKeyUserId(u: HsPreAuthKey['user']): string {
   return u.id ?? u.name ?? ''
 }
 
+/** Xoá hẳn 1 pre-auth key theo id (khác expire — xoá luôn khỏi danh sách). */
+export async function deletePreAuthKey(id: string): Promise<void> {
+  await api.delete(`/preauthkeys/${encodeURIComponent(id)}`)
+}
+
 /**
  * Tập tên node hạ tầng DERP — HỢP cả `node_name` (admin gõ tay khi tạo/sửa
  * region trên derp_servers) và tên suy từ hostname (`vpn5.hangocthanh.io.vn`

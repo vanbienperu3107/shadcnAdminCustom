@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, Plus, TimerOff } from 'lucide-react'
+import { Copy, Plus, TimerOff, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/table'
 import {
   createPreAuthKey,
+  deletePreAuthKey,
   expirePreAuthKey,
   fetchHsUsers,
   fetchPreAuthKeys,
@@ -181,10 +182,12 @@ function CreateKeyDialog({
 function KeyRow({
   k,
   onExpire,
+  onDelete,
   loading,
 }: {
   k: HsPreAuthKey
   onExpire: () => void
+  onDelete: () => void
   loading?: boolean
 }) {
   const expired = k.expiration ? new Date(k.expiration) < new Date() : false
@@ -213,18 +216,30 @@ function KeyRow({
         {k.expiration ? new Date(k.expiration).toLocaleString() : '—'}
       </TableCell>
       <TableCell className='text-right'>
-        {!expired && (
+        <div className='flex justify-end gap-1'>
+          {!expired && (
+            <Button
+              size='sm'
+              variant='ghost'
+              className='h-8 gap-1 text-xs'
+              onClick={onExpire}
+              disabled={loading}
+            >
+              <TimerOff className='h-3.5 w-3.5' />
+              Expire
+            </Button>
+          )}
           <Button
             size='sm'
             variant='ghost'
-            className='h-8 gap-1 text-xs'
-            onClick={onExpire}
+            className='h-8 gap-1 text-xs text-destructive hover:text-destructive'
+            onClick={onDelete}
             disabled={loading}
           >
-            <TimerOff className='h-3.5 w-3.5' />
-            Expire
+            <Trash2 className='h-3.5 w-3.5' />
+            Xoá
           </Button>
-        )}
+        </div>
       </TableCell>
     </TableRow>
   )
@@ -257,11 +272,40 @@ export function PreAuthKeys() {
     onError: (e: Error) => toast.error(`Lỗi: ${e.message}`),
   })
 
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deletePreAuthKey(id),
+    onSuccess: () => {
+      toast.success('Đã xoá key')
+      void qc.invalidateQueries({ queryKey: hsKeys.preauthkeys(selectedUser) })
+    },
+    onError: (e: Error) => toast.error(`Lỗi xoá: ${e.message}`),
+  })
+
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+
   // headscale bỏ qua filter ?user= và trả VỀ TẤT CẢ key → lọc client theo user
   // đang chọn để chỉ hiện key của user đó.
   const rows = (keysQ.data?.preAuthKeys ?? []).filter(
     (k) => userName(k.user) === selectedUser
   )
+
+  const bulkDelete = async () => {
+    if (!window.confirm(`Xoá toàn bộ ${rows.length} key của user này?`)) return
+    setBulkDeleting(true)
+    let n = 0
+    for (const k of rows) {
+      if (!k.id) continue
+      try {
+        await deletePreAuthKey(k.id)
+        n++
+      } catch {
+        /* bỏ qua key lỗi, tiếp tục */
+      }
+    }
+    setBulkDeleting(false)
+    toast.success(`Đã xoá ${n}/${rows.length} key`)
+    void qc.invalidateQueries({ queryKey: hsKeys.preauthkeys(selectedUser) })
+  }
 
   return (
     <div className='flex flex-1 flex-col gap-4 sm:gap-6'>
@@ -297,6 +341,18 @@ export function PreAuthKeys() {
                 ))}
               </SelectContent>
             </Select>
+            {selectedUser && rows.length > 0 && (
+              <Button
+                size='sm'
+                variant='outline'
+                className='ml-auto gap-1 text-destructive hover:text-destructive'
+                onClick={bulkDelete}
+                disabled={bulkDeleting}
+              >
+                <Trash2 className='h-4 w-4' />
+                {bulkDeleting ? 'Đang xoá…' : `Xoá tất cả (${rows.length})`}
+              </Button>
+            )}
           </div>
 
           {selectedUser &&
@@ -331,11 +387,19 @@ export function PreAuthKeys() {
                         <KeyRow
                           key={k.id ?? i}
                           k={k}
-                          loading={expireMut.isPending}
+                          loading={
+                            expireMut.isPending ||
+                            deleteMut.isPending ||
+                            bulkDeleting
+                          }
                           onExpire={() => {
                             const uid = preAuthKeyUserId(k.user)
                             if (uid && k.key)
                               expireMut.mutate({ user: uid, key: k.key })
+                          }}
+                          onDelete={() => {
+                            if (k.id && window.confirm('Xoá key này?'))
+                              deleteMut.mutate(k.id)
                           }}
                         />
                       ))

@@ -379,6 +379,24 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
     }
   })
 
+  // Xoá hẳn 1 pre-auth key theo id. headscale build này delete qua QUERY param
+  // (DELETE /api/v1/preauthkey?id=<id>) — KHÔNG phải path param cũng không phải
+  // body (đã kiểm: path -> 404, body -> "record not found"; chỉ ?id= mới ăn).
+  app.delete('/api/preauthkeys/:id', async (req, reply) => {
+    if (!(await isHsConfigured()))
+      return reply.code(503).send({ error: 'not configured' })
+    const { id } = req.params as { id: string }
+    if (!/^\d+$/.test(id)) return reply.code(400).send({ error: 'invalid id' })
+    try {
+      await hsApi(`/api/v1/preauthkey?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      })
+      return { ok: true }
+    } catch (e) {
+      return reply.code(502).send({ error: String(e) })
+    }
+  })
+
   /**
    * Latency từ Neon DB (Feature L). Format pairs tương thích với hs-api.ts
    * fetchLatency(). ORDER BY reported_at DESC — bắt buộc, vì frontend
