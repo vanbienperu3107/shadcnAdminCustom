@@ -166,7 +166,12 @@ export async function deleteRoute(id: string): Promise<void> {
 export type HsPreAuthKey = {
   id?: string
   key?: string
-  user?: string
+  // headscale trả user dưới dạng OBJECT lồng nhau (id/name/…), KHÔNG phải chuỗi.
+  // Render thẳng {k.user} sẽ crash ("Objects are not valid as a React child") —
+  // dùng userName(k.user) để lấy tên. Vẫn chấp nhận string cho tương thích.
+  user?:
+    | string
+    | { id?: string; name?: string; displayName?: string; email?: string }
   reusable?: boolean
   ephemeral?: boolean
   used?: boolean
@@ -176,7 +181,9 @@ export type HsPreAuthKey = {
 export async function fetchPreAuthKeys(
   user: string
 ): Promise<{ preAuthKeys: HsPreAuthKey[] }> {
-  const { data } = await api.get(`/users/${user}/preauthkeys`)
+  const { data } = await api.get(
+    `/users/${encodeURIComponent(user)}/preauthkeys`
+  )
   return { preAuthKeys: data?.preAuthKeys ?? [] }
 }
 
@@ -194,7 +201,17 @@ export async function expirePreAuthKey(
   user: string,
   key: string
 ): Promise<void> {
-  await api.post(`/users/${user}/preauthkeys/expire`, { key })
+  await api.post(`/users/${encodeURIComponent(user)}/preauthkeys/expire`, {
+    key,
+  })
+}
+
+/** Lấy định danh user (id ưu tiên, fallback name) từ field user của 1 pre-auth
+ *  key — dùng cho lời gọi expire (server tự resolve id/name → numeric id). */
+export function preAuthKeyUserId(u: HsPreAuthKey['user']): string {
+  if (!u) return ''
+  if (typeof u === 'string') return u
+  return u.id ?? u.name ?? ''
 }
 
 /**
