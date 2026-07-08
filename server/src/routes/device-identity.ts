@@ -28,6 +28,24 @@ type HsNode = {
 }
 
 /**
+ * Thu hồi (xoá) mọi node CÙNG MÁY, OFFLINE, đang giữ `ip` đích — để lần đăng
+ * ký sau headscale cấp lại đúng IP pin. Best-effort. QUAN TRỌNG: hàm này gọi
+ * ngược headscale (list + delete node), nên PHẢI chạy NGOÀI đường phản hồi của
+ * /api/internal/reserved-ip (fire-and-forget) — xem lý do chi tiết ở nơi gọi.
+ */
+async function reapStaleNodesHoldingIp(
+  ip: string,
+  hostname: string
+): Promise<void> {
+  if (!(await isHsConfigured())) return
+  const list = await hsApi<{ nodes?: HsNode[] }>('/api/v1/node')
+  const stale = staleNodesHoldingIp(ip, hostname, list.nodes ?? [])
+  for (const id of stale) {
+    await hsApi(`/api/v1/node/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  }
+}
+
+/**
  * Public — gọi bởi client (nodemode.go) ngay sau khi `tailscale up` thành
  * công, báo (mac, hostname, nodeKey). Lần đầu thấy 1 MAC → hostname báo về
  * trở thành tên chuẩn, lưu vào device_identity. Lần sau nếu node báo hostname
@@ -172,19 +190,20 @@ export async function deviceIdentityPublicRoutes(
         .from(deviceIdentity)
         .where(eq(deviceIdentity.mac, mac))
       const ip = row?.staticIpv4 || row?.lastIpv4 || null
-      if (ip && row?.hostname && (await isHsConfigured())) {
-        try {
-          const list = await hsApi<{ nodes?: HsNode[] }>('/api/v1/node')
-          const stale = staleNodesHoldingIp(ip, row.hostname, list.nodes ?? [])
-          for (const id of stale) {
-            await hsApi(`/api/v1/node/${encodeURIComponent(id)}`, {
-              method: 'DELETE',
-            })
-          }
-        } catch {
-          // Dọn không được (headscale lỗi/timeout) → vẫn trả IP; headscale tự
-          // fallback nếu IP còn bị chiếm. Không chặn đăng ký.
-        }
+      // Thu hồi node rác giữ IP đích, nhưng KHÔNG await: headscale gọi endpoint
+      // này ĐỒNG BỘ trong lúc cấp IP cho node đang đăng ký, chặn bởi timeout
+      // ngắn (~500ms). List+delete node headscale ở đây (gọi ngược vào headscale
+      // giữa lúc nó đang đăng ký) vượt ngân sách đó → "context deadline
+      // exceeded" → headscale fallback cấp IP tuần tự → node TRÔI khỏi IP pin
+      // (itop rơi xuống .19 thay vì .17, mất luôn nodeAttr drive:share). Chạy
+      // nền để trả IP pin ngay lập tức; lần đăng ký sau IP đã được dọn sẵn.
+      if (ip && row?.hostname) {
+        void reapStaleNodesHoldingIp(ip, row.hostname).catch((e) => {
+          app.log.warn(
+            { err: e instanceof Error ? e.message : String(e), mac },
+            'reserved-ip: background stale-node reap failed'
+          )
+        })
       }
       return { ipv4: ip }
     } catch (e) {
