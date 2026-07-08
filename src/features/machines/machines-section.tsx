@@ -17,7 +17,6 @@ import { NodeAssignments } from '@/features/node-assignments'
 import { NodeRuntimePage } from '@/features/node-runtime'
 import { PacRulesPage } from '@/features/pac-rules'
 import { PreAuthKeys } from '@/features/preauth-keys'
-import { Users } from '@/features/users'
 
 export type MachineGroup = 'devices' | 'routing' | 'derp' | 'config' | 'users'
 
@@ -78,7 +77,11 @@ const GROUPS: Record<MachineGroup, Leaf[]> = {
     },
   ],
   users: [
-    { key: 'user', label: 'User', render: () => <Users /> },
+    // NOTE: bỏ tab "User" cũ — nó render <Users /> (trang template shadcn) vốn
+    // bind cứng route '/_authenticated/users/' qua getRouteApi().useSearch(),
+    // nên render dưới route này (/machines/nguoi-dung) là throw → 500 cả trang;
+    // lại còn dùng data user GIẢ. Quản lý user/thiết bị thật sẽ nằm ở tab
+    // Enrollment (tính năng zero-touch enrollment, xem docs/plan-...).
     { key: 'preauth', label: 'Pre-auth Key', render: () => <PreAuthKeys /> },
   ],
 }
