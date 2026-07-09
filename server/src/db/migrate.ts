@@ -519,4 +519,37 @@ export async function migrate(): Promise<void> {
       reported_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `)
+
+  // Zero-touch enrollment: mỗi máy 1 dòng, khoá tự nhiên (mac, salt).
+  // salt = serial ổ đĩa đã chuẩn hoá — CHÍNH LÀ seed machine key phía client,
+  // nên coi là dữ liệu nhạy cảm (suy ra được private machine key): UI mask cột này.
+  // status: pending -> approved (admin duyệt) -> có thể revoked.
+  // device_token_hash: sha256(token), set ở lần enroll thành công ĐẦU TIÊN
+  // (first-enroll-wins); reset về NULL khi máy mất node.xml (admin reset-token).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS device_enrollment (
+      id                SERIAL PRIMARY KEY,
+      mac               TEXT NOT NULL,
+      salt              TEXT NOT NULL,
+      status            TEXT NOT NULL DEFAULT 'pending',
+      device_token_hash TEXT,
+      pinned_ipv4       TEXT,
+      note              TEXT,
+      hostname          TEXT,
+      created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+      approved_at       TIMESTAMPTZ,
+      approved_by       TEXT,
+      enrolled_at       TIMESTAMPTZ,
+      last_enroll_at    TIMESTAMPTZ
+    )
+  `)
+  // Dedupe: client báo pending lặp lại mỗi 60s — UNIQUE ngăn sinh dòng trùng.
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_device_enrollment_mac_salt
+      ON device_enrollment(mac, salt)
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_device_enrollment_status
+      ON device_enrollment(status)
+  `)
 }
