@@ -6,6 +6,7 @@ import {
   staleNodesHoldingIp,
   isDeviceOnline,
   isCiRunnerHostname,
+  resolveDeviceLiveState,
   versionChangeDirection,
 } from '../src/lib/device-registry'
 
@@ -164,5 +165,85 @@ describe('isDeviceOnline', () => {
   it('cửa sổ tuỳ chỉnh', () => {
     expect(isDeviceOnline(now - 90_000, now, 120_000)).toBe(true)
     expect(isDeviceOnline(now - 90_000, now, 30_000)).toBe(false)
+  })
+})
+
+describe('resolveDeviceLiveState', () => {
+  const now = 1_000_000_000_000
+  const fresh = now - 5_000
+  const stale = now - 32 * 3_600_000 // 32h — đúng độ trễ của votam lúc gặp bug
+
+  it('telemetry tươi -> online + reporting', () => {
+    expect(
+      resolveDeviceLiveState({
+        telemetrySeenMs: fresh,
+        headscaleOnline: true,
+        nowMs: now,
+      })
+    ).toEqual({ online: true, reporting: true })
+  })
+
+  // Chính là ca VOTAM-PC: máy chạy, headscale giữ map-poll 32h, nhưng reporter
+  // chốt MAC rỗng nên telemetry bị 400 -> phải là ONLINE nhưng KHÔNG báo cáo,
+  // TUYỆT ĐỐI không được hiện Offline.
+  it('headscale online + telemetry chết -> online nhưng reporting=false', () => {
+    expect(
+      resolveDeviceLiveState({
+        telemetrySeenMs: stale,
+        headscaleOnline: true,
+        nowMs: now,
+      })
+    ).toEqual({ online: true, reporting: false })
+  })
+
+  it('chưa từng báo telemetry nhưng headscale online -> vẫn online', () => {
+    expect(
+      resolveDeviceLiveState({
+        telemetrySeenMs: null,
+        headscaleOnline: true,
+        nowMs: now,
+      })
+    ).toEqual({ online: true, reporting: false })
+  })
+
+  it('headscale offline + telemetry chết -> offline', () => {
+    expect(
+      resolveDeviceLiveState({
+        telemetrySeenMs: stale,
+        headscaleOnline: false,
+        nowMs: now,
+      })
+    ).toEqual({ online: false, reporting: false })
+  })
+
+  // Telemetry tươi thắng cả khi headscale nói offline: client rõ ràng đang nói
+  // chuyện được với dashboard.
+  it('headscale offline + telemetry tươi -> online', () => {
+    expect(
+      resolveDeviceLiveState({
+        telemetrySeenMs: fresh,
+        headscaleOnline: false,
+        nowMs: now,
+      })
+    ).toEqual({ online: true, reporting: true })
+  })
+
+  // headscaleOnline=null = không biết (chưa cấu hình key / gọi lỗi) -> giữ
+  // nguyên hành vi cũ: chỉ dựa telemetry, không hồi quy.
+  it('headscale không rõ (null) -> chỉ dựa telemetry', () => {
+    expect(
+      resolveDeviceLiveState({
+        telemetrySeenMs: fresh,
+        headscaleOnline: null,
+        nowMs: now,
+      })
+    ).toEqual({ online: true, reporting: true })
+    expect(
+      resolveDeviceLiveState({
+        telemetrySeenMs: stale,
+        headscaleOnline: null,
+        nowMs: now,
+      })
+    ).toEqual({ online: false, reporting: false })
   })
 })

@@ -428,3 +428,35 @@ export function isDeviceOnline(
   if (lastSeenMs == null) return false
   return nowMs - lastSeenMs < windowMs
 }
+
+/**
+ * Trạng thái sống của 1 máy, hợp nhất HAI tín hiệu ĐỘC LẬP:
+ *
+ *  - `headscaleOnline`: headscale còn giữ map-poll mở với node. Đây là bằng
+ *    chứng MẠNH NHẤT rằng máy đang chạy và nối được control plane.
+ *  - `telemetrySeenMs`: lần cuối client tự báo telemetry (home-derp ~3s/lần).
+ *
+ * Vì sao phải OR chứ không chỉ dùng telemetry: telemetry có thể chết RIÊNG
+ * trong khi máy vẫn online (đã gặp thật — reporter chốt MAC rỗng lúc khởi động
+ * nên mọi POST bị 400, xem homederpreport.go). Khi đó máy vẫn ONLINE, chỉ là
+ * KHÔNG BÁO CÁO (`reporting=false`) — hai chuyện khác nhau, UI phải phân biệt
+ * được thay vì hiển thị "Offline" sai.
+ *
+ * Ngược lại, telemetry tươi mà headscale nói offline (hoặc chưa cấu hình
+ * headscale) vẫn tính là online — client đang nói chuyện được với dashboard.
+ *
+ * `headscaleOnline=null` = không biết (headscale chưa cấu hình / gọi lỗi) →
+ * chỉ dựa vào telemetry, đúng hành vi cũ, không hồi quy.
+ *
+ * Thuần — unit-test.
+ */
+export function resolveDeviceLiveState(opts: {
+  telemetrySeenMs: number | null
+  headscaleOnline: boolean | null
+  nowMs: number
+  windowMs?: number
+}): { online: boolean; reporting: boolean } {
+  const { telemetrySeenMs, headscaleOnline, nowMs, windowMs = 60_000 } = opts
+  const reporting = isDeviceOnline(telemetrySeenMs, nowMs, windowMs)
+  return { online: reporting || headscaleOnline === true, reporting }
+}
