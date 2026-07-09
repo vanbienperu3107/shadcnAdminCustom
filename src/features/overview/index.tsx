@@ -21,9 +21,12 @@ import {
   fetchDevices,
   fetchHsUsers,
   fetchLatency,
+  fetchLiveDevices,
   fetchMachines,
+  type HsMachine,
   hsKeys,
   isDerpNodeV2,
+  type LiveDevice,
   userName,
 } from '@/features/headscale/hs-api'
 import {
@@ -120,6 +123,20 @@ function useRealNodes({ poll = false }: { poll?: boolean } = {}) {
     queryFn: fetchDevices,
     staleTime: 30_000,
   })
+  // Headscale's raw `node.online` chỉ phản ánh phiên control-plane có còn MỞ
+  // hay không — nó có thể bị "kẹt" true sau khi client mất kết nối không sạch
+  // (sleep/crash/rớt mạng), y hệt như trang Machines từng gặp. Lấy thêm tín
+  // hiệu telemetry (client tự báo home-DERP ~3s/lần, coi là online nếu còn
+  // mới trong 60s — xem isDeviceOnline() server-side) làm NGUỒN THẬT cho
+  // trạng thái online, GIỐNG hệt trang Machines/"Người dùng" — hai trang phải
+  // luôn khớp nhau, tránh lệch như bug đã gặp (Overview "Connected" nhưng
+  // Machines "Offline" cho cùng 1 máy).
+  const liveDevices = useQuery({
+    queryKey: ['devices', 'live'],
+    queryFn: fetchLiveDevices,
+    staleTime: 30_000,
+    refetchInterval: poll ? 30_000 : undefined,
+  })
 
   const names = derpNameSet(derp.data ?? [])
   const typeByNodeKey = deviceTypeMap(devices.data ?? [])
@@ -127,18 +144,34 @@ function useRealNodes({ poll = false }: { poll?: boolean } = {}) {
   const realNodes = allNodes.filter(
     (n) => !isDerpNodeV2(n, typeByNodeKey, names)
   )
+  const liveByNodeKey = new Map<string, LiveDevice>(
+    (liveDevices.data ?? [])
+      .filter((d) => d.nodeKey)
+      .map((d) => [d.nodeKey as string, d])
+  )
+  // Ưu tiên trạng thái online suy từ telemetry (freshness-aware); fallback về
+  // cờ headscale thô nếu máy chưa có dòng device_identity tương ứng (chưa
+  // backfill / vừa đăng ký).
+  const isNodeOnline = (n: HsMachine): boolean =>
+    liveByNodeKey.get(n.nodeKey ?? '')?.online ?? n.online ?? false
 
   return {
     derp,
     machines,
     devices,
+    liveByNodeKey,
+    isNodeOnline,
     names,
     regions: derp.data ?? [],
     realNodes,
-    realOnline: realNodes.filter((n) => n.online).length,
+    realOnline: realNodes.filter((n) => isNodeOnline(n)).length,
     hsOk: !!machines.data?.configured,
     isLoading: machines.isPending || devices.isPending || derp.isPending,
-    isFetching: machines.isFetching || devices.isFetching || derp.isFetching,
+    isFetching:
+      machines.isFetching ||
+      devices.isFetching ||
+      derp.isFetching ||
+      liveDevices.isFetching,
   }
 }
 
@@ -313,8 +346,16 @@ function StatClientDerp() {
 // --- Bảng thiết bị người dùng (tự tải riêng, không chặn các stat) ------------
 
 function ClientDevicesTable() {
-  const { regions, names, realNodes, hsOk, isLoading, isFetching } =
-    useRealNodes()
+  const {
+    regions,
+    names,
+    realNodes,
+    liveByNodeKey,
+    isNodeOnline,
+    hsOk,
+    isLoading,
+    isFetching,
+  } = useRealNodes()
   // Owner của polling latency (30s) -> giữ dữ liệu gần thời gian thực.
   const lat = useQuery({
     queryKey: hsKeys.latency,
@@ -401,7 +442,7 @@ function ClientDevicesTable() {
 
   // Chỉ hiện client đang online (yêu cầu: chỉ hiển thị client online).
   const clientRows = realNodes
-    .filter((n) => n.online)
+    .filter((n) => isNodeOnline(n))
     .sort((a, b) =>
       (a.givenName || a.name || '').localeCompare(b.givenName || b.name || '')
     )
@@ -480,10 +521,11 @@ function ClientDevicesTable() {
               clientRows.map((n, i) => {
                 const key = (n.givenName || n.name || '').toLowerCase()
                 const info = clientDerpMap.get(key)
+                const online = isNodeOnline(n)
                 return (
                   <TableRow
                     key={n.id ?? i}
-                    className={n.online ? '' : 'opacity-50'}
+                    className={online ? '' : 'opacity-50'}
                   >
                     <TableCell className='font-medium'>
                       {n.givenName || n.name || '—'}
@@ -495,21 +537,21 @@ function ClientDevicesTable() {
                       {n.ipAddresses?.[0] ?? '—'}
                     </TableCell>
                     <TableCell>
-                      {n.online ? (
+                      {online ? (
                         <RelayBadge region={homeRegionOf(n)} />
                       ) : (
                         <span className='text-xs text-muted-foreground'>—</span>
                       )}
                     </TableCell>
                     <TableCell className='hidden font-mono text-xs sm:table-cell'>
-                      {n.online && info?.rttMs != null ? (
+                      {online && info?.rttMs != null ? (
                         `${Math.round(info.rttMs * 10) / 10}ms`
                       ) : (
                         <span className='text-muted-foreground'>—</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      {n.online ? (
+                      {online ? (
                         <Badge
                           variant='outline'
                           className='border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
@@ -533,7 +575,11 @@ function ClientDevicesTable() {
                         const reportSeen = lastReportAt.get(
                           (n.givenName || n.name || '').toLowerCase()
                         )
-                        const best = [hsSeen, reportSeen]
+                        const liveSeen = liveByNodeKey.get(
+                          n.nodeKey ?? ''
+                        )?.lastSeen
+                        const liveSeenMs = liveSeen ? Date.parse(liveSeen) : NaN
+                        const best = [hsSeen, reportSeen, liveSeenMs]
                           .filter((t) => !Number.isNaN(t) && t != null)
                           .sort((a, b) => (b as number) - (a as number))[0]
                         return best ? new Date(best).toLocaleString() : '—'
