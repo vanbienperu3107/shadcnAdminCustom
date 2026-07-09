@@ -1,8 +1,13 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db } from '../db/client.js'
-import { deviceIdentity } from '../db/schema.js'
+import { deviceEnrollment, deviceIdentity } from '../db/schema.js'
 import { env } from '../env.js'
+import {
+  adoptStatus,
+  normalizeSalt,
+  type EnrollStatus,
+} from '../lib/enrollment.js'
 import { hsApi, isHsConfigured } from '../lib/headscale.js'
 import {
   isCiRunnerHostname,
@@ -46,6 +51,68 @@ async function reapStaleNodesHoldingIp(
 }
 
 /**
+ * Auto-adopt (zero-touch): một máy vừa đăng nhập OIDC thành công tự được ghi 1
+ * dòng device_enrollment 'approved', để LẦN SAU nó (hoặc chính nó sau khi xoá
+ * state / cài lại) tự vào tailnet không cần cấu hình gì — client sẽ probe
+ * /api/internal/enroll?probe=1 với (mac, salt) và nhận ngay authKey.
+ *
+ * HÀNG RÀO: chỉ adopt khi nodeKey client báo THỰC SỰ tồn tại trên headscale —
+ * tức máy đó đã đăng ký hợp lệ. Chặn kẻ chỉ biết (mac, salt) tự tạo dòng
+ * approved cho máy chưa từng login. KHÔNG bao giờ dựng dậy dòng 'revoked'
+ * (adoptStatus). Best-effort: mọi lỗi ở đây chỉ log, không được làm hỏng
+ * device-register (kết nối của máy quan trọng hơn tiện ích adopt).
+ */
+async function adoptEnrollmentAfterLogin(
+  mac: string,
+  salt: string,
+  hostname: string,
+  nodeKey: string,
+  ipv4: string
+): Promise<void> {
+  if (!salt || !nodeKey) return
+  if (!(await isHsConfigured())) return
+
+  const list = await hsApi<{ nodes?: HsNode[] }>('/api/v1/node')
+  const nodeExists = (list.nodes ?? []).some((n) => n.nodeKey === nodeKey)
+  if (!nodeExists) return // máy chưa thực sự là node hợp lệ → không adopt
+
+  const [row] = await db
+    .select()
+    .from(deviceEnrollment)
+    .where(and(eq(deviceEnrollment.mac, mac), eq(deviceEnrollment.salt, salt)))
+
+  const status = adoptStatus((row?.status as EnrollStatus | undefined) ?? null)
+
+  if (!row) {
+    await db.insert(deviceEnrollment).values({
+      mac,
+      salt,
+      status,
+      hostname: hostname || null,
+      pinnedIpv4: ipv4 || null,
+      approvedAt: new Date(),
+      approvedBy: 'auto-oidc',
+    })
+    return
+  }
+
+  // Chỉ đóng dấu approved lần ĐẦU chuyển sang approved (giữ audit chính xác);
+  // không ghi đè pinnedIpv4 admin đã đặt.
+  const becomingApproved = row.status !== 'approved' && status === 'approved'
+  await db
+    .update(deviceEnrollment)
+    .set({
+      status,
+      hostname: hostname || row.hostname,
+      pinnedIpv4: row.pinnedIpv4 ?? (ipv4 || null),
+      ...(becomingApproved
+        ? { approvedAt: new Date(), approvedBy: 'auto-oidc' }
+        : {}),
+    })
+    .where(eq(deviceEnrollment.id, row.id))
+}
+
+/**
  * Public — gọi bởi client (nodemode.go) ngay sau khi `tailscale up` thành
  * công, báo (mac, hostname, nodeKey). Lần đầu thấy 1 MAC → hostname báo về
  * trở thành tên chuẩn, lưu vào device_identity. Lần sau nếu node báo hostname
@@ -66,8 +133,11 @@ export async function deviceIdentityPublicRoutes(
       version?: unknown
       build?: unknown
       variant?: unknown
+      salt?: unknown
     }
     const mac = typeof body.mac === 'string' ? body.mac.trim().toLowerCase() : ''
+    // salt = serial ổ đĩa đã chuẩn hoá (client mới gửi kèm). Có ⇒ auto-adopt.
+    const salt = typeof body.salt === 'string' ? normalizeSalt(body.salt) : ''
     const hostname =
       typeof body.hostname === 'string' ? body.hostname.trim() : ''
     const nodeKey =
@@ -123,6 +193,19 @@ export async function deviceIdentityPublicRoutes(
           },
           `client version ${versionChange.direction}: ${versionChange.hostname} build ${versionChange.fromBuild ?? '-'} -> ${versionChange.toBuild}`
         )
+      }
+
+      // Auto-adopt: máy vừa login OIDC + có gửi salt ⇒ ghi 'approved' để lần
+      // sau tự vào không cần cấu hình. Best-effort, không chặn device-register.
+      if (salt) {
+        try {
+          await adoptEnrollmentAfterLogin(mac, salt, hostname, nodeKey, ipv4)
+        } catch (e) {
+          req.log.warn(
+            { err: e instanceof Error ? e.message : String(e), mac },
+            'device-register: auto-adopt enrollment failed'
+          )
+        }
       }
 
       if (!existing) {

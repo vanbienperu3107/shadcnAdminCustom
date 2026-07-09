@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   PREAUTH_TTL_MS,
+  adoptStatus,
   deviceTokenMatches,
   enrollDecision,
   hashDeviceToken,
@@ -149,6 +150,23 @@ describe('enrollDecision (state machine, plan §4.2)', () => {
       kind: 'denied',
       reason: 'token_mismatch',
     })
+  })
+})
+
+describe('adoptStatus (auto-adopt máy đã login OIDC)', () => {
+  it('máy chưa có bản ghi -> approved', () => {
+    expect(adoptStatus(null)).toBe('approved')
+  })
+  it('pending -> approved (adopt tự duyệt)', () => {
+    expect(adoptStatus('pending')).toBe('approved')
+  })
+  it('approved -> approved (giữ nguyên)', () => {
+    expect(adoptStatus('approved')).toBe('approved')
+  })
+  it('revoked -> revoked: KHÔNG bao giờ dựng dậy dòng admin đã cấm', () => {
+    // Đây là bất biến an toàn quan trọng nhất của auto-adopt: một máy bị admin
+    // thu hồi không được tự vào lại chỉ vì nó login OIDC lần nữa.
+    expect(adoptStatus('revoked')).toBe('revoked')
   })
 })
 
