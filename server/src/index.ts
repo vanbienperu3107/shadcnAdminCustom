@@ -28,6 +28,10 @@ import { derpRoutes } from './routes/derp.js'
 import { derpmapRoutes } from './routes/derpmap.js'
 import { deviceIdentityPublicRoutes } from './routes/device-identity.js'
 import { devicesRoutes } from './routes/devices.js'
+import {
+  enrollmentPublicRoutes,
+  enrollmentRoutes,
+} from './routes/enrollment.js'
 import { dnsSplitPublicRoutes, dnsSplitRoutes } from './routes/dns-split.js'
 import {
   folderSharesPublicRoutes,
@@ -78,6 +82,8 @@ async function main() {
   await app.register(dnsSplitRoutes)
   await app.register(deviceIdentityPublicRoutes)
   await app.register(devicesRoutes)
+  await app.register(enrollmentPublicRoutes)
+  await app.register(enrollmentRoutes)
   await app.register(telemetryPublicRoutes)
   await app.register(telemetryRoutes)
   await app.register(clientUpdatePublicRoutes)

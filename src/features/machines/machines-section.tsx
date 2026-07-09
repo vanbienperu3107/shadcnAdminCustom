@@ -7,6 +7,7 @@ import { ClientAutoUpdateCard } from '@/features/client-update'
 import { Derp } from '@/features/derp'
 import { DerpPing } from '@/features/derp-ping'
 import { DnsSplit } from '@/features/dns-split'
+import { EnrollmentPage } from '@/features/enrollment'
 import { FolderSharesPage } from '@/features/folder-shares'
 import { ForceRoutes } from '@/features/force-routes'
 import { HomeDerp } from '@/features/home-derp'
@@ -80,8 +81,13 @@ const GROUPS: Record<MachineGroup, Leaf[]> = {
     // NOTE: bỏ tab "User" cũ — nó render <Users /> (trang template shadcn) vốn
     // bind cứng route '/_authenticated/users/' qua getRouteApi().useSearch(),
     // nên render dưới route này (/machines/nguoi-dung) là throw → 500 cả trang;
-    // lại còn dùng data user GIẢ. Quản lý user/thiết bị thật sẽ nằm ở tab
-    // Enrollment (tính năng zero-touch enrollment, xem docs/plan-...).
+    // lại còn dùng data user GIẢ. Quản lý thiết bị thật nằm ở tab Enrollment
+    // (zero-touch enrollment, xem docs/plan-zero-touch-enrollment.md).
+    {
+      key: 'enrollment',
+      label: 'Enrollment',
+      render: () => <EnrollmentPage />,
+    },
     { key: 'preauth', label: 'Pre-auth Key', render: () => <PreAuthKeys /> },
   ],
 }

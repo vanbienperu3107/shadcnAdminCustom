@@ -27,6 +27,13 @@ const schema = z.object({
   // Headscale API (machines/users). Key = headscale apikey (HEADPLANE_HS_API_KEY).
   HEADSCALE_API_URL: z.string().default('http://headscale:8080'),
   HEADSCALE_API_KEY: z.string().default(''),
+  // Zero-touch enrollment: MỌI pre-auth key cấp cho node phải thuộc CÙNG 1 user
+  // headscale. Đổi user giữa các lần đăng ký khiến headscale tạo node MỚI cho
+  // cùng machinekey (hscontrol/state/state.go:1446-1463) ⇒ trôi IP trở lại.
+  HEADSCALE_NODES_USER: z.string().default('nodes'),
+  // URL control server trả về cho client sau khi enroll. Để trống = client dùng
+  // giá trị đã bake sẵn trong binary (nodeLoginServer).
+  HEADSCALE_LOGIN_SERVER: z.string().default(''),
   // [deprecated] node-dedup collector — thay bằng POST /api/metrics/report sau Feature L.
   NODEDEDUP_URL: z.string().default('http://node-dedup:8090'),
   // Shared secret cho endpoint POST /api/metrics/report (gửi từ metrics-report.ps1).

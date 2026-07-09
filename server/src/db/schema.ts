@@ -217,6 +217,33 @@ export const derpNodeHealth = pgTable('derp_node_health', {
  * được đồng bộ từ POST /api/internal/device-register. Xóa machine hay xóa
  * DERP region đều phải xóa dòng tương ứng ở đây (xem node-cascade-delete.ts).
  */
+/**
+ * Zero-touch enrollment — 1 dòng / thiết bị, khoá tự nhiên (mac, salt).
+ *
+ * salt = serial ổ đĩa đã chuẩn hoá, CŨNG CHÍNH LÀ seed machine key của client
+ * (cmd/tailscaled/hwid.go). Ai biết salt suy được private machine key ⇒ coi cột
+ * này là nhạy cảm: UI mask, không log.
+ *
+ * Vòng đời: pending -(admin duyệt)-> approved -(admin thu hồi)-> revoked.
+ * deviceTokenHash chỉ set ở lần enroll THÀNH CÔNG ĐẦU TIÊN (first-enroll-wins);
+ * từ đó client phải chìa token khớp mới xin được authKey.
+ */
+export const deviceEnrollment = pgTable('device_enrollment', {
+  id:              serial('id').primaryKey(),
+  mac:             text('mac').notNull(),
+  salt:            text('salt').notNull(),
+  status:          text('status').notNull().default('pending'), // pending | approved | revoked
+  deviceTokenHash: text('device_token_hash'), // sha256(token); null = chưa ai claim
+  pinnedIpv4:      text('pinned_ipv4'),       // IP ghim (admin chọn lúc duyệt)
+  note:            text('note'),              // tên/ghi chú admin đặt
+  hostname:        text('hostname'),          // client tự báo, giúp nhận diện lúc duyệt
+  createdAt:       timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  approvedAt:      timestamp('approved_at', { withTimezone: true }),
+  approvedBy:      text('approved_by'),
+  enrolledAt:      timestamp('enrolled_at', { withTimezone: true }),
+  lastEnrollAt:    timestamp('last_enroll_at', { withTimezone: true }),
+})
+
 export const deviceIdentity = pgTable('device_identity', {
   // id tự sinh — KHÔNG dùng mac làm PK vì hạ tầng DERP (deviceType='derp_infra')
   // không có MAC (không phải client của ta, không gọi device-register); khóa
