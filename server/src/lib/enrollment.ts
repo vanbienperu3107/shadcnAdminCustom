@@ -106,6 +106,19 @@ export function enrollDecision(
   return { kind: 'issue', mintToken: false }
 }
 
+/**
+ * Auto-adopt: một máy ĐÃ đăng nhập OIDC thành công (đã là node hợp lệ) tự được
+ * ghi 'approved' để lần sau vào không cần cấu hình. Trả về status mới cho dòng
+ * device_enrollment khi adopt.
+ *
+ * QUY TẮC AN TOÀN: KHÔNG BAO GIỜ dựng một dòng đã 'revoked' dậy lại — admin đã
+ * chủ động cấm máy đó, adopt tự động không được ghi đè quyết định đó. Mọi trạng
+ * thái khác (chưa có / pending / approved) → 'approved'.
+ */
+export function adoptStatus(current: EnrollStatus | null): EnrollStatus {
+  return current === 'revoked' ? 'revoked' : 'approved'
+}
+
 /** Che salt khi trả về UI — serial suy ra được private machine key. */
 export function maskSalt(salt: string): string {
   if (salt.length <= 4) return '••••'

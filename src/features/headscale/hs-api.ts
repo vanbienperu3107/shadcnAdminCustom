@@ -278,8 +278,7 @@ export async function fetchDevices(): Promise<Device[]> {
   return data
 }
 
-/** 1 dòng máy cho màn hình Machines realtime — MỌI trường lấy từ DB
- *  (GET /api/devices/live), không phụ thuộc headscale. */
+/** 1 dòng máy cho màn hình Machines realtime (GET /api/devices/live). */
 export type LiveDevice = {
   id: number
   mac: string | null
@@ -291,7 +290,12 @@ export type LiveDevice = {
   build: number | null
   variant: string | null
   lastSeen: string | null
+  /** headscale còn map-poll MỞ, HOẶC telemetry còn tươi (server hợp nhất trong
+   *  resolveDeviceLiveState). */
   online: boolean
+  /** Client còn tự báo telemetry (home-derp) trong 60s gần đây. `online=true`
+   *  kèm `reporting=false` = máy sống nhưng reporter đang hỏng. */
+  reporting: boolean
 }
 
 export async function fetchLiveDevices(): Promise<LiveDevice[]> {

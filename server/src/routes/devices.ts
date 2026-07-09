@@ -6,13 +6,49 @@ import { db } from '../db/client.js'
 import { clientHomeDerp, deviceIdentity } from '../db/schema.js'
 import {
   backfillDeviceRegistry,
-  isDeviceOnline,
+  normalizeNodeKey,
+  resolveDeviceLiveState,
 } from '../lib/device-registry.js'
+import { hsApi, isHsConfigured } from '../lib/headscale.js'
 
 const patchSchema = z.object({
   managedUser: z.string().nullish(),
   staticIpv4: z.string().nullish(),
 })
+
+/**
+ * Bản đồ nodeKey -> online của headscale, CACHE NGẮN.
+ *
+ * /api/devices/live được poll 1s/lần từ trình duyệt; gọi thẳng headscale mỗi
+ * lần sẽ nện API 1 req/s. Cache 5s giữ độ trễ phát hiện online/offline ở mức
+ * chấp nhận được (headscale cũng chỉ đổi trạng thái khi map-poll mở/đóng) mà
+ * chỉ tốn ~0.2 req/s.
+ *
+ * Best-effort: headscale chưa cấu hình hoặc lỗi -> trả null, caller rơi về
+ * "chỉ dựa telemetry" (hành vi cũ), KHÔNG làm hỏng endpoint.
+ */
+type HsNodeLite = { nodeKey?: string; online?: boolean }
+const HS_ONLINE_CACHE_MS = 5_000
+let hsOnlineCache: { at: number; byNodeKey: Map<string, boolean> } | null = null
+
+async function headscaleOnlineByNodeKey(
+  nowMs: number
+): Promise<Map<string, boolean> | null> {
+  if (hsOnlineCache && nowMs - hsOnlineCache.at < HS_ONLINE_CACHE_MS) {
+    return hsOnlineCache.byNodeKey
+  }
+  if (!(await isHsConfigured())) return null
+  const list = await hsApi<{ nodes?: HsNodeLite[] }>('/api/v1/node')
+  const byNodeKey = new Map<string, boolean>()
+  for (const n of list.nodes ?? []) {
+    const key = normalizeNodeKey(n.nodeKey)
+    // Node có thể xuất hiện nhiều lần (đăng ký lại) — chỉ cần MỘT node online
+    // là máy đó online.
+    if (key) byNodeKey.set(key, (byNodeKey.get(key) ?? false) || !!n.online)
+  }
+  hsOnlineCache = { at: nowMs, byNodeKey }
+  return byNodeKey
+}
 
 /**
  * Admin — device registry hợp nhất (client + derp_infra), xem
@@ -65,12 +101,18 @@ export async function devicesRoutes(app: FastifyInstance): Promise<void> {
     return row
   })
 
-  // Màn hình Machines realtime (poll 1s): MỖI DÒNG LẤY TỪ DB, không gọi
-  // headscale (nhanh, chịu được poll 1s). MAC | Name | IP | Version | State |
-  // Last seen. IP = static_ipv4 (admin gán) ưu tiên, sau đó last_ipv4. Trạng
-  // thái online suy từ tín hiệu telemetry mới nhất trong DB (client_home_derp
-  // client mod báo ~3s/lần), không phụ thuộc headscale. nodeKey/id kèm theo để
-  // các nút hành động (đổi tên/thu hồi/xóa/IP tĩnh) tra ngược khi cần.
+  // Màn hình Machines realtime (poll 1s). MAC | Name | IP | Version | State |
+  // Last seen. IP = static_ipv4 (admin gán) ưu tiên, sau đó last_ipv4.
+  //
+  // TRẠNG THÁI = OR của hai tín hiệu độc lập (xem resolveDeviceLiveState):
+  //   - telemetry trong DB (client_home_derp, client mod báo ~3s/lần)
+  //   - headscale còn giữ map-poll mở với node (cache 5s, best-effort)
+  //
+  // Trước đây chỉ dựa telemetry và coi "không báo cáo" == "offline". Sai: đã
+  // gặp máy chạy bình thường, headscale báo Connected 32h liền, nhưng reporter
+  // chốt MAC rỗng lúc khởi động nên mọi POST telemetry bị 400 -> dashboard báo
+  // Offline. Giờ máy đó hiện ONLINE + cờ `reporting=false` để admin thấy đúng
+  // bản chất: máy sống, telemetry hỏng.
   app.get('/api/devices/live', async () => {
     const devs = await db
       .select({
@@ -92,12 +134,30 @@ export async function devicesRoutes(app: FastifyInstance): Promise<void> {
       .from(clientHomeDerp)
     const homeMap = new Map(home.map((h) => [h.mac, h.reportedAt]))
     const now = Date.now()
+    const hsOnline = await headscaleOnlineByNodeKey(now).catch((e) => {
+      app.log.warn(
+        { err: e instanceof Error ? e.message : String(e) },
+        'devices/live: headscale online lookup failed; falling back to telemetry only'
+      )
+      return null
+    })
     return devs.map((d) => {
-      // Tín hiệu "thấy gần nhất": ưu tiên home-derp (báo ~3s/lần khi online),
-      // fallback updatedAt (lần register gần nhất).
+      // Tín hiệu telemetry "thấy gần nhất": home-derp (báo ~3s/lần khi online).
+      // KHÔNG fallback updatedAt cho việc tính `reporting` — updatedAt là lần
+      // device-register (1 lần/khởi động daemon), nó không chứng minh telemetry
+      // đang chạy; dùng nó sẽ che đúng cái lỗi ta vừa sửa.
       const homeSeen = d.mac ? homeMap.get(d.mac) : undefined
+      const telemetrySeenMs = homeSeen ? new Date(homeSeen).getTime() : null
+      const key = normalizeNodeKey(d.nodeKey)
+      const headscaleOnline = hsOnline ? (hsOnline.get(key ?? '') ?? false) : null
+      const { online, reporting } = resolveDeviceLiveState({
+        telemetrySeenMs,
+        headscaleOnline,
+        nowMs: now,
+      })
+      // "Last seen" vẫn lấy tín hiệu mới nhất từng thấy (telemetry hoặc lần
+      // register gần nhất) để cột này không trống với máy chưa từng báo.
       const seen = homeSeen ?? d.updatedAt
-      const seenMs = seen ? new Date(seen).getTime() : null
       return {
         id: d.id,
         mac: d.mac,
@@ -109,7 +169,8 @@ export async function devicesRoutes(app: FastifyInstance): Promise<void> {
         build: d.clientBuild,
         variant: d.clientVariant,
         lastSeen: seen ? new Date(seen).toISOString() : null,
-        online: isDeviceOnline(seenMs, now),
+        online,
+        reporting,
       }
     })
   })

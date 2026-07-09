@@ -87,6 +87,7 @@ export async function enrollmentPublicRoutes(
         salt?: unknown
         hostname?: unknown
         token?: unknown
+        probe?: unknown
       }
       const mac = typeof body.mac === 'string' ? normalizeMac(body.mac) : ''
       // Chuẩn hoá lại phía server: không tin client đã chuẩn hoá đúng.
@@ -94,6 +95,12 @@ export async function enrollmentPublicRoutes(
       const hostname =
         typeof body.hostname === 'string' ? body.hostname.trim() : ''
       const token = typeof body.token === 'string' ? body.token : ''
+      // Probe: client CHƯA cấu hình autologin chỉ muốn HỎI "máy này đã được
+      // adopt chưa?" — nếu chưa (chưa có dòng) thì trả 404, TUYỆT ĐỐI không tạo
+      // dòng pending (tránh rác + tránh kéo mọi máy OIDC bình thường vào enroll).
+      const probe =
+        body.probe === true ||
+        (req.query as { probe?: string } | undefined)?.probe === '1'
       if (!mac || !salt) {
         return reply.code(400).send({ error: 'mac and salt required' })
       }
@@ -117,6 +124,11 @@ export async function enrollmentPublicRoutes(
 
       switch (decision.kind) {
         case 'create-pending': {
+          if (probe) {
+            // Chưa được adopt/duyệt → báo "không có" để client im lặng quay về
+            // luồng đăng nhập OIDC, KHÔNG tạo dòng pending.
+            return reply.code(404).send({ status: 'not_enrolled' })
+          }
           const [{ value: pendingCount }] = await db
             .select({ value: count() })
             .from(deviceEnrollment)
