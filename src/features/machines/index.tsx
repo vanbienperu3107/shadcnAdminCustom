@@ -424,12 +424,17 @@ const MachineRow = memo(function MachineRow({
       <TableCell className='hidden font-mono text-xs xl:table-cell'>
         {version?.version ? (
           <div className='flex flex-col gap-1'>
-            <span
-              title={
-                version.build != null ? `build ${version.build}` : undefined
-              }
-            >
+            <span>
               {version.version}
+              {/* Số "-N-" trong version là commit count (git describe), KHÔNG
+                  phải build number dùng để so sánh "có bản mới" — hiện rõ
+                  build thật ở đây để không gây hiểu lầm badge bên dưới sai. */}
+              {version.build != null && (
+                <span className='text-muted-foreground'>
+                  {' '}
+                  (build {version.build})
+                </span>
+              )}
               {version.variant && (
                 <span className='text-muted-foreground'>
                   {' '}
@@ -890,12 +895,18 @@ export function LiveUsersTable() {
                     <TableCell className='hidden font-mono text-xs lg:table-cell'>
                       {d.version ? (
                         <div className='flex flex-col gap-1'>
-                          <span
-                            title={
-                              d.build != null ? `build ${d.build}` : undefined
-                            }
-                          >
+                          <span>
                             {d.version}
+                            {/* Số "-N-" trong version là commit count (git
+                                describe), KHÔNG phải build number dùng để so
+                                sánh "có bản mới" — hiện rõ build thật ở đây để
+                                không gây hiểu lầm badge bên dưới sai. */}
+                            {d.build != null && (
+                              <span className='text-muted-foreground'>
+                                {' '}
+                                (build {d.build})
+                              </span>
+                            )}
                             {d.variant && (
                               <span className='text-muted-foreground'>
                                 {' '}

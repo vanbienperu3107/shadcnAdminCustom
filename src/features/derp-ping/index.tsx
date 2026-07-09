@@ -7,7 +7,13 @@ import {
 } from '@/features/home-derp/data/home-derp-api'
 import { derpPingKeys, listDerpPing } from './data/derp-ping-api'
 
-function cellClass(rttMs: number | null, ok: boolean): string {
+// Client báo cáo mỗi 30s (derppingreport.go) — 3 lần bỏ lỡ (90s) không nghe
+// lại được coi là ngừng báo (máy offline/mất kết nối), tránh hiện ô xanh
+// "khỏe" bằng số RTT cũ từ nhiều giờ trước cho 1 máy thực ra đã offline.
+const DERP_PING_STALE_MS = 90_000
+
+function cellClass(rttMs: number | null, ok: boolean, stale: boolean): string {
+  if (stale) return 'bg-muted text-muted-foreground'
   if (!ok) return 'bg-destructive/10 text-destructive'
   if (rttMs == null) return 'bg-muted text-muted-foreground'
   if (rttMs < 80)
@@ -95,13 +101,22 @@ export function DerpPing() {
                   </td>
                   {regionCols.map((r) => {
                     const cell = byClientRegion.get(`${mac}:${r.regionId}`)
+                    const stale =
+                      !!cell &&
+                      Date.now() - Date.parse(cell.reportedAt) >
+                        DERP_PING_STALE_MS
                     return (
                       <td key={r.regionId} className='p-1.5 text-center'>
                         {cell ? (
                           <span
+                            title={
+                              stale
+                                ? `Báo cuối lúc ${new Date(cell.reportedAt).toLocaleString()} — máy có thể đã offline`
+                                : undefined
+                            }
                             className={cn(
                               'inline-block min-w-14 rounded-md px-2 py-1 font-mono text-xs tabular-nums',
-                              cellClass(cell.rttMs, cell.ok)
+                              cellClass(cell.rttMs, cell.ok, stale)
                             )}
                           >
                             {cellLabel(cell.rttMs, cell.ok)}
@@ -132,7 +147,7 @@ export function DerpPing() {
           down / &gt;150ms
         </span>{' '}
         <span className='rounded bg-muted px-1.5 py-0.5 text-muted-foreground'>
-          không có dữ liệu
+          không có dữ liệu / báo cáo đã cũ (&gt;90s, di chuột để xem)
         </span>
       </p>
     </div>
