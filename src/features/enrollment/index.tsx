@@ -70,9 +70,7 @@ function SaltCell({ salt }: { salt: string }) {
   const [show, setShow] = useState(false)
   return (
     <div className='flex items-center gap-1'>
-      <code className='font-mono text-xs'>
-        {show ? salt : maskSalt(salt)}
-      </code>
+      <code className='font-mono text-xs'>{show ? salt : maskSalt(salt)}</code>
       <Button
         size='icon'
         variant='ghost'
@@ -80,7 +78,11 @@ function SaltCell({ salt }: { salt: string }) {
         onClick={() => setShow((v) => !v)}
         aria-label={show ? 'Ẩn serial' : 'Hiện serial'}
       >
-        {show ? <EyeOff className='h-3.5 w-3.5' /> : <Eye className='h-3.5 w-3.5' />}
+        {show ? (
+          <EyeOff className='h-3.5 w-3.5' />
+        ) : (
+          <Eye className='h-3.5 w-3.5' />
+        )}
       </Button>
     </div>
   )
@@ -193,9 +195,10 @@ function PreApproveDialog({
         </DialogHeader>
         <div className='space-y-4'>
           <p className='text-sm text-muted-foreground'>
-            Chạy <code className='rounded bg-muted px-1'>{'<exe> id'}</code> trên
-            máy để lấy <code>mac</code> và <code>salt</code>, dán vào đây trước
-            khi cắm máy — máy bật lên là vào tailnet ngay, không phải chờ duyệt.
+            Chạy <code className='rounded bg-muted px-1'>{'<exe> id'}</code>{' '}
+            trên máy để lấy <code>mac</code> và <code>salt</code>, dán vào đây
+            trước khi cắm máy — máy bật lên là vào tailnet ngay, không phải chờ
+            duyệt.
           </p>
           <div className='space-y-2'>
             <Label>MAC</Label>
@@ -287,8 +290,8 @@ export function EnrollmentPage() {
         <div className='space-y-1'>
           <p className='text-sm text-muted-foreground'>
             Máy cài sẵn <code className='rounded bg-muted px-1'>node.xml</code>{' '}
-            với <code>autologin=true</code> sẽ tự báo danh về đây. Duyệt xong máy
-            tự vào tailnet, không cần thao tác trên máy.
+            với <code>autologin=true</code> sẽ tự báo danh về đây. Duyệt xong
+            máy tự vào tailnet, không cần thao tác trên máy.
           </p>
           {pending > 0 && (
             <Badge className='border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400'>
@@ -334,7 +337,9 @@ export function EnrollmentPage() {
                 rows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>
-                      <div className='font-medium'>{r.note || r.hostname || '—'}</div>
+                      <div className='font-medium'>
+                        {r.note || r.hostname || '—'}
+                      </div>
                       {r.note && r.hostname && (
                         <div className='text-xs text-muted-foreground'>
                           {r.hostname}
@@ -349,7 +354,10 @@ export function EnrollmentPage() {
                       <div className='flex flex-wrap items-center gap-1'>
                         <StatusBadge status={r.status} />
                         {r.claimed && (
-                          <Badge variant='outline' title='Đã có thiết bị giữ device token'>
+                          <Badge
+                            variant='outline'
+                            title='Đã có thiết bị giữ device token'
+                          >
                             Đã claim
                           </Badge>
                         )}
@@ -386,7 +394,11 @@ export function EnrollmentPage() {
                               disabled={busy || !r.claimed}
                               title='Máy mất node.xml → cho phép claim lại'
                               onClick={() => {
-                                if (window.confirm('Reset device token của máy này?'))
+                                if (
+                                  window.confirm(
+                                    'Reset device token của máy này?'
+                                  )
+                                )
                                   resetMut.mutate(r.id)
                               }}
                             >
@@ -399,7 +411,11 @@ export function EnrollmentPage() {
                               className='h-8 gap-1 text-xs text-destructive hover:text-destructive'
                               disabled={busy}
                               onClick={() => {
-                                if (window.confirm('Thu hồi quyền vào tailnet của máy này?'))
+                                if (
+                                  window.confirm(
+                                    'Thu hồi quyền vào tailnet của máy này?'
+                                  )
+                                )
                                   revokeMut.mutate(r.id)
                               }}
                             >
@@ -414,7 +430,9 @@ export function EnrollmentPage() {
                           className='h-8 gap-1 text-xs text-destructive hover:text-destructive'
                           disabled={busy}
                           onClick={() => {
-                            if (window.confirm('Xoá hẳn bản ghi enrollment này?'))
+                            if (
+                              window.confirm('Xoá hẳn bản ghi enrollment này?')
+                            )
                               deleteMut.mutate(r.id)
                           }}
                         >
