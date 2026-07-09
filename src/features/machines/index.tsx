@@ -936,7 +936,16 @@ export function LiveUsersTable() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {d.online ? (
+                      {d.online && !d.reporting ? (
+                        <Badge
+                          variant='outline'
+                          className='border-amber-500/40 text-amber-600 dark:text-amber-400'
+                          title='headscale báo máy đang kết nối, nhưng client không gửi telemetry trong 60s qua — reporter có thể đang hỏng.'
+                        >
+                          <span className='me-1 inline-block size-2 rounded-full bg-amber-500' />
+                          Không báo cáo
+                        </Badge>
+                      ) : d.online ? (
                         <Badge
                           variant='outline'
                           className='border-emerald-500/40 text-emerald-600 dark:text-emerald-400'

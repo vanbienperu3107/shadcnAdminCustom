@@ -123,14 +123,10 @@ function useRealNodes({ poll = false }: { poll?: boolean } = {}) {
     queryFn: fetchDevices,
     staleTime: 30_000,
   })
-  // Headscale's raw `node.online` chỉ phản ánh phiên control-plane có còn MỞ
-  // hay không — nó có thể bị "kẹt" true sau khi client mất kết nối không sạch
-  // (sleep/crash/rớt mạng), y hệt như trang Machines từng gặp. Lấy thêm tín
-  // hiệu telemetry (client tự báo home-DERP ~3s/lần, coi là online nếu còn
-  // mới trong 60s — xem isDeviceOnline() server-side) làm NGUỒN THẬT cho
-  // trạng thái online, GIỐNG hệt trang Machines/"Người dùng" — hai trang phải
-  // luôn khớp nhau, tránh lệch như bug đã gặp (Overview "Connected" nhưng
-  // Machines "Offline" cho cùng 1 máy).
+  // NGUỒN THẬT của "online" là /api/devices/live: server hợp nhất map-poll của
+  // headscale VỚI độ tươi telemetry (xem resolveDeviceLiveState). Overview và
+  // Machines cùng đọc đúng endpoint này nên hai trang luôn khớp nhau — và khớp
+  // ở phía ĐÚNG: máy vẫn online khi telemetry chết, chỉ là không báo cáo.
   const liveDevices = useQuery({
     queryKey: ['devices', 'live'],
     queryFn: fetchLiveDevices,
@@ -149,11 +145,14 @@ function useRealNodes({ poll = false }: { poll?: boolean } = {}) {
       .filter((d) => d.nodeKey)
       .map((d) => [d.nodeKey as string, d])
   )
-  // Ưu tiên trạng thái online suy từ telemetry (freshness-aware); fallback về
-  // cờ headscale thô nếu máy chưa có dòng device_identity tương ứng (chưa
-  // backfill / vừa đăng ký).
+  // Fallback về cờ headscale thô khi máy chưa có dòng device_identity tương
+  // ứng (chưa backfill / vừa đăng ký).
   const isNodeOnline = (n: HsMachine): boolean =>
     liveByNodeKey.get(n.nodeKey ?? '')?.online ?? n.online ?? false
+  // Máy online nhưng telemetry im (reporting=false) -> cảnh báo, đừng lặng lẽ
+  // hiển thị "—" ở cột DERP/latency như thể mọi thứ bình thường.
+  const isNodeReporting = (n: HsMachine): boolean =>
+    liveByNodeKey.get(n.nodeKey ?? '')?.reporting ?? true
 
   return {
     derp,
@@ -161,6 +160,7 @@ function useRealNodes({ poll = false }: { poll?: boolean } = {}) {
     devices,
     liveByNodeKey,
     isNodeOnline,
+    isNodeReporting,
     names,
     regions: derp.data ?? [],
     realNodes,
@@ -352,6 +352,7 @@ function ClientDevicesTable() {
     realNodes,
     liveByNodeKey,
     isNodeOnline,
+    isNodeReporting,
     hsOk,
     isLoading,
     isFetching,
@@ -522,6 +523,7 @@ function ClientDevicesTable() {
                 const key = (n.givenName || n.name || '').toLowerCase()
                 const info = clientDerpMap.get(key)
                 const online = isNodeOnline(n)
+                const silent = online && !isNodeReporting(n)
                 return (
                   <TableRow
                     key={n.id ?? i}
@@ -551,7 +553,16 @@ function ClientDevicesTable() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {online ? (
+                      {silent ? (
+                        <Badge
+                          variant='outline'
+                          className='border-amber-500/40 text-amber-600 dark:text-amber-400'
+                          title='headscale báo máy đang kết nối, nhưng client không gửi telemetry trong 60s qua — reporter có thể đang hỏng.'
+                        >
+                          <span className='me-1 inline-block size-2 rounded-full bg-amber-500' />
+                          Không báo cáo
+                        </Badge>
+                      ) : online ? (
                         <Badge
                           variant='outline'
                           className='border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
