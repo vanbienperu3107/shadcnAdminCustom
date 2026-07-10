@@ -4,6 +4,7 @@ import {
   normalizeNodeKey,
   normalizeHostForMatch,
   staleNodesHoldingIp,
+  pickReservedIp,
   isDeviceOnline,
   isCiRunnerHostname,
   resolveDeviceLiveState,
@@ -106,6 +107,22 @@ describe('normalizeHostForMatch', () => {
     expect(normalizeHostForMatch('VOTAM-PC-12')).toBe('votam-pc')
     expect(normalizeHostForMatch(null)).toBe('')
     expect(normalizeHostForMatch('  Máy-2 ')).toBe('máy')
+  })
+})
+
+describe('pickReservedIp (pin=1 static-only vs legacy static||last)', () => {
+  it('pin=true: chỉ static_ipv4', () => {
+    expect(pickReservedIp({ staticIpv4: '100.64.0.21', lastIpv4: '100.64.0.25' }, true)).toBe('100.64.0.21')
+  })
+  it('pin=true + chưa ghim static → null (KHÔNG chase last_ipv4 trôi)', () => {
+    expect(pickReservedIp({ staticIpv4: null, lastIpv4: '100.64.0.25' }, true)).toBeNull()
+    expect(pickReservedIp(undefined, true)).toBeNull()
+  })
+  it('pin=false (luồng cũ): static || last || null', () => {
+    expect(pickReservedIp({ staticIpv4: '100.64.0.21', lastIpv4: '100.64.0.25' }, false)).toBe('100.64.0.21')
+    expect(pickReservedIp({ staticIpv4: null, lastIpv4: '100.64.0.25' }, false)).toBe('100.64.0.25')
+    expect(pickReservedIp({ staticIpv4: null, lastIpv4: null }, false)).toBeNull()
+    expect(pickReservedIp(undefined, false)).toBeNull()
   })
 })
 

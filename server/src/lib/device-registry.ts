@@ -406,6 +406,22 @@ export function staleNodesHoldingIp(
   return out
 }
 
+/**
+ * IP trả cho GET /api/internal/reserved-ip.
+ * - pin=true (headscale reconcile tất định, plan IP-pin consistency): CHỈ static_ipv4
+ *   (admin ghim); null nếu chưa ghim → headscale đi nhánh CHEAP, KHÔNG chase last_ipv4
+ *   đang trôi (B2).
+ * - pin=false (luồng cũ, tương thích ngược): static_ipv4 || last_ipv4 || null.
+ * Thuần — unit-test.
+ */
+export function pickReservedIp(
+  row: { staticIpv4?: string | null; lastIpv4?: string | null } | undefined,
+  pin: boolean
+): string | null {
+  if (pin) return row?.staticIpv4 || null
+  return row?.staticIpv4 || row?.lastIpv4 || null
+}
+
 /** Hostname là của máy runner CI (GitHub Actions) tự chạy trong smoke-test,
  *  KHÔNG phải máy người dùng thật — dùng để device-register bỏ qua, tránh mỗi
  *  lần build lại tạo 1 dòng device_identity rác (vd "runnervmuktm0"). Bắt các
