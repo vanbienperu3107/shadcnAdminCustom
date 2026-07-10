@@ -11,6 +11,7 @@ import {
 import { hsApi, isHsConfigured } from '../lib/headscale.js'
 import {
   isCiRunnerHostname,
+  pickReservedIp,
   staleNodesHoldingIp,
   upsertClientDevice,
 } from '../lib/device-registry.js'
@@ -260,9 +261,18 @@ export async function deviceIdentityPublicRoutes(
   // không được thì vẫn trả IP, không chặn đăng ký.
   app.get('/api/internal/reserved-ip', async (req, reply) => {
     if (!checkSecret(req, reply)) return
-    const q = req.query as { mac?: string }
+    const q = req.query as { mac?: string; pin?: string }
     const mac = typeof q.mac === 'string' ? q.mac.trim().toLowerCase() : ''
     if (!mac) return reply.code(400).send({ error: 'mac required' })
+    // pin=1: chế độ cho headscale reconcile tất định (plan IP-pin consistency, khi
+    // derp.pin_reconcile.mode=on). Khác luồng cũ ở 2 điểm:
+    //   (B2) CHỈ trả static_ipv4 (admin ghim) — KHÔNG fallback last_ipv4 (IP trôi),
+    //        null khi chưa ghim → headscale đi nhánh CHEAP (không đổi IP).
+    //   (B1) KHÔNG bắn reap async — headscale reconcile là nguồn xoá node DUY NHẤT,
+    //        2 bộ xoá cùng chạy sẽ đua (có thể nhả pin của node vừa tạo).
+    // Không pin=1 → giữ NGUYÊN hành vi cũ (static||last + reap) để tương thích ngược
+    // trong cửa sổ deploy (headscale cũ chưa gửi pin=1).
+    const pinMode = q.pin === '1'
     try {
       const [row] = await db
         .select({
@@ -272,7 +282,11 @@ export async function deviceIdentityPublicRoutes(
         })
         .from(deviceIdentity)
         .where(eq(deviceIdentity.mac, mac))
-      const ip = row?.staticIpv4 || row?.lastIpv4 || null
+      if (pinMode) {
+        // static-only, không reap (headscale reconcile là nguồn xoá node duy nhất).
+        return { ipv4: pickReservedIp(row, true) }
+      }
+      const ip = pickReservedIp(row, false)
       // Thu hồi node rác giữ IP đích, nhưng KHÔNG await: headscale gọi endpoint
       // này ĐỒNG BỘ trong lúc cấp IP cho node đang đăng ký, chặn bởi timeout
       // ngắn (~500ms). List+delete node headscale ở đây (gọi ngược vào headscale
