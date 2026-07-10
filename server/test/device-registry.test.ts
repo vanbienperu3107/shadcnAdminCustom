@@ -5,6 +5,7 @@ import {
   normalizeHostForMatch,
   staleNodesHoldingIp,
   pickReservedIp,
+  shouldRekeyDerp,
   isDeviceOnline,
   isCiRunnerHostname,
   resolveDeviceLiveState,
@@ -123,6 +124,21 @@ describe('pickReservedIp (pin=1 static-only vs legacy static||last)', () => {
     expect(pickReservedIp({ staticIpv4: null, lastIpv4: '100.64.0.25' }, false)).toBe('100.64.0.25')
     expect(pickReservedIp({ staticIpv4: null, lastIpv4: null }, false)).toBeNull()
     expect(pickReservedIp(undefined, false)).toBeNull()
+  })
+})
+
+describe('shouldRekeyDerp (re-point per-node DERP khi node_key doi)', () => {
+  it('cả 2 key có + khác nhau → true', () => {
+    expect(shouldRekeyDerp('nodekey:aaa', 'nodekey:bbb')).toBe(true)
+  })
+  it('key không đổi → false (ca thường: recreate giữ NodeKey)', () => {
+    expect(shouldRekeyDerp('nodekey:aaa', 'nodekey:aaa')).toBe(false)
+  })
+  it('thiếu old hoặc new → false (không re-key nhầm)', () => {
+    expect(shouldRekeyDerp(null, 'nodekey:bbb')).toBe(false)
+    expect(shouldRekeyDerp('nodekey:aaa', null)).toBe(false)
+    expect(shouldRekeyDerp(undefined, undefined)).toBe(false)
+    expect(shouldRekeyDerp('', 'nodekey:bbb')).toBe(false)
   })
 })
 
