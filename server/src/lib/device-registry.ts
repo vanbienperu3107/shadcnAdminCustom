@@ -17,12 +17,28 @@ import { db } from '../db/client.js'
 import {
   clientVersionHistory,
   deviceIdentity,
+  derpNodeAssignments,
+  derpNodeHealth,
+  derpNodeOptions,
   derpServers,
 } from '../db/schema.js'
 import { hsApi } from './headscale.js'
 
 function generateToken(): string {
   return randomBytes(24).toString('base64url')
+}
+
+/**
+ * Có cần re-point per-node DERP rows (derp_node_assignments/options/health, keyed
+ * theo node_key) từ key CŨ sang MỚI không? = khi máy (theo mac) đổi node_key —
+ * ca hiếm: nodekey xoay đồng thời với re-pin IP (plan IP-pin consistency §10 H4).
+ * Neo theo mac là nguồn sự thật; node_key chỉ là con trỏ hiện hành. Thuần — test.
+ */
+export function shouldRekeyDerp(
+  oldKey: string | null | undefined,
+  newKey: string | null | undefined
+): boolean {
+  return !!oldKey && !!newKey && oldKey !== newKey
 }
 
 /** Hướng đổi build: lần đầu có build / tăng (nâng cấp) / giảm (hạ cấp). Thuần
@@ -178,6 +194,25 @@ export async function upsertClientDevice(opts: {
           updatedAt: new Date(),
         })
         .where(eq(deviceIdentity.id, action.id))
+      // Máy đổi node_key (ca hiếm: nodekey xoay + re-pin) → re-point 3 bảng DERP
+      // keyed node_key từ CŨ sang MỚI, giữ home-DERP/exclusive/health của máy
+      // (plan IP-pin consistency §10 H4). Trong cùng tx.
+      if (shouldRekeyDerp(byMac.nodeKey, nodeKey)) {
+        const oldKey = byMac.nodeKey as string
+        const newKey = nodeKey as string
+        await tx
+          .update(derpNodeAssignments)
+          .set({ nodeKey: newKey })
+          .where(eq(derpNodeAssignments.nodeKey, oldKey))
+        await tx
+          .update(derpNodeOptions)
+          .set({ nodeKey: newKey })
+          .where(eq(derpNodeOptions.nodeKey, oldKey))
+        await tx
+          .update(derpNodeHealth)
+          .set({ nodeKey: newKey })
+          .where(eq(derpNodeHealth.nodeKey, oldKey))
+      }
       if (clientBuild != null && clientBuild !== byMac.clientBuild) {
         versionChange = {
           hostname: byMac.hostname,
