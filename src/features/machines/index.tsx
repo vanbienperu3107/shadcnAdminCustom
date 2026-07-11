@@ -766,6 +766,11 @@ export function LiveUsersTable() {
     queryKey: nodeRuntimeKeys.all,
     queryFn: listNodeRuntime,
   })
+  // device_identity đầy đủ + danh sách DERP — chỉ dùng để PHÂN LOẠI node
+  // headscale nào là "máy người dùng" (không phải hạ tầng DERP) khi hợp nhất
+  // client bản TIÊU CHUẨN vào bảng (xem `rows` bên dưới).
+  const allDevices = useQuery({ queryKey: ['devices'], queryFn: fetchDevices })
+  const derp = useQuery({ queryKey: derpKeys.all, queryFn: listDerp })
 
   const [dialog, setDialog] = useState<DialogKind>(null)
   const [currentRow, setCurrentRow] = useState<HsMachine | null>(null)
@@ -813,12 +818,50 @@ export function LiveUsersTable() {
     setDialog(kind)
   }
 
-  const rows = devices
-    .slice()
-    .sort(
-      (a, b) =>
-        Number(b.online) - Number(a.online) || a.name.localeCompare(b.name)
-    )
+  // Client bản TIÊU CHUẨN (không phải build custom) không gọi device-register
+  // nên KHÔNG có dòng trong device_identity -> /api/devices/live bỏ sót, dù
+  // headscale vẫn thấy chúng online. Hợp nhất: bổ sung các node headscale "máy
+  // người dùng" (không phải DERP) chưa xuất hiện trong danh sách live thành
+  // dòng tổng hợp (MAC = —, không có version/PAC/IP tĩnh — đúng bản chất máy
+  // tiêu chuẩn). Nhờ vậy tab "Người dùng" là superset khớp với overview.
+  const derpNames = derpNameSet(derp.data ?? [])
+  const typeByNodeKey = deviceTypeMap(allDevices.data ?? [])
+  const seenNodeKeys = new Set(
+    devices.map((d) => d.nodeKey).filter(Boolean) as string[]
+  )
+  const seenNames = new Set(
+    devices.map((d) => d.name.toLowerCase().trim()).filter(Boolean)
+  )
+  const extraDevices: LiveDevice[] = (machines.data?.nodes ?? [])
+    .filter((n) => !isDerpNodeV2(n, typeByNodeKey, derpNames))
+    .filter((n) => {
+      const nk = n.nodeKey ?? ''
+      const nm = (n.givenName || n.name || '').toLowerCase().trim()
+      // Bỏ qua nếu đã có (khớp nodeKey hoặc tên) để tránh nhân đôi máy custom
+      // chưa backfill nodeKey.
+      return !(nk && seenNodeKeys.has(nk)) && !(nm && seenNames.has(nm))
+    })
+    .map((n, i) => ({
+      id: -1 - i, // âm = không có bản ghi device_identity (chặn "Gán IP tĩnh")
+      mac: null,
+      nodeKey: n.nodeKey ?? null,
+      name: n.givenName || n.name || '(chưa đặt tên)',
+      ip: n.ipAddresses?.[0] ?? null,
+      staticIp: null,
+      version: null,
+      build: null,
+      variant: null,
+      lastSeen: n.lastSeen ?? null,
+      online: n.online ?? false,
+      // Máy tiêu chuẩn không gửi telemetry -> reporting=true để không hiện
+      // nhầm badge "Không báo cáo" (vốn để cảnh báo reporter hỏng).
+      reporting: true,
+    }))
+
+  const rows = [...devices, ...extraDevices].sort(
+    (a, b) =>
+      Number(b.online) - Number(a.online) || a.name.localeCompare(b.name)
+  )
 
   return (
     <>
@@ -978,11 +1021,15 @@ export function LiveUsersTable() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align='end'>
-                          <DropdownMenuItem
-                            onClick={() => openDialog('static-ip', d)}
-                          >
-                            <Pin className='me-2 size-4' /> Gán IP tĩnh
-                          </DropdownMenuItem>
+                          {/* IP tĩnh cần bản ghi device_identity (id thật);
+                              dòng tổng hợp từ headscale (id < 0) không gán được. */}
+                          {d.id > 0 && (
+                            <DropdownMenuItem
+                              onClick={() => openDialog('static-ip', d)}
+                            >
+                              <Pin className='me-2 size-4' /> Gán IP tĩnh
+                            </DropdownMenuItem>
+                          )}
                           {d.mac && (
                             <DropdownMenuItem
                               onClick={() => checkNowForMac.mutate(d.mac!)}
