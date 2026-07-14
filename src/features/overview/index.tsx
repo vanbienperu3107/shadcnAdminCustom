@@ -21,14 +21,12 @@ import {
   fetchDevices,
   fetchHsUsers,
   fetchLatency,
-  fetchLiveDevices,
   fetchMachines,
-  type HsMachine,
   hsKeys,
   isDerpNodeV2,
-  type LiveDevice,
   userName,
 } from '@/features/headscale/hs-api'
+import { useNodeLiveState } from '@/features/headscale/use-live-nodes'
 import {
   homeDerpKeys,
   listHomeDerp,
@@ -123,15 +121,12 @@ function useRealNodes({ poll = false }: { poll?: boolean } = {}) {
     queryFn: fetchDevices,
     staleTime: 30_000,
   })
-  // NGUỒN THẬT của "online" là /api/devices/live: server hợp nhất map-poll của
-  // headscale VỚI độ tươi telemetry (xem resolveDeviceLiveState). Overview và
-  // Machines cùng đọc đúng endpoint này nên hai trang luôn khớp nhau — và khớp
-  // ở phía ĐÚNG: máy vẫn online khi telemetry chết, chỉ là không báo cáo.
-  const liveDevices = useQuery({
-    queryKey: ['devices', 'live'],
-    queryFn: fetchLiveDevices,
-    staleTime: 30_000,
-    refetchInterval: poll ? 30_000 : undefined,
+  // NGUỒN THẬT của "online" là /api/devices/live (server hợp nhất map-poll
+  // headscale VỚI độ tươi telemetry — xem resolveDeviceLiveState), gói trong hook
+  // useNodeLiveState để Overview + Machines + Latency dùng CHUNG một định nghĩa.
+  // `poll` chỉ bật ở owner (StatMachines) — đúng như query machines ngay trên.
+  const { liveOf, isNodeOnline, isNodeReporting, liveQuery } = useNodeLiveState({
+    poll,
   })
 
   const names = derpNameSet(derp.data ?? [])
@@ -140,25 +135,12 @@ function useRealNodes({ poll = false }: { poll?: boolean } = {}) {
   const realNodes = allNodes.filter(
     (n) => !isDerpNodeV2(n, typeByNodeKey, names)
   )
-  const liveByNodeKey = new Map<string, LiveDevice>(
-    (liveDevices.data ?? [])
-      .filter((d) => d.nodeKey)
-      .map((d) => [d.nodeKey as string, d])
-  )
-  // Fallback về cờ headscale thô khi máy chưa có dòng device_identity tương
-  // ứng (chưa backfill / vừa đăng ký).
-  const isNodeOnline = (n: HsMachine): boolean =>
-    liveByNodeKey.get(n.nodeKey ?? '')?.online ?? n.online ?? false
-  // Máy online nhưng telemetry im (reporting=false) -> cảnh báo, đừng lặng lẽ
-  // hiển thị "—" ở cột DERP/latency như thể mọi thứ bình thường.
-  const isNodeReporting = (n: HsMachine): boolean =>
-    liveByNodeKey.get(n.nodeKey ?? '')?.reporting ?? true
 
   return {
     derp,
     machines,
     devices,
-    liveByNodeKey,
+    liveOf,
     isNodeOnline,
     isNodeReporting,
     names,
@@ -171,7 +153,7 @@ function useRealNodes({ poll = false }: { poll?: boolean } = {}) {
       machines.isFetching ||
       devices.isFetching ||
       derp.isFetching ||
-      liveDevices.isFetching,
+      liveQuery.isFetching,
   }
 }
 
@@ -350,7 +332,7 @@ function ClientDevicesTable() {
     regions,
     names,
     realNodes,
-    liveByNodeKey,
+    liveOf,
     isNodeOnline,
     isNodeReporting,
     hsOk,
@@ -586,9 +568,7 @@ function ClientDevicesTable() {
                         const reportSeen = lastReportAt.get(
                           (n.givenName || n.name || '').toLowerCase()
                         )
-                        const liveSeen = liveByNodeKey.get(
-                          n.nodeKey ?? ''
-                        )?.lastSeen
+                        const liveSeen = liveOf(n)?.lastSeen
                         const liveSeenMs = liveSeen ? Date.parse(liveSeen) : NaN
                         const best = [hsSeen, reportSeen, liveSeenMs]
                           .filter((t) => !Number.isNaN(t) && t != null)
