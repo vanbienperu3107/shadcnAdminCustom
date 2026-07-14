@@ -113,7 +113,7 @@ describe('Latency — cột Online lấy từ nguồn hợp nhất /api/devices/
     vi.mocked(fetchDevices).mockResolvedValue([])
     vi.mocked(listDerp).mockResolvedValue([])
 
-    const screen = renderLatency()
+    const screen = await renderLatency()
 
     await expect.element(screen.getByText('votam-pc')).toBeInTheDocument()
     await expect.element(screen.getByText('online')).toBeInTheDocument()
@@ -149,7 +149,7 @@ describe('Latency — cột Online lấy từ nguồn hợp nhất /api/devices/
     vi.mocked(fetchLatency).mockResolvedValue({ pairs: [] })
     vi.mocked(listDerp).mockResolvedValue([])
 
-    const screen = renderLatency()
+    const screen = await renderLatency()
 
     // Chuyển sang tab Hạ tầng / Collector rồi kiểm node infra online theo cờ thô.
     const infraTab = screen.getByRole('tab', { name: /Hạ tầng/ })
