@@ -20,6 +20,7 @@ import {
   isDerpNodeV2,
   userName,
 } from '@/features/headscale/hs-api'
+import { useNodeLiveState } from '@/features/headscale/use-live-nodes'
 
 function num(v: unknown): string {
   if (v == null || v === '') return '—'
@@ -145,6 +146,12 @@ export function Latency() {
   })
   const derp = useQuery({ queryKey: derpKeys.all, queryFn: listDerp })
   const devices = useQuery({ queryKey: ['devices'], queryFn: fetchDevices })
+  // "online" phải LẤY TỪ NGUỒN HỢP NHẤT /api/devices/live (telemetry OR
+  // headscale), GIỐNG Overview/Machines — không đọc cờ headscale thô `n.online`
+  // (flap/trễ → báo offline sai khi máy đang telemetry tươi). poll:true BẮT BUỘC:
+  // tab Latency là leaf render độc lập, không observer nào khác giữ timer cho
+  // ['devices','live'] khi tab này mở; thiếu nó cột Online sẽ đóng băng.
+  const { isNodeOnline } = useNodeLiveState({ poll: true })
 
   const names = derpNameSet(derp.data ?? [])
   const typeByNodeKey = deviceTypeMap(devices.data ?? [])
@@ -196,7 +203,7 @@ export function Latency() {
       ip: n.ipAddresses?.[0] ?? '—',
       derpRegion: info?.region ?? '',
       derpRttMs: info?.rttMs ?? null,
-      online: !!n.online,
+      online: isNodeOnline(n),
       lastSeen: n.lastSeen,
     }
   })
