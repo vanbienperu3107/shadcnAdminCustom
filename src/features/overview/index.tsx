@@ -125,9 +125,8 @@ function useRealNodes({ poll = false }: { poll?: boolean } = {}) {
   // headscale VỚI độ tươi telemetry — xem resolveDeviceLiveState), gói trong hook
   // useNodeLiveState để Overview + Machines + Latency dùng CHUNG một định nghĩa.
   // `poll` chỉ bật ở owner (StatMachines) — đúng như query machines ngay trên.
-  const { liveOf, isNodeOnline, isNodeReporting, liveQuery } = useNodeLiveState({
-    poll,
-  })
+  const nodeLive = useNodeLiveState({ poll })
+  const { liveOf, isNodeOnline, isNodeReporting, liveQuery } = nodeLive
 
   const names = derpNameSet(derp.data ?? [])
   const typeByNodeKey = deviceTypeMap(devices.data ?? [])
