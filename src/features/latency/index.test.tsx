@@ -116,7 +116,9 @@ describe('Latency — cột Online lấy từ nguồn hợp nhất /api/devices/
     const screen = await renderLatency()
 
     await expect.element(screen.getByText('votam-pc')).toBeInTheDocument()
-    await expect.element(screen.getByText('online')).toBeInTheDocument()
+    await expect
+      .element(screen.getByText('online', { exact: true }))
+      .toBeInTheDocument()
     await expect.element(screen.getByText('offline')).not.toBeInTheDocument()
   })
 
@@ -157,6 +159,8 @@ describe('Latency — cột Online lấy từ nguồn hợp nhất /api/devices/
     await userEvent.click(infraTab)
 
     await expect.element(screen.getByText('vpn4-vn')).toBeInTheDocument()
-    await expect.element(screen.getByText('online')).toBeInTheDocument()
+    await expect
+      .element(screen.getByText('online', { exact: true }))
+      .toBeInTheDocument()
   })
 })
