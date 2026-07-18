@@ -107,6 +107,41 @@ export function enrollDecision(
 }
 
 /**
+ * Quyết định enroll theo SALT thay vì (mac, salt) — FIX token_mismatch.
+ *
+ * Một máy vật lý (cùng serial ổ cứng = cùng salt) đổi card mạng gửi mac khác
+ * nhau ⇒ sinh nhiều dòng device_enrollment cùng salt, mỗi dòng first-enroll-wins
+ * mint token RIÊNG. node.xml chỉ giữ 1 token (lần mint gần nhất). Trước đây tra
+ * theo (mac, salt) ⇒ máy quay lại bằng card cũ trúng dòng mang token KHÁC ⇒ 403
+ * token_mismatch (đúng lỗi VOTAM-PC). Nay xét CẢ NHÓM dòng cùng salt: token khớp
+ * BẤT KỲ dòng approved nào của salt đó là hợp lệ ⇒ hết khoá theo mac.
+ *
+ * Giữ nguyên các bất biến khác: revoked (bất kỳ dòng nào) ⇒ cấm cả máy; chưa dòng
+ * nào có token ⇒ first-enroll-wins; thiếu token khi đã có ⇒ token_required.
+ */
+export function enrollDecisionBySalt(
+  rows: EnrollRow[],
+  suppliedToken: string
+): EnrollDecision {
+  if (rows.length === 0) return { kind: 'create-pending' }
+  // Admin đã thu hồi 1 dòng của máy này ⇒ cấm cả máy (không dựng revoked dậy).
+  if (rows.some((r) => r.status === 'revoked')) {
+    return { kind: 'denied', reason: 'revoked' }
+  }
+  const approved = rows.filter((r) => r.status === 'approved')
+  if (approved.length === 0) return { kind: 'pending' } // tất cả còn pending
+  const withToken = approved.filter((r) => r.deviceTokenHash)
+  if (withToken.length === 0) return { kind: 'issue', mintToken: true } // first-enroll-wins
+  if (!suppliedToken) return { kind: 'denied', reason: 'token_required' }
+  const ok = withToken.some((r) =>
+    deviceTokenMatches(suppliedToken, r.deviceTokenHash as string)
+  )
+  return ok
+    ? { kind: 'issue', mintToken: false }
+    : { kind: 'denied', reason: 'token_mismatch' }
+}
+
+/**
  * Auto-adopt: một máy ĐÃ đăng nhập OIDC thành công (đã là node hợp lệ) tự được
  * ghi 'approved' để lần sau vào không cần cấu hình. Trả về status mới cho dòng
  * device_enrollment khi adopt.
