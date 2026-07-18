@@ -13,6 +13,13 @@ if (existsSync('.env')) {
 
 const schema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  // PEPPER cho định danh thiết bị theo salt (plan device_id): salt_hmac =
+  // HMAC-SHA256(salt, PEPPER). Server-side, PHẢI tách kênh backup khỏi
+  // DATABASE_URL (kho lưu bí mật / CI riêng) — rò DB đơn thuần không đảo được
+  // salt ⇒ không tái tạo machine key toàn fleet. Để trống = định danh theo salt
+  // TẠM NGHỈ (không tính salt_hmac). KHÔNG fail-fast ở PR nền để không chặn boot;
+  // đặt qua env rồi backfill tự chạy lần deploy kế (F1a-enroll sau sẽ ép bắt buộc).
+  PEPPER: z.string().default(''),
   PORT: z.coerce.number().default(8787),
   PUBLIC_URL: z.string().url().default('http://localhost:8787'),
   GOOGLE_CLIENT_ID: z.string().default(''),
