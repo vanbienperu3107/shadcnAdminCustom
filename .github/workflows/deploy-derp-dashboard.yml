@@ -96,6 +96,7 @@ jobs:
               -e HEADSCALE_API_KEY="$HEADSCALE_API_KEY" \
               -e GITHUB_TOKEN="$GH_PAT" \
               -e HEADSCALE_DASHBOARD_SECRET="$HEADSCALE_DASHBOARD_SECRET" \
+              -e PEPPER="$PEPPER" \
               -e AUTH_OPTIONAL=false \
               -e NODE_ENV=production \
               "$IMG"
@@ -120,6 +121,12 @@ jobs:
           # Để dashboard gửi X-Headscale-Secret khớp derp.dashboard.secret của
           # headscale khi gọi POST /derp/poke (nút reload) — nếu không, poke 401.
           HEADSCALE_DASHBOARD_SECRET: ${{ secrets.HEADSCALE_DASHBOARD_SECRET }}
+          # Pepper cho định danh thiết bị theo salt: salt_hmac = HMAC(salt, PEPPER).
+          # PHẢI lưu ở kênh tách khỏi DERP_DATABASE_URL — rò DB đơn thuần khi đó
+          # vẫn không đảo ngược được salt (= seed machine key toàn fleet).
+          # Chưa đặt secret ⇒ PEPPER rỗng ⇒ backfill tự bỏ qua (không lỗi), đặt
+          # secret rồi thì lần deploy kế backfill tự chạy.
+          PEPPER: ${{ secrets.PEPPER }}
 
       - name: Auto-seed Headscale API key (non-fatal)
         continue-on-error: true
