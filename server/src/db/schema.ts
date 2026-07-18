@@ -1,6 +1,8 @@
 import {
   pgTable,
   integer,
+  bigint,
+  bigserial,
   text,
   boolean,
   real,
@@ -262,6 +264,85 @@ export const deviceIdentity = pgTable('device_identity', {
   clientBuild:  integer('client_build'), // build number tăng đơn điệu (so sánh update)
   clientVariant: text('client_variant'), // 'portable' | 'proxy' | 'vpn' | 'linux-amd64'
   updatedAt:    timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Định danh thiết bị theo salt (plan device_id — F0 nền móng).
+//
+// `salt` = serial ổ cứng đã chuẩn hoá = SEED sinh private machine key phía client
+// (cmd/tailscaled/hwid.go). KHÔNG BAO GIỜ lưu salt thô — chỉ lưu `salt_hmac` =
+// HMAC-SHA256(salt, PEPPER) (PEPPER là secret env, tách kênh khỏi DATABASE_URL):
+// lộ DB đơn thuần không đảo ngược được salt → không tái tạo được machine key.
+//
+// `device.id` là surrogate NỘI BỘ, KHÔNG lộ ra client (client chỉ gửi salt/key).
+// MAC tụt xuống ALIAS (1 device nhiều MAC) — xem `deviceMac`. Các bảng nghiệp vụ
+// (folder_shares, pac_rules, ...) sẽ trỏ vào `device.id` bằng FK (F5/F6/F7), thay
+// cho việc khoá theo MAC vốn không ổn định (đổi card mạng → token_mismatch).
+//
+// Vòng đời: pending -(admin duyệt)-> approved -(admin thu hồi)-> revoked.
+// Bootstrap key #1: máy đã approved chìa salt → cấp key; salt lạ → pending chờ
+// admin. Chi tiết: docs/plan-device-id.md.
+export const device = pgTable('device', {
+  id:            bigserial('id', { mode: 'number' }).primaryKey(),
+  saltHmac:      text('salt_hmac').notNull().unique(), // HMAC-SHA256(salt, PEPPER); KHÔNG lưu salt thô
+  status:        text('status').notNull().default('pending'), // pending | approved | revoked
+  hostname:      text('hostname'),
+  note:          text('note'),
+  srcIpFirst:    text('src_ip_first'),   // IP lần liên lạc đầu — giúp admin xét salt lạ
+  staticIpv4:    text('static_ipv4'),    // IP admin ép cố định (ưu tiên hơn lastIpv4)
+  lastIpv4:      text('last_ipv4'),      // IP tailnet gần nhất được báo cáo (tự động)
+  nodeKey:       text('node_key').unique(), // headscale nodeKey (biết sau khi đăng ký)
+  keySeenAt:     timestamp('key_seen_at', { withTimezone: true }), // đã trình key lần đầu — cổng F1c
+  isPreapprove:  boolean('is_preapprove').notNull().default(false), // pre-approve MIỄN cửa sổ 15'
+  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  approvedAt:    timestamp('approved_at', { withTimezone: true }),
+  approvedBy:    text('approved_by'),
+})
+
+/** Nhiều MAC / 1 thiết bị. MAC lạ của device đã approved → tạo dòng pending, chờ
+ *  admin duyệt (chống fake salt mượn MAC máy khác). mac = normalizeMac (lowercase). */
+export const deviceMac = pgTable('device_mac', {
+  mac:        text('mac').primaryKey(),
+  deviceId:   bigint('device_id', { mode: 'number' })
+    .notNull()
+    .references(() => device.id, { onDelete: 'cascade' }),
+  status:     text('status').notNull().default('pending'), // pending | approved
+  firstSeen:  timestamp('first_seen', { withTimezone: true }).notNull().defaultNow(),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  approvedBy: text('approved_by'),
+})
+
+/** Credential Bearer xoay vòng ≤24h. key_prev_hash = cửa grace (mất response
+ *  refresh). Daemon client sở hữu key trong node-key.json; server chỉ lưu hash. */
+export const deviceKey = pgTable('device_key', {
+  deviceId:    bigint('device_id', { mode: 'number' })
+    .primaryKey()
+    .references(() => device.id, { onDelete: 'cascade' }),
+  keyHash:     text('key_hash').notNull(),      // sha256(key)
+  keyPrevHash: text('key_prev_hash'),           // sha256(key trước) — cửa grace
+  expiresAt:   timestamp('expires_at', { withTimezone: true }).notNull(),
+  rotatedAt:   timestamp('rotated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Nhật ký cấp phát / xoay / thu hồi key — nguồn cho UI + phát hiện bản sao. */
+export const deviceKeyAudit = pgTable('device_key_audit', {
+  id:       serial('id').primaryKey(),
+  deviceId: bigint('device_id', { mode: 'number' }).notNull(),
+  event:    text('event').notNull(), // issued|rotated|grace|reuse_detected|revoked|expired|window_expired|dup_enroll
+  at:       timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  srcIp:    text('src_ip'),
+  keyFp:    text('key_fp'),           // 8 ký tự đầu sha256(key) — KHÔNG bao giờ key thô
+})
+
+/** Xung đột cần admin xử lý tay (thay cho "dừng migration"). kind:
+ *  salt_dup | mac_case | orphan_mac | share_dup | mac_stolen | dup_enroll | identity_dup */
+export const deviceConflict = pgTable('device_conflict', {
+  id:         serial('id').primaryKey(),
+  kind:       text('kind').notNull(),
+  key:        text('key'),            // salt_hmac / mac / ... tuỳ kind
+  rowIds:     text('row_ids'),        // JSON các id liên quan
+  detectedAt: timestamp('detected_at', { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
 })
 
 /** Cấu hình auto-update client (singleton id=1). enabled=false = kill-switch;
