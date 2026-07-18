@@ -32,3 +32,14 @@ dist-ssr
 # Vitest artifacts (browser screenshots/attachments)
 **/__screenshots__/
 .vitest-attachments/
+
+# Claude Code tooling state (governance/handoff/lessons) — máy cục bộ, không phải mã nguồn
+.claude/
+server/.claude/
+
+# Lockfile SAI package manager: root dùng pnpm (pnpm-lock.yaml), server dùng npm
+# (server/package-lock.json). File chéo sinh ra khi chạy nhầm lệnh sẽ làm lệch
+# dependency và có thể phá `--frozen-lockfile` trên CI.
+/package-lock.json
+/server/pnpm-lock.yaml
+yarn.lock
