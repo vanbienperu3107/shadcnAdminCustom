@@ -237,6 +237,79 @@ export async function migrate(): Promise<void> {
     END $$;
   `)
 
+  // ── Định danh thiết bị theo salt (plan device_id — F0 nền móng) ─────────────
+  // 5 bảng MỚI, thuần bổ sung: chưa endpoint nào đọc/ghi ⇒ deploy không đổi hành
+  // vi. Backfill (device_enrollment → device, tính salt_hmac bằng PEPPER) + các
+  // cột *_device_id trên bảng nghiệp vụ nằm ở F1a/F5/F6/F7 nơi code dùng tới.
+  // salt_hmac = HMAC-SHA256(salt, PEPPER) tính phía server (Node crypto), KHÔNG
+  // lưu salt thô. Xem docs/plan-device-id.md.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS device (
+      id             BIGSERIAL PRIMARY KEY,
+      salt_hmac      TEXT NOT NULL UNIQUE,
+      status         TEXT NOT NULL DEFAULT 'pending',
+      hostname       TEXT,
+      note           TEXT,
+      src_ip_first   TEXT,
+      static_ipv4    TEXT,
+      last_ipv4      TEXT,
+      node_key       TEXT UNIQUE,
+      key_seen_at    TIMESTAMPTZ,
+      is_preapprove  BOOLEAN NOT NULL DEFAULT false,
+      created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+      approved_at    TIMESTAMPTZ,
+      approved_by    TEXT
+    )
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_device_status ON device(status)
+  `)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS device_mac (
+      mac         TEXT PRIMARY KEY,
+      device_id   BIGINT NOT NULL REFERENCES device(id) ON DELETE CASCADE,
+      status      TEXT NOT NULL DEFAULT 'pending',
+      first_seen  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      approved_at TIMESTAMPTZ,
+      approved_by TEXT
+    )
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_device_mac_device ON device_mac(device_id)
+  `)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS device_key (
+      device_id     BIGINT PRIMARY KEY REFERENCES device(id) ON DELETE CASCADE,
+      key_hash      TEXT NOT NULL,
+      key_prev_hash TEXT,
+      expires_at    TIMESTAMPTZ NOT NULL,
+      rotated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS device_key_audit (
+      id         SERIAL PRIMARY KEY,
+      device_id  BIGINT NOT NULL,
+      event      TEXT NOT NULL,
+      at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+      src_ip     TEXT,
+      key_fp     TEXT
+    )
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_device_key_audit_device ON device_key_audit(device_id)
+  `)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS device_conflict (
+      id          SERIAL PRIMARY KEY,
+      kind        TEXT NOT NULL,
+      key         TEXT,
+      row_ids     TEXT,
+      detected_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      resolved_at TIMESTAMPTZ
+    )
+  `)
+
   // Client config — shared with api-center (cùng DB hoặc tạo lại nếu DB riêng)
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS client_config (
