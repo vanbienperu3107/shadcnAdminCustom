@@ -625,4 +625,11 @@ export async function migrate(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_device_enrollment_status
       ON device_enrollment(status)
   `)
+  // Enroll giờ tra theo SALT (không còn (mac,salt)) để hợp nhất mọi card mạng
+  // của cùng một máy — xem enrollDecisionBySalt. UNIQUE(mac,salt) có sẵn không
+  // phục vụ được WHERE salt=? (salt là cột thứ 2), nên thêm index riêng.
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_device_enrollment_salt
+      ON device_enrollment(salt)
+  `)
 }

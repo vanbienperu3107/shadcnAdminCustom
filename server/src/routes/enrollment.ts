@@ -1,12 +1,12 @@
 import type { FastifyInstance } from 'fastify'
-import { and, count, desc, eq } from 'drizzle-orm'
+import { count, desc, eq } from 'drizzle-orm'
 import { requireAuth } from '../auth/middleware.js'
 import { db } from '../db/client.js'
 import { deviceEnrollment, deviceIdentity } from '../db/schema.js'
 import { env } from '../env.js'
 import {
   MAX_PENDING_ROWS,
-  enrollDecision,
+  enrollDecisionBySalt,
   hashDeviceToken,
   newDeviceToken,
   normalizeMac,
@@ -105,20 +105,19 @@ export async function enrollmentPublicRoutes(
         return reply.code(400).send({ error: 'mac and salt required' })
       }
 
-      const [row] = await db
+      // ★ Tra theo SALT (không còn (mac,salt)) — fix token_mismatch: một máy đổi
+      // card mạng gửi mac khác nhau nhưng CÙNG salt, xét cả nhóm để token khớp
+      // bất kỳ dòng approved nào của salt đó là hợp lệ. Xem enrollDecisionBySalt.
+      const rows = await db
         .select()
         .from(deviceEnrollment)
-        .where(
-          and(eq(deviceEnrollment.mac, mac), eq(deviceEnrollment.salt, salt))
-        )
+        .where(eq(deviceEnrollment.salt, salt))
 
-      const decision = enrollDecision(
-        row
-          ? {
-              status: row.status as EnrollStatus,
-              deviceTokenHash: row.deviceTokenHash,
-            }
-          : null,
+      const decision = enrollDecisionBySalt(
+        rows.map((r) => ({
+          status: r.status as EnrollStatus,
+          deviceTokenHash: r.deviceTokenHash,
+        })),
         token
       )
 
@@ -170,6 +169,12 @@ export async function enrollmentPublicRoutes(
             return reply.code(502).send({ error: String(e) })
           }
 
+          // Dòng của CHÍNH card này (nếu máy quay lại bằng card mới thì chưa có);
+          // IP ghim / hostname lấy từ BẤT KỲ dòng nào của salt (đã hợp nhất theo máy).
+          const myRow = rows.find((r) => r.mac === mac)
+          const pinnedIpv4 = rows.find((r) => r.pinnedIpv4)?.pinnedIpv4 ?? null
+          const saltHostname = rows.find((r) => r.hostname)?.hostname ?? null
+
           let deviceToken: string | undefined
           const patch: Record<string, unknown> = { lastEnrollAt: now }
           if (decision.mintToken) {
@@ -177,17 +182,37 @@ export async function enrollmentPublicRoutes(
             patch.deviceTokenHash = hashDeviceToken(deviceToken)
             patch.enrolledAt = now
           }
-          await db
-            .update(deviceEnrollment)
-            .set(patch)
-            .where(eq(deviceEnrollment.id, row!.id))
 
-          if (row!.pinnedIpv4) {
-            await applyPinnedIp(mac, row!.pinnedIpv4, hostname || row!.hostname || '')
+          if (myRow) {
+            await db
+              .update(deviceEnrollment)
+              .set(patch)
+              .where(eq(deviceEnrollment.id, myRow.id))
+          } else {
+            // Card mới của một máy ĐÃ approved: ghi lại card này (kế thừa approved)
+            // để lần sau tra theo salt vẫn thấy. onConflictDoUpdate: race-safe.
+            await db
+              .insert(deviceEnrollment)
+              .values({
+                mac,
+                salt,
+                status: 'approved',
+                hostname: hostname || saltHostname,
+                pinnedIpv4,
+                ...patch,
+              })
+              .onConflictDoUpdate({
+                target: [deviceEnrollment.mac, deviceEnrollment.salt],
+                set: patch,
+              })
+          }
+
+          if (pinnedIpv4) {
+            await applyPinnedIp(mac, pinnedIpv4, hostname || saltHostname || '')
           }
 
           req.log.info(
-            { mac, firstEnroll: decision.mintToken },
+            { mac, firstEnroll: decision.mintToken, newCard: !myRow },
             'enroll: approved, auth key issued'
           )
           return reply.code(200).send({
@@ -196,7 +221,7 @@ export async function enrollmentPublicRoutes(
             ...(env.HEADSCALE_LOGIN_SERVER
               ? { loginServer: env.HEADSCALE_LOGIN_SERVER }
               : {}),
-            ...(row!.pinnedIpv4 ? { pinnedIp: row!.pinnedIpv4 } : {}),
+            ...(pinnedIpv4 ? { pinnedIp: pinnedIpv4 } : {}),
           })
         }
       }

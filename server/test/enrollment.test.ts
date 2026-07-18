@@ -4,6 +4,7 @@ import {
   adoptStatus,
   deviceTokenMatches,
   enrollDecision,
+  enrollDecisionBySalt,
   hashDeviceToken,
   maskSalt,
   newDeviceToken,
@@ -95,6 +96,80 @@ describe('device token hashing', () => {
 
   it('two tokens are different', () => {
     expect(newDeviceToken()).not.toBe(newDeviceToken())
+  })
+})
+
+describe('enrollDecisionBySalt — hợp nhất theo salt (FIX token_mismatch)', () => {
+  it('★ ca VOTAM-PC: 2 card cùng salt, client giữ token của card KIA -> issue (hết 403)', () => {
+    // Máy enroll lần đầu qua WiFi (mint T1), cắm LAN enroll tiếp (mint T2),
+    // node.xml chỉ giữ T2. Quay lại WiFi: trước đây tra (macWiFi,salt) trúng dòng
+    // T1 ⇒ token_mismatch. Nay xét cả nhóm salt ⇒ T2 khớp dòng LAN ⇒ hợp lệ.
+    const t1 = newDeviceToken()
+    const t2 = newDeviceToken()
+    const rows: EnrollRow[] = [
+      { status: 'approved', deviceTokenHash: hashDeviceToken(t1) },
+      { status: 'approved', deviceTokenHash: hashDeviceToken(t2) },
+    ]
+    expect(enrollDecisionBySalt(rows, t2)).toEqual({ kind: 'issue', mintToken: false })
+    expect(enrollDecisionBySalt(rows, t1)).toEqual({ kind: 'issue', mintToken: false })
+  })
+
+  it('token không khớp dòng nào cùng salt -> vẫn token_mismatch (không nới lỏng)', () => {
+    const rows: EnrollRow[] = [
+      { status: 'approved', deviceTokenHash: hashDeviceToken(newDeviceToken()) },
+    ]
+    expect(enrollDecisionBySalt(rows, newDeviceToken())).toEqual({
+      kind: 'denied',
+      reason: 'token_mismatch',
+    })
+  })
+
+  it('không có dòng nào -> create-pending', () => {
+    expect(enrollDecisionBySalt([], '')).toEqual({ kind: 'create-pending' })
+  })
+
+  it('BẤT KỲ dòng nào revoked -> cấm cả máy (không dựng revoked dậy)', () => {
+    const t = newDeviceToken()
+    const rows: EnrollRow[] = [
+      { status: 'approved', deviceTokenHash: hashDeviceToken(t) },
+      { status: 'revoked', deviceTokenHash: null },
+    ]
+    expect(enrollDecisionBySalt(rows, t)).toEqual({ kind: 'denied', reason: 'revoked' })
+  })
+
+  it('tất cả pending -> pending', () => {
+    const rows: EnrollRow[] = [
+      { status: 'pending', deviceTokenHash: null },
+      { status: 'pending', deviceTokenHash: null },
+    ]
+    expect(enrollDecisionBySalt(rows, 'bất kỳ')).toEqual({ kind: 'pending' })
+  })
+
+  it('approved nhưng CHƯA dòng nào có token -> first-enroll-wins (mint)', () => {
+    const rows: EnrollRow[] = [
+      { status: 'approved', deviceTokenHash: null },
+      { status: 'pending', deviceTokenHash: null },
+    ]
+    expect(enrollDecisionBySalt(rows, '')).toEqual({ kind: 'issue', mintToken: true })
+  })
+
+  it('đã có token nhưng client không gửi -> token_required', () => {
+    const rows: EnrollRow[] = [
+      { status: 'approved', deviceTokenHash: hashDeviceToken(newDeviceToken()) },
+    ]
+    expect(enrollDecisionBySalt(rows, '')).toEqual({
+      kind: 'denied',
+      reason: 'token_required',
+    })
+  })
+
+  it('chỉ mint MỘT lần cho cả máy: đã có token ở 1 card -> card khác reuse, không mint mới', () => {
+    const t = newDeviceToken()
+    const rows: EnrollRow[] = [
+      { status: 'approved', deviceTokenHash: hashDeviceToken(t) },
+      { status: 'approved', deviceTokenHash: null }, // card mới, chưa mint
+    ]
+    expect(enrollDecisionBySalt(rows, t)).toEqual({ kind: 'issue', mintToken: false })
   })
 })
 
