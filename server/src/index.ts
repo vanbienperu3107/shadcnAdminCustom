@@ -8,6 +8,7 @@ import { seedIfEmpty } from './db/seed.js'
 import { env, googleEnabled } from './env.js'
 import { bootstrapAdmin } from './lib/admin-bootstrap.js'
 import { seedFromEnv, startAutoRefresh } from './lib/apikey-manager.js'
+import { backfillDevices } from './lib/device-backfill.js'
 import { startDerpNodeHealthSweep } from './lib/derp-node-health.js'
 import { apikeyRoutes } from './routes/apikey.js'
 import { authRoutes } from './routes/auth.js'
@@ -110,6 +111,11 @@ async function main() {
   await migrate()
   const seed = await seedIfEmpty()
   app.log.info({ seed, googleEnabled }, 'db ready')
+
+  // Định danh thiết bị theo salt (plan device_id): backfill device_enrollment →
+  // device/device_mac. Best-effort, non-throwing, idempotent — bỏ qua nếu PEPPER
+  // chưa cấu hình. Chạy sau migrate() để bảng đã tồn tại.
+  await backfillDevices((msg) => app.log.info(msg))
 
   // Tạo admin nội bộ (username/password) từ env nếu cấu hình — idempotent.
   const adminCreated = await bootstrapAdmin()
