@@ -16,6 +16,7 @@ import {
 } from '../db/schema.js'
 import { env } from '../env.js'
 import { buildPac, type PacRuleRow } from '../lib/build-pac.js'
+import { updateSignalCache } from '../lib/poll-cache.js'
 import {
   resolveRuntimeConfig,
   type NodeRuntimeRow,
@@ -182,8 +183,14 @@ export async function clientRuntimePublicRoutes(
     if (!checkSecret(req, reply)) return
     const q = req.query as { mac?: string }
     try {
-      const at = await resolveUpdateCheckAt(q.mac)
-      return { at: at ? at.toISOString() : null }
+      // Poll 1 giây/máy — đọc RAM, KHÔNG chạm DB (2 truy vấn/lần trước đây).
+      // Hai nút "Cập nhật ngay" (toàn fleet / 1 máy) gọi invalidate nên hiệu lực
+      // vẫn tới client trong ~1 chu kỳ poll. Xem lib/poll-cache.ts.
+      const at = await updateSignalCache.get(q.mac ?? '', async () => {
+        const d = await resolveUpdateCheckAt(q.mac)
+        return d ? d.toISOString() : null
+      })
+      return { at }
     } catch (e) {
       return reply.code(502).send({ error: String(e) })
     }
