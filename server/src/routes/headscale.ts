@@ -132,9 +132,27 @@ export async function headscaleRoutes(app: FastifyInstance): Promise<void> {
         method: 'DELETE',
       })
 
-      await cascadeDeleteNodeData({ nodeKey, hostname }).catch(() => {})
+      // Node đã biến mất khỏi headscale nên KHÔNG rollback được — nhưng tuyệt
+      // đối không nuốt lỗi ở đây. Trước đây `.catch(() => {})` khiến mỗi lần
+      // Neon lag/timeout là toàn bộ dòng per-node/per-mac (derp_node_*,
+      // device_identity, node_runtime_config, folder_share*, ...) nằm lại vĩnh
+      // viễn mà API vẫn trả ok:true — không log, không retry, không ai biết.
+      try {
+        await cascadeDeleteNodeData({ nodeKey, hostname })
+      } catch (err) {
+        req.log.error(
+          { id, nodeKey, hostname, err: String(err) },
+          'DELETE /api/machines: đã xoá node headscale nhưng cascade dọn Neon thất bại'
+        )
+        return {
+          ok: true,
+          cascade: 'failed' as const,
+          warning:
+            'Đã xoá node khỏi headscale, nhưng dọn dữ liệu phụ trợ thất bại — cấu hình/quyền cũ của máy này có thể còn sót lại.',
+        }
+      }
 
-      return { ok: true }
+      return { ok: true, cascade: 'ok' as const }
     } catch (e) {
       return reply.code(502).send({ error: String(e) })
     }

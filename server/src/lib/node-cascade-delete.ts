@@ -24,6 +24,7 @@
 
 import { eq, ilike, or } from 'drizzle-orm'
 import { db } from '../db/client.js'
+import { normalizeNodeKey } from './device-registry.js'
 import {
   clientNetcheck,
   derpNodeAssignments,
@@ -42,7 +43,14 @@ export async function cascadeDeleteNodeData(opts: {
   nodeKey?: string | null
   hostname?: string | null
 }): Promise<void> {
-  const { nodeKey, hostname } = opts
+  const { hostname } = opts
+  // CHUẨN HOÁ trước mọi phép so khớp: phía GHI luôn lưu dạng chuẩn
+  // (`nodekey:<hex thường>`, xem normalizeNodeKey), còn nodeKey vào đây là giá
+  // trị THÔ lấy từ headscale API. Lệch tiền tố/chữ hoa một cái là mọi eq() dưới
+  // đây trượt hết → preciseMac = null → bỏ qua sạch nhánh dọn theo MAC, mà vẫn
+  // "thành công" im lặng. Đây đúng loại lỗi đã gặp ở PR#55 (device list thiếu
+  // client vì so nodeKey thô với giá trị đã chuẩn hoá).
+  const nodeKey = normalizeNodeKey(opts.nodeKey)
 
   // Resolve the ONE precise MAC for this device — BEFORE deleting
   // device_identity below, since that row is the only place nodeKey and mac

@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -28,7 +29,16 @@ export function DerpDeleteDialog({ open, onOpenChange, currentRow }: Props) {
       toast.success('Đã xóa node DERP')
       onOpenChange(false)
     },
-    onError: () => toast.error('Xóa thất bại'),
+    // Backend xóa node headscale TRƯỚC rồi mới xóa DB; headscale lỗi thì nó
+    // hủy toàn bộ và trả 502 kèm message. Phải hiện message đó ra — admin cần
+    // biết "chưa xóa gì cả, thử lại sau" thay vì đoán mò từ chữ "Xóa thất bại".
+    onError: (err) => {
+      const msg = axios.isAxiosError(err)
+        ? ((err.response?.data as { message?: string } | undefined)?.message ??
+          err.message)
+        : 'Lỗi không xác định'
+      toast.error(`Xóa thất bại: ${msg}`)
+    },
   })
 
   return (
@@ -43,6 +53,14 @@ export function DerpDeleteDialog({ open, onOpenChange, currentRow }: Props) {
             {currentRow.hostname}) sẽ bị xóa khỏi database và biến mất khỏi{' '}
             <span className='font-mono'>derpmap.json</span>. Client đang dùng
             node này sẽ tự chuyển sang node khác. Hành động không thể hoàn tác.
+            {currentRow.tsNodeKey ? (
+              <>
+                {' '}
+                <b>Node tailnet của máy này cũng bị xóa khỏi headscale</b> — máy
+                sẽ rời tailnet và trả lại IP. Nếu headscale không phản hồi thì
+                hệ thống hủy toàn bộ, không xóa gì cả.
+              </>
+            ) : null}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
