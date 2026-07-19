@@ -1,5 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -56,11 +56,9 @@ export function DerpDeleteDialog({ open, onOpenChange, currentRow }: Props) {
             {currentRow.tsNodeKey ? (
               <>
                 {' '}
-                <b>
-                  Node tailnet của máy này cũng bị xóa khỏi headscale
-                </b>{' '}
-                — máy sẽ rời tailnet và trả lại IP. Nếu headscale không phản hồi
-                thì hệ thống hủy toàn bộ, không xóa gì cả.
+                <b>Node tailnet của máy này cũng bị xóa khỏi headscale</b> — máy
+                sẽ rời tailnet và trả lại IP. Nếu headscale không phản hồi thì
+                hệ thống hủy toàn bộ, không xóa gì cả.
               </>
             ) : null}
           </AlertDialogDescription>
