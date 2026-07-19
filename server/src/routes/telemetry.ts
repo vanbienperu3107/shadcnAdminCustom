@@ -5,6 +5,7 @@ import { requireAuth } from '../auth/middleware.js'
 import { db } from '../db/client.js'
 import { clientDerpPing, clientHomeDerp } from '../db/schema.js'
 import { env } from '../env.js'
+import { homeDerpGate } from '../lib/home-derp-coalesce.js'
 
 /** Kiểm tra X-Headscale-Secret (giống client-runtime.ts). Trả true nếu OK. */
 function checkSecret(req: FastifyRequest, reply: FastifyReply): boolean {
@@ -49,26 +50,38 @@ export async function telemetryPublicRoutes(
       return reply.code(400).send({ error: parsed.error.flatten() })
     const { mac, hostname, homeRegionId, homeRegionCode, controllerLatencyMs } =
       parsed.data
-    await db
-      .insert(clientHomeDerp)
-      .values({
-        mac,
-        hostname,
-        homeRegionId,
-        homeRegionCode,
-        controllerLatencyMs,
-        reportedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: clientHomeDerp.mac,
-        set: {
+    // Báo cáo 3s/lần nhưng nội dung hầu như không đổi ⇒ chỉ ghi DB khi có gì đổi
+    // hoặc tới nhịp tim 30s. Xem lib/home-derp-coalesce.ts (gồm lý do vì sao
+    // controllerLatencyMs không được tính là "đổi").
+    if (!homeDerpGate.admit(mac, { hostname, homeRegionId, homeRegionCode }, Date.now()))
+      return { ok: true, skipped: true }
+    try {
+      await db
+        .insert(clientHomeDerp)
+        .values({
+          mac,
           hostname,
           homeRegionId,
           homeRegionCode,
           controllerLatencyMs,
           reportedAt: new Date(),
-        },
-      })
+        })
+        .onConflictDoUpdate({
+          target: clientHomeDerp.mac,
+          set: {
+            hostname,
+            homeRegionId,
+            homeRegionCode,
+            controllerLatencyMs,
+            reportedAt: new Date(),
+          },
+        })
+    } catch (e) {
+      // Ghi hỏng mà vẫn nhớ là "đã ghi" thì máy này im 30s, dashboard tưởng
+      // offline. Quên đi để báo cáo kế (3s nữa) thử lại ngay.
+      homeDerpGate.forget(mac)
+      throw e
+    }
     return { ok: true }
   })
 
