@@ -60,9 +60,19 @@ export async function headscalePublicRoutes(
 
     if (rows.length === 0) return { ok: true, upserted: 0 }
 
+    // Client có thể gửi TRÙNG dst trong cùng một report (peer đo hai lần, hoặc
+    // mẫu home-DERP trùng tên với một peer). Postgres từ chối CẢ câu lệnh:
+    // "ON CONFLICT DO UPDATE command cannot affect row a second time"
+    // ⇒ mất TOÀN BỘ mẫu của report đó, không riêng bản trùng (quan sát thực tế:
+    // ~2 report/phút hỏng, dữ liệu latency âm thầm thiếu).
+    // Gom theo (srcHostname cố định trong 1 request) + dstHostname, giữ bản CUỐI.
+    const byDst = new Map<string, (typeof rows)[number]>()
+    for (const r of rows) byDst.set(r.dstHostname, r)
+    const deduped = [...byDst.values()]
+
     await db
       .insert(latencySamples)
-      .values(rows)
+      .values(deduped)
       .onConflictDoUpdate({
         target: [latencySamples.srcHostname, latencySamples.dstHostname],
         set: {
@@ -75,7 +85,7 @@ export async function headscalePublicRoutes(
         },
       })
 
-    return { ok: true, upserted: rows.length }
+    return { ok: true, upserted: deduped.length }
   })
 }
 
