@@ -10,6 +10,7 @@ import {
 } from '../db/schema.js'
 import { env } from '../env.js'
 import { requireAuth } from '../auth/middleware.js'
+import { updateSignalCache } from '../lib/poll-cache.js'
 
 /**
  * Auto-update portable client. Nguồn binary = GitHub Release của
@@ -253,6 +254,8 @@ export async function clientUpdateRoutes(app: FastifyInstance): Promise<void> {
       .insert(clientUpdate)
       .values({ id: 1, updateCheckAt: now })
       .onConflictDoUpdate({ target: clientUpdate.id, set: { updateCheckAt: now } })
+    // Mốc toàn cục đổi ⇒ bỏ cache MỌI máy, không riêng máy nào.
+    updateSignalCache.invalidateAll()
     return { ok: true, at: now.toISOString() }
   })
 
@@ -271,6 +274,8 @@ export async function clientUpdateRoutes(app: FastifyInstance): Promise<void> {
           target: nodeUpdateRequests.mac,
           set: { requestedAt: now },
         })
+      // Chỉ máy này đổi ⇒ bỏ đúng khoá của nó.
+      updateSignalCache.invalidate(mac)
       return { ok: true, at: now.toISOString() }
     }
   )

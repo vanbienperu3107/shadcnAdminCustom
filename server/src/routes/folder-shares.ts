@@ -12,6 +12,7 @@ import {
 } from '../db/schema.js'
 import { requireAuth } from '../auth/middleware.js'
 import { env } from '../env.js'
+import { browseRequestCache } from '../lib/poll-cache.js'
 import { pushTaildrivePolicy } from '../lib/taildrive-policy.js'
 
 /** Kiểm tra X-Headscale-Secret (giống client-runtime / node-assignments). */
@@ -88,9 +89,16 @@ export async function folderSharesPublicRoutes(app: FastifyInstance): Promise<vo
     if (!checkSecret(req, reply)) return
     const q = req.query as { mac?: string }
     if (!q.mac) return { path: null }
-    const [r] = await db.select().from(folderBrowse).where(eq(folderBrowse.mac, q.mac))
-    const pending = !!r?.requestedAt && (!r.resultAt || r.requestedAt > r.resultAt)
-    return { path: pending ? r!.reqPath : null }
+    // Poll 1 giây/máy — đọc RAM, KHÔNG chạm DB. Hai đường ghi bên dưới (admin
+    // yêu cầu duyệt, client trả kết quả) gọi invalidate() nên thay đổi vẫn tới
+    // client trong ~1 chu kỳ poll. Xem lib/poll-cache.ts.
+    const mac = q.mac
+    const path = await browseRequestCache.get(mac, async () => {
+      const [r] = await db.select().from(folderBrowse).where(eq(folderBrowse.mac, mac))
+      const pending = !!r?.requestedAt && (!r.resultAt || r.requestedAt > r.resultAt)
+      return pending ? (r!.reqPath ?? null) : null
+    })
+    return { path }
   })
 
   // Client trả kết quả liệt kê thư mục con. folder_browse chỉ có 1 dòng/mac
@@ -116,6 +124,8 @@ export async function folderSharesPublicRoutes(app: FastifyInstance): Promise<vo
       .update(folderBrowse)
       .set({ resPath: path, entries: JSON.stringify(entries), resultAt: now })
       .where(eq(folderBrowse.mac, mac))
+    // Đã có kết quả ⇒ hết "pending" ⇒ bỏ cache để client ngừng được hỏi lại.
+    browseRequestCache.invalidate(mac)
     return { ok: true }
   })
 
@@ -363,6 +373,8 @@ export async function folderSharesRoutes(app: FastifyInstance): Promise<void> {
       .insert(folderBrowse)
       .values({ mac, reqPath: path, requestedAt: now })
       .onConflictDoUpdate({ target: folderBrowse.mac, set: { reqPath: path, requestedAt: now } })
+    // Có yêu cầu mới ⇒ bỏ cache để lần poll kế (≤1s) client nhận được ngay.
+    browseRequestCache.invalidate(mac)
     // Đánh thức client sớm (poke → client re-poll runtime/browse ngay).
     const nk = await nodeKeyForMac(mac)
     if (nk) await pokeHeadscale(nk)
