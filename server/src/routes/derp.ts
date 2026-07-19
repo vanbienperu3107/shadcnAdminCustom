@@ -6,7 +6,12 @@ import { derpServers } from '../db/schema.js'
 import { requireAuth } from '../auth/middleware.js'
 import { nextRegionId } from '../lib/region-id.js'
 import { probeHost } from '../lib/probe.js'
-import { deleteDeviceByNodeKey, normalizeNodeKey, upsertDerpInfraDevice } from '../lib/device-registry.js'
+import {
+  deleteDeviceByNodeKey,
+  deleteHsNodeByNodeKey,
+  normalizeNodeKey,
+  upsertDerpInfraDevice,
+} from '../lib/device-registry.js'
 
 const createSchema = z.object({
   code: z.string().min(1).max(64),
@@ -188,15 +193,48 @@ export async function derpRoutes(app: FastifyInstance): Promise<void> {
   })
 
   // Xóa
+  //
+  // Thứ tự BẮT BUỘC: headscale TRƯỚC, DB SAU. Xoá 1 DERP server phải kéo theo
+  // node tailnet của sidecar chạy trên chính host đó (derp_servers.ts_node_key),
+  // nếu không máy đã gỡ vẫn để lại đăng ký node sống mãi trong headscale: không
+  // cơ chế nào dọn nó (node.expiry=0, không ephemeral, node-dedup chỉ gom node
+  // TRÙNG hostname) và nó giữ luôn IP tailnet không trả lại — đúng ca vpn3 /
+  // region 1000 để lại node id 21 ôm 100.64.0.2.
+  //
+  // Headscale lỗi thì DỪNG HẲN, không xoá dòng derp_servers: thà bắt admin bấm
+  // lại còn hơn để hai nguồn lệch nhau âm thầm rồi không ai biết mà dọn.
   app.delete<{ Params: { regionId: string } }>('/api/derp/:regionId', async (req, reply) => {
     const regionId = Number(req.params.regionId)
     const [existing] = await db.select().from(derpServers).where(eq(derpServers.regionId, regionId))
     if (!existing) return reply.code(404).send({ error: 'not_found' })
     if (existing.embedded) return reply.code(403).send({ error: 'embedded_readonly' })
+
+    let deletedNodeIds: string[] = []
+    if (existing.tsNodeKey) {
+      try {
+        deletedNodeIds = await deleteHsNodeByNodeKey(existing.tsNodeKey)
+      } catch (err) {
+        req.log.error(
+          { regionId, tsNodeKey: existing.tsNodeKey, err: String(err) },
+          'DELETE /api/derp: xoá node headscale thất bại — huỷ luôn việc xoá DERP server'
+        )
+        return reply.code(502).send({
+          error: 'headscale_delete_failed',
+          message:
+            'Chưa xoá gì cả: không xoá được node trên headscale. Kiểm tra headscale/API key rồi thử lại.',
+          detail: String(err),
+        })
+      }
+    }
+
     await db.delete(derpServers).where(eq(derpServers.regionId, regionId))
     if (existing.tsNodeKey) {
       await deleteDeviceByNodeKey(existing.tsNodeKey)
     }
+    req.log.info(
+      { regionId, code: existing.code, deletedNodeIds },
+      'DELETE /api/derp: đã xoá DERP server + node headscale kèm theo'
+    )
     return reply.code(204).send()
   })
 }

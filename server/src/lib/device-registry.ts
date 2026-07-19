@@ -22,7 +22,7 @@ import {
   derpNodeOptions,
   derpServers,
 } from '../db/schema.js'
-import { hsApi } from './headscale.js'
+import { hsApi, isHsConfigured, isHsNotFound } from './headscale.js'
 
 function generateToken(): string {
   return randomBytes(24).toString('base64url')
@@ -309,6 +309,7 @@ export async function deleteDeviceByMac(mac: string): Promise<void> {
 }
 
 type HsNode = {
+  id?: string
   nodeKey?: string
   givenName?: string
   name?: string
@@ -439,6 +440,60 @@ export function staleNodesHoldingIp(
     if (normalizeHostForMatch(n.givenName || n.name) === host) out.push(n.id)
   }
   return out
+}
+
+/**
+ * Từ danh sách node headscale, trả id các node khớp `nodeKey`.
+ *
+ * So khớp SAU KHI chuẩn hoá CẢ HAI phía (normalizeNodeKey) — headscale trả
+ * nodeKey dạng `nodekey:<hex thường>`, còn `derp_servers.ts_node_key` do admin
+ * gõ/dán tay vào form nên có thể chỉ là hex trần hoặc lẫn chữ hoa. So chuỗi thô
+ * sẽ trượt im lặng, và "trượt" ở đây nghĩa là node không bao giờ bị xoá — đúng
+ * kiểu node mồ côi vpn3/region 1000 nằm lại giữ IP tailnet vĩnh viễn.
+ *
+ * Thuần — unit-test.
+ */
+export function nodeIdsByNodeKey(
+  nodeKey: string | null | undefined,
+  nodes: Array<{ id?: string | null; nodeKey?: string | null }>
+): string[] {
+  const want = normalizeNodeKey(nodeKey)
+  if (!want) return []
+  const out: string[] = []
+  for (const n of nodes) {
+    if (!n.id) continue
+    if (normalizeNodeKey(n.nodeKey) === want) out.push(n.id)
+  }
+  return out
+}
+
+/**
+ * Xoá node headscale theo nodeKey. Trả về id các node đã xoá.
+ *
+ * Idempotent có chủ đích: không tìm thấy node nào → trả `[]` chứ KHÔNG ném lỗi
+ * (admin có thể đã xoá tay ở Machines trước đó; 404 giữa chừng cũng bỏ qua).
+ * Ngược lại, headscale không gọi được / trả lỗi thật thì NÉM — nơi gọi tự quyết
+ * định chặn hay bỏ qua, đừng nuốt ở đây.
+ */
+export async function deleteHsNodeByNodeKey(
+  nodeKey: string | null | undefined
+): Promise<string[]> {
+  const want = normalizeNodeKey(nodeKey)
+  if (!want) return []
+  if (!(await isHsConfigured())) throw new Error('headscale_not_configured')
+  const list = await hsApi<{ nodes?: HsNode[] }>('/api/v1/node')
+  const ids = nodeIdsByNodeKey(want, list.nodes ?? [])
+  const deleted: string[] = []
+  for (const id of ids) {
+    try {
+      await hsApi(`/api/v1/node/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      deleted.push(id)
+    } catch (e) {
+      // Node biến mất giữa chừng (ai đó xoá song song) → coi như đã xong.
+      if (!isHsNotFound(e)) throw e
+    }
+  }
+  return deleted
 }
 
 /**
