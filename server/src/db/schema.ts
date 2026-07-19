@@ -410,9 +410,66 @@ export const nodeRuntimeConfig = pgTable('node_runtime_config', {
   // null = theo cấu hình auto-update toàn cục (client_update.enabled); true/false
   // = ép riêng máy này, bất kể cấu hình toàn cục — xem GET /api/client/latest.
   autoUpdateEnabled: boolean('auto_update_enabled'),
+  // Base URL dashboard riêng cho máy này (canary khi chuyển máy chủ). null =
+  // theo client_config['metrics_url'] toàn cục; global rỗng = client dùng giá
+  // trị bake trong binary. Đây là cơ chế đổi base URL từ xa — trước đây
+  // nodeMetricsURL chỉ đổi được bằng build lại + rollout.
+  // ⚠️ Sai giá trị ở đây làm MẤT LIÊN LẠC cả fleet: chỉ ghi qua đường đã probe
+  // (xem metricsUrlAudit.probeOk) và đổi 1 máy trước. docs/plan-dashboard-stack-vn.md §2.5
+  metricsUrl: text('metrics_url'),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
+})
+
+/** Máy đang THỰC SỰ dùng base URL nào — client tự báo, không phải thứ ta ra lệnh.
+ *  Đây là cách duy nhất biết canary đã ăn chưa và máy nào còn kẹt URL cũ:
+ *  so effectiveUrl với giá trị mong muốn (nodeRuntimeConfig.metricsUrl ?? global).
+ *  ⚠️ Máy không báo trong nhiều chu kỳ = ứng viên "mồ côi", phải xử lý TRƯỚC khi
+ *  gỡ bridge (docs/plan-dashboard-stack-vn.md Pha 3). */
+export const nodeMetricsUrlState = pgTable('node_metrics_url_state', {
+  mac: text('mac').primaryKey(),
+  hostname: text('hostname'),
+  /** URL client báo nó đang dùng ngay lúc này. */
+  effectiveUrl: text('effective_url'),
+  /** 'confirmed' = đã chạy ổn trên URL này; 'pending' = vừa nhận, chờ xác nhận
+   *  sau restart; 'reverted' = đã tự lùi vì URL mới không tới được. */
+  state: text('state').notNull().default('confirmed'),
+  /** URL đang chờ áp (chỉ có nghĩa khi state='pending'). */
+  pendingUrl: text('pending_url'),
+  /** URL confirmed trước đó — đích để client tự lùi về. */
+  previousUrl: text('previous_url'),
+  /** Vì sao lùi: 'probe_failed' | 'poll_failed' | 'flap_guard' | ... */
+  revertReason: text('revert_reason'),
+  /** Nguồn URL client đang áp: 'node_conf' (ghim tay, thắng DB) | 'db' | 'baked'.
+   *  Máy báo 'node_conf' sẽ KHÔNG nghe lệnh đổi từ DB — cần biết để khỏi chờ vô ích. */
+  source: text('source'),
+  /** Số lần đổi URL trong 24h client tự đếm (ghi ở đĩa client). Chỉ để quan sát
+   *  — hạn mức thật do client cưỡng chế, server không tin số này. */
+  changeCount24h: integer('change_count_24h'),
+  reportedAt: timestamp('reported_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
+/** Nhật ký MỌI lần admin đổi base URL. Đây là nút bấm có thể làm mất liên lạc
+ *  toàn fleet, nên ghi lại ai đổi, đổi gì, và kết quả probe của server TRƯỚC khi
+ *  lưu (docs/plan-dashboard-stack-vn.md §2.5.5 S4 — không probe được thì không cho lưu). */
+export const metricsUrlAudit = pgTable('metrics_url_audit', {
+  id: serial('id').primaryKey(),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  /** email/username admin thực hiện. */
+  actor: text('actor'),
+  /** 'global' = đổi client_config; 'node' = đổi 1 máy (canary). */
+  scope: text('scope').notNull(),
+  /** MAC khi scope='node'; null khi scope='global'. */
+  mac: text('mac'),
+  oldUrl: text('old_url'),
+  newUrl: text('new_url'),
+  /** Server tự probe URL mới trước khi lưu. false = đã CHẶN, không ghi vào cấu hình. */
+  probeOk: boolean('probe_ok'),
+  /** Chi tiết probe (status code / lỗi) để chẩn đoán khi bị chặn. */
+  probeDetail: text('probe_detail'),
 })
 
 /** "Bấm Reload" cho 1 client cụ thể (theo MAC). Node launcher poll định kỳ

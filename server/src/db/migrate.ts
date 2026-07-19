@@ -632,4 +632,73 @@ export async function migrate(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_device_enrollment_salt
       ON device_enrollment(salt)
   `)
+
+  // ── Base URL dashboard nạp động từ DB ───────────────────────────────────────
+  // Truoc day nodeMetricsURL bake cung trong binary client (nodemode.go:50) va
+  // CHI doi duoc bang build lai + rollout toi tung may. 3 bang/cot duoi cho phep
+  // doi tu xa, co canary theo tung may va lui duoc tuc thi.
+  // Xem docs/plan-dashboard-stack-vn.md §2.5.
+  //
+  // Thu tu uu tien phia client: node.conf (ghim tay) > DB > gia tri bake.
+  // Thuan bo sung: chua endpoint nao doc/ghi 3 thu nay -> deploy KHONG doi hanh vi.
+
+  // Override theo tung may (canary). null = theo client_config['metrics_url'].
+  await db.execute(sql`
+    ALTER TABLE node_runtime_config ADD COLUMN IF NOT EXISTS metrics_url TEXT
+  `)
+
+  // Gia tri toan cuc. Seed RONG co y: rong = client giu nguyen URL bake, tuc
+  // migration nay KHONG lam may nao doi URL. Chi khi admin dien gia tri thi moi
+  // co gi thay doi.
+  await db.execute(sql`
+    INSERT INTO client_config (key, value, note) VALUES
+      ('metrics_url', '', 'Base URL dashboard client goi (vd https://dashboard.hangocthanh.io.vn/app). RONG = client dung gia tri bake trong binary')
+    ON CONFLICT (key) DO NOTHING
+  `)
+
+  // May dang THUC SU dung URL nao — client tu bao. Khac voi cai ta ra lenh:
+  // day la cach duy nhat biet canary da an chua va may nao con ket URL cu.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS node_metrics_url_state (
+      mac              TEXT PRIMARY KEY,
+      hostname         TEXT,
+      effective_url    TEXT,
+      state            TEXT NOT NULL DEFAULT 'confirmed',
+      pending_url      TEXT,
+      previous_url     TEXT,
+      revert_reason    TEXT,
+      source           TEXT,
+      change_count_24h INTEGER,
+      reported_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  // Truy van chinh cua tab giam sat: "may nao chua ve URL dich / dang pending".
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_metrics_url_state_state
+      ON node_metrics_url_state(state)
+  `)
+  // "May nao lau roi khong bao" = ung vien mo coi, phai xu ly TRUOC khi go bridge.
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_metrics_url_state_reported
+      ON node_metrics_url_state(reported_at)
+  `)
+
+  // Nhat ky moi lan admin doi URL — nut bam co the lam mat lien lac ca fleet.
+  // probe_ok=false nghia la da CHAN, khong ghi vao cau hinh (S4 trong plan).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS metrics_url_audit (
+      id           SERIAL PRIMARY KEY,
+      at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+      actor        TEXT,
+      scope        TEXT NOT NULL,
+      mac          TEXT,
+      old_url      TEXT,
+      new_url      TEXT,
+      probe_ok     BOOLEAN,
+      probe_detail TEXT
+    )
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_metrics_url_audit_at ON metrics_url_audit(at)
+  `)
 }
