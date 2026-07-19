@@ -73,11 +73,16 @@ describe('HomeDerpWriteGate', () => {
     expect(gate.admit(MAC, BASE, 6_000)).toBe(true)
   })
 
-  it('máy đứng yên: 3s/lần trong 5 phút ⇒ 11 lệnh ghi thay vì 100', () => {
+  it('máy đứng yên: 3s/lần trong 5 phút ⇒ 10 lệnh ghi thay vì 100', () => {
     const gate = new HomeDerpWriteGate()
     let writes = 0
-    for (let t = 0; t < 300_000; t += 3_000) if (gate.admit(MAC, BASE, t)) writes++
-    expect(writes).toBe(11) // t=0 rồi mỗi 30s
+    let reports = 0
+    for (let t = 0; t < 300_000; t += 3_000) {
+      reports++
+      if (gate.admit(MAC, BASE, t)) writes++
+    }
+    expect(reports).toBe(100)
+    expect(writes).toBe(10) // t=0, 30s, 60s … 270s
   })
 })
 
