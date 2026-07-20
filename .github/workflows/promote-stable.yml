@@ -1,0 +1,65 @@
+name: Promote derp-backend to :stable
+
+# Doi tag :stable cua image derp-backend tren GHCR.
+#
+# Vi sao co workflow rieng thay vi cho release-image tu tag :stable: watchtower
+# tren vpn6 theo doi :stable. Neu moi lan merge main deu day :stable thi prod
+# tu doi theo moi commit — dung thu ma quyet dinh "deploy la hanh dong CO CHU
+# DICH" (docs/plan-dashboard-stack-vn.md) muon tranh. Workflow_dispatch ONLY:
+# phat hanh la mot cai bam nut, khong phai tac dung phu cua merge.
+#
+# PHAT HANH:  chay khong nhap gi   -> :stable = :latest (build main moi nhat)
+# ROLLBACK:   nhap source=sha-abc1234 -> :stable = ban cu do
+#
+# Chi doi CON TRO tag tren registry (imagetools), KHONG build lai gi. Watchtower
+# vpn6 (interval 5 phut) tu pull digest moi va restart derp-backend.
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Tag nguon de tro :stable toi (vd 'latest', hoac 'sha-abc1234' de rollback)"
+        required: false
+        default: "latest"
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: promote-stable
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify source tag exists
+        run: |
+          set -eu
+          IMG=ghcr.io/${{ github.repository_owner }}/derp-backend
+          echo "Nguon: $IMG:${{ inputs.source }}"
+          # That bai ngay neu tag nguon khong ton tai — tranh tro :stable toi hu vo.
+          docker buildx imagetools inspect "$IMG:${{ inputs.source }}" > /dev/null
+
+      - name: Point :stable at source
+        run: |
+          set -eu
+          IMG=ghcr.io/${{ github.repository_owner }}/derp-backend
+          docker buildx imagetools create -t "$IMG:stable" "$IMG:${{ inputs.source }}"
+          echo "Da tro $IMG:stable -> $IMG:${{ inputs.source }}"
+
+      - name: Show resulting digest
+        run: |
+          set -eu
+          IMG=ghcr.io/${{ github.repository_owner }}/derp-backend
+          echo "### :stable hien tro toi" >> "$GITHUB_STEP_SUMMARY"
+          docker buildx imagetools inspect "$IMG:stable" \
+            --format '{{.Manifest.Digest}}' >> "$GITHUB_STEP_SUMMARY"
