@@ -1,0 +1,101 @@
+name: Deploy dashboard-vn (vpn6)
+
+# Cau hinh + khoi dong stack dashboard tren vpn6 (Viet Nam).
+# Xem docs/plan-dashboard-stack-vn.md.
+#
+# KHAC deploy-derp-dashboard.yml (vpn2):
+#   - workflow_dispatch ONLY: vpn6 la box production (memory-stack), KHONG auto-deploy.
+#   - KHONG build/pull/run tay: chi GHI .env tu Secrets roi `docker compose up`.
+#     Viec pull anh moi + restart do WATCHTOWER (scope=dashboard-vn) lo, va viec
+#     phat hanh ban moi do promote-stable.yml (doi tag :stable) lo. Workflow nay
+#     chi chay lan dau + moi khi doi cau hinh env.
+#   - DB la postgres NOI BO tren vpn6 (khong phai Neon): compose tu ghep
+#     DATABASE_URL tu DERP_PG_PASSWORD trong .env.
+#
+# 🔴 MAT KHAU DB: Postgres tren vpn6 DA initdb voi mat khau sinh luc dung stack.
+# POSTGRES_PASSWORD chi co tac dung luc initdb lan dau — doi la DB khong login
+# duoc nua. Vi vay workflow GIU NGUYEN dong DERP_PG_PASSWORD da co trong .env,
+# KHONG ghi de tu Secret. Mat khau DB noi bo song tren may, khong can nam trong
+# GitHub Secrets. (May moi tinh: sinh moi 1 lan roi giu.)
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-dashboard-vn
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cau hinh .env + khoi dong stack tren vpn6
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST_VPN6 }}
+          username: ${{ secrets.SSH_USER_VPN6 || 'root' }}
+          key: ${{ secrets.SSH_KEY_VPN6 }}
+          port: ${{ secrets.SSH_PORT_VPN6 || '22' }}
+          envs: DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,HEADSCALE_API_KEY,HEADSCALE_DASHBOARD_SECRET,PEPPER,GH_PAT
+          script_stop: true
+          command_timeout: 10m
+          script: |
+            set -eu
+            if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; else SUDO=""; fi
+            DIR=/opt/dashboard-vn
+            cd "$DIR"
+
+            echo "==> Giu mat khau DB da sinh (KHONG ghi de — Postgres da initdb voi no)"
+            if [ -f .env ] && grep -q '^DERP_PG_PASSWORD=' .env; then
+              PGPW=$(grep '^DERP_PG_PASSWORD=' .env | head -1)
+              echo "  DERP_PG_PASSWORD: giu nguyen dong san co"
+            else
+              PGPW="DERP_PG_PASSWORD=$(openssl rand -hex 24)"
+              echo "  DERP_PG_PASSWORD: chua co -> sinh moi (may moi)"
+            fi
+
+            echo "==> Ghi .env tu GitHub Secrets (ten ben trai = ten env.ts DOC)"
+            umask 077
+            cat > .env <<ENVEOF
+            $PGPW
+            SESSION_SECRET=${DERP_SESSION_SECRET}
+            ALLOWED_EMAILS=${DERP_ALLOWED_EMAILS}
+            GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+            GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+            HEADSCALE_API_KEY=${HEADSCALE_API_KEY}
+            HEADSCALE_DASHBOARD_SECRET=${HEADSCALE_DASHBOARD_SECRET}
+            PEPPER=${PEPPER}
+            GITHUB_TOKEN=${GH_PAT}
+            AUTH_OPTIONAL=false
+            ENVEOF
+            chmod 600 .env
+
+            echo "==> Pull image :stable + up (compose lo postgres/derp-backend/watchtower)"
+            $SUDO docker compose pull
+            $SUDO docker compose up -d
+
+            echo "==> Trang thai"
+            $SUDO docker compose ps
+
+            echo "==> Health (doi DB san sang)"
+            ok=0
+            for i in $(seq 1 20); do
+              if $SUDO docker exec derp-backend wget -qO- http://127.0.0.1:8787/healthz >/dev/null 2>&1; then
+                echo "  healthz OK sau ${i} lan thu"; ok=1; break
+              fi
+              sleep 3
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "  CANH BAO: healthz chua san sang. Xem: docker logs derp-backend"
+              echo "  Neu log bao loi xac thuc DB -> DERP_PG_PASSWORD trong .env khong khop"
+              echo "  mat khau Postgres da initdb (xoa volume derp_pgdata de reset, MAT DU LIEU)."
+            fi
+        env:
+          DERP_SESSION_SECRET: ${{ secrets.DERP_SESSION_SECRET }}
+          DERP_ALLOWED_EMAILS: ${{ secrets.DERP_ALLOWED_EMAILS }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          HEADSCALE_API_KEY: ${{ secrets.HEADSCALE_API_KEY }}
+          HEADSCALE_DASHBOARD_SECRET: ${{ secrets.HEADSCALE_DASHBOARD_SECRET }}
+          PEPPER: ${{ secrets.PEPPER }}
+          GH_PAT: ${{ secrets.GH_PAT }}
