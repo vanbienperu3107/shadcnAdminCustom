@@ -7,8 +7,9 @@ import { db } from '../db/client.js'
 import { vpnDomains, vpnGateways, type VpnGateway } from '../db/schema.js'
 import { hashPassword, verifyPassword, dummyVerify } from '../lib/password.js'
 import { decryptSecret, encryptSecret } from '../lib/vpn-crypto.js'
+import { computeGatewayHealth } from '../lib/vpn-health.js'
 
-/** Loại bí mật trước khi trả ra API admin; phơi cờ "đã có" để UI hiển thị. */
+/** Loại bí mật trước khi trả ra API admin; phơi cờ "đã có" + health cho UI. */
 function maskGateway(g: VpnGateway) {
   const {
     authPasswordEnc,
@@ -21,6 +22,8 @@ function maskGateway(g: VpnGateway) {
     hasPass: !!authPasswordEnc,
     hasAgentToken: !!agentTokenHash,
     hasOvpn: !!ovpnConfig,
+    // Sức khoẻ suy từ state + reportedAt (cảnh báo khi phiên VPN rớt / agent im lặng).
+    health: computeGatewayHealth(g, Date.now()),
   }
 }
 

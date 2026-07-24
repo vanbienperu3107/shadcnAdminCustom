@@ -33,6 +33,12 @@ const schema = z.object({
   // Chuoi ngau nhien >=32 ky tu, tach kenh khoi DATABASE_URL. Trong = derive tu
   // SESSION_SECRET (chay duoc nhung kem tach kenh — nen dat rieng o prod).
   VPN_SECRET_KEY: z.string().default(''),
+  // Khai bao 1 VPN gateway luc khoi dong (Phase 5, idempotent) — de agent tren
+  // node bao trang thai. Trong = khong bootstrap gateway nao.
+  VPN_GW_NAME: z.string().default(''),
+  VPN_GW_TAILNET_IP: z.string().default(''),
+  VPN_GW_PROXY_PORT: z.coerce.number().default(8888),
+  VPN_GW_AGENT_TOKEN: z.string().default(''),
   CORS_ORIGIN: z.string().default(''),
   CLIENT_DIST: z.string().default(''),
   // Headscale API (machines/users). Key = headscale apikey (HEADPLANE_HS_API_KEY).
