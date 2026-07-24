@@ -63,7 +63,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
-          envs: DERP_DATABASE_URL,DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,DERP_PUBLIC_URL,HEADSCALE_API_KEY,GH_PAT,VPN_GW_NAME,VPN_GW_DOMAINS,VPN_GW_AGENT_TOKEN,VPN_SECRET_KEY
+          envs: DERP_DATABASE_URL,DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,DERP_PUBLIC_URL,HEADSCALE_API_KEY,GH_PAT,VPN_GW_NAME,VPN_GW_DOMAINS,VPN_GW_AGENT_TOKEN,VPN_SECRET_KEY,GHCR_TOKEN,GHCR_ACTOR
           script_stop: true
           command_timeout: 10m
           script: |
@@ -80,7 +80,8 @@ jobs:
             NETARG=""
             [ -n "$HSNET" ] && NETARG="--network $HSNET"
 
-            echo "==> Pull image moi"
+            echo "==> Login GHCR (pull image private) + pull"
+            echo "$GHCR_TOKEN" | $SUDO docker login ghcr.io -u "$GHCR_ACTOR" --password-stdin
             $SUDO docker pull "$IMG"
 
             echo "==> Xoa derp-backend cu roi chay ban moi"
@@ -137,6 +138,9 @@ jobs:
           VPN_GW_DOMAINS: jump.bitel.com.pe
           VPN_GW_AGENT_TOKEN: ${{ secrets.VPN_GW_AGENT_TOKEN }}
           VPN_SECRET_KEY: ${{ secrets.VPN_SECRET_KEY }}
+          # Login GHCR tren vpn2 de pull image private (token song trong job).
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_ACTOR: ${{ github.actor }}
 
       - name: Auto-seed Headscale API key (non-fatal)
         continue-on-error: true
