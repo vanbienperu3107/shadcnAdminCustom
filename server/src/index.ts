@@ -7,6 +7,7 @@ import { migrate } from './db/migrate.js'
 import { seedIfEmpty } from './db/seed.js'
 import { env, googleEnabled } from './env.js'
 import { bootstrapAdmin } from './lib/admin-bootstrap.js'
+import { bootstrapVpnGateway } from './lib/vpn-bootstrap.js'
 import { seedFromEnv, startAutoRefresh } from './lib/apikey-manager.js'
 import { backfillDevices } from './lib/device-backfill.js'
 import { startDerpNodeHealthSweep } from './lib/derp-node-health.js'
@@ -164,6 +165,10 @@ async function initDbWithRetry(app: FastifyInstance): Promise<void> {
       // Tạo admin nội bộ (username/password) từ env nếu cấu hình — idempotent.
       const adminCreated = await bootstrapAdmin()
       if (adminCreated) app.log.info('admin bootstrap: created internal admin user')
+
+      // Khai báo VPN gateway từ env (Phase 5) — idempotent.
+      const vpnGwCreated = await bootstrapVpnGateway()
+      if (vpnGwCreated) app.log.info('vpn bootstrap: created gateway record from env')
 
       // Headscale API key: seed từ env (chỉ nếu DB chưa có), rồi bắt đầu auto-refresh 24h
       const seeded = await seedFromEnv()
