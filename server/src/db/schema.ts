@@ -585,6 +585,53 @@ export const folderBrowse = pgTable('folder_browse', {
   resultAt: timestamp('result_at', { withTimezone: true }),
 })
 
+/** Cổng VPN gateway (Feature VPN). Một dòng = một node giữ phiên OpenVPN
+ *  thường trực + HTTP forward-proxy cho tailnet. Gộp cả CẤU HÌNH (admin đặt) lẫn
+ *  TRẠNG THÁI (agent trên node tự báo). agent poll GET /api/vpn/agent/config,
+ *  áp khi config_version tăng, rồi POST /api/vpn/agent/status.
+ *
+ *  auth_password_enc: mật khẩu OpenVPN mã hoá AES-256-GCM (lib/vpn-crypto.ts),
+ *  chỉ giải mã trong route agent. agent_token_hash: scrypt hash của Bearer token
+ *  riêng gateway (như password.ts) — token thô chỉ hiện 1 lần lúc tạo/rotate. */
+export const vpnGateways = pgTable('vpn_gateways', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull().unique(), // 'bitel'
+  nodeHostname: text('node_hostname'),   // 'vpngw' (hostname tailnet của node)
+  tailnetIp: text('tailnet_ip'),         // '100.64.0.9' — dựng target PAC từ đây
+  proxyPort: integer('proxy_port').notNull().default(8888),
+  ovpnConfig: text('ovpn_config'),       // nội dung .ovpn (tuỳ chọn; có thể quản qua secret CI)
+  authUsername: text('auth_username'),
+  authPasswordEnc: text('auth_password_enc'), // AES-256-GCM, KHÔNG bao giờ trả ra API admin
+  desiredState: text('desired_state').notNull().default('up'), // 'up' | 'down'
+  configVersion: integer('config_version').notNull().default(1), // tăng mỗi lần đổi -> agent áp lại
+  agentTokenHash: text('agent_token_hash'), // scrypt(token); token thô chỉ hiện 1 lần
+  enabled: boolean('enabled').notNull().default(true), // false = KHÔNG đưa domains vào PAC
+  // ── Trạng thái do agent báo ──
+  state: text('state'),          // 'up' | 'down' | 'connecting' | 'error' | null(chưa báo)
+  tunIp: text('tun_ip'),         // IP tun0 trong container
+  egressIp: text('egress_ip'),   // IP ra internet qua VPN (bằng chứng đang đi qua VPN)
+  lastError: text('last_error'),
+  agentVersion: text('agent_version'),
+  reportedAt: timestamp('reported_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Tên miền định tuyến qua một VPN gateway. buildPac dựng target động từ
+ *  vpn_gateways.tailnet_ip:proxy_port (KHÔNG lưu chuỗi cứng) — đổi IP tailnet của
+ *  gateway thì PAC tự đúng. priority mặc định 10 (< pac_rules 100) để dòng VPN
+ *  đứng TRƯỚC, thắng mọi rule *.bitel.com.pe chung. UNIQUE(gateway_id, domain). */
+export const vpnDomains = pgTable('vpn_domains', {
+  id: serial('id').primaryKey(),
+  gatewayId: integer('gateway_id')
+    .notNull()
+    .references(() => vpnGateways.id, { onDelete: 'cascade' }),
+  domain: text('domain').notNull(), // 'jump.bitel.com.pe'
+  enabled: boolean('enabled').notNull().default(true),
+  priority: integer('priority').notNull().default(10),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export type DerpServer = typeof derpServers.$inferSelect
 export type NewDerpServer = typeof derpServers.$inferInsert
 export type User = typeof users.$inferSelect
@@ -608,3 +655,6 @@ export type FolderShareAccess = typeof folderShareAccess.$inferSelect
 export type FolderShareStatus = typeof folderShareStatus.$inferSelect
 export type FolderBrowse = typeof folderBrowse.$inferSelect
 export type ClientDerpPing = typeof clientDerpPing.$inferSelect
+export type VpnGateway = typeof vpnGateways.$inferSelect
+export type NewVpnGateway = typeof vpnGateways.$inferInsert
+export type VpnDomain = typeof vpnDomains.$inferSelect

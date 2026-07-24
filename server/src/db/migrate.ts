@@ -701,4 +701,52 @@ export async function migrate(): Promise<void> {
   await db.execute(sql`
     CREATE INDEX IF NOT EXISTS idx_metrics_url_audit_at ON metrics_url_audit(at)
   `)
+
+  // ── Cổng VPN gateway (Feature VPN) ─────────────────────────────────────────
+  // Một node giữ phiên OpenVPN thường trực + HTTP forward-proxy cho tailnet.
+  // vpn_gateways gộp cấu hình (admin) + trạng thái (agent tự báo). vpn_domains =
+  // tên miền route qua gateway; buildPac dựng target từ tailnet_ip:proxy_port.
+  // auth_password_enc: AES-256-GCM. agent_token_hash: scrypt(token).
+  // Thuần bổ sung — không endpoint cũ nào đọc/ghi 2 bảng này.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS vpn_gateways (
+      id                SERIAL PRIMARY KEY,
+      name              TEXT NOT NULL UNIQUE,
+      node_hostname     TEXT,
+      tailnet_ip        TEXT,
+      proxy_port        INTEGER NOT NULL DEFAULT 8888,
+      ovpn_config       TEXT,
+      auth_username     TEXT,
+      auth_password_enc TEXT,
+      desired_state     TEXT NOT NULL DEFAULT 'up',
+      config_version    INTEGER NOT NULL DEFAULT 1,
+      agent_token_hash  TEXT,
+      enabled           BOOLEAN NOT NULL DEFAULT true,
+      state             TEXT,
+      tun_ip            TEXT,
+      egress_ip         TEXT,
+      last_error        TEXT,
+      agent_version     TEXT,
+      reported_at       TIMESTAMPTZ,
+      created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS vpn_domains (
+      id          SERIAL PRIMARY KEY,
+      gateway_id  INTEGER NOT NULL REFERENCES vpn_gateways(id) ON DELETE CASCADE,
+      domain      TEXT NOT NULL,
+      enabled     BOOLEAN NOT NULL DEFAULT true,
+      priority    INTEGER NOT NULL DEFAULT 10,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_vpn_domains_gw_domain
+      ON vpn_domains(gateway_id, domain)
+  `)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_vpn_domains_gateway ON vpn_domains(gateway_id)
+  `)
 }
