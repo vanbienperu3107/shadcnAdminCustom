@@ -39,6 +39,8 @@ const schema = z.object({
   VPN_GW_TAILNET_IP: z.string().default(''),
   VPN_GW_PROXY_PORT: z.coerce.number().default(8888),
   VPN_GW_AGENT_TOKEN: z.string().default(''),
+  // Domain di qua gateway tren (CSV) — seed vao vpn_domains de PAC route ngay.
+  VPN_GW_DOMAINS: z.string().default(''),
   CORS_ORIGIN: z.string().default(''),
   CLIENT_DIST: z.string().default(''),
   // Headscale API (machines/users). Key = headscale apikey (HEADPLANE_HS_API_KEY).

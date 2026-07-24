@@ -63,7 +63,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
-          envs: DERP_DATABASE_URL,DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,DERP_PUBLIC_URL,HEADSCALE_API_KEY,GH_PAT
+          envs: DERP_DATABASE_URL,DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,DERP_PUBLIC_URL,HEADSCALE_API_KEY,GH_PAT,VPN_GW_NAME,VPN_GW_DOMAINS,VPN_GW_AGENT_TOKEN,VPN_SECRET_KEY
           script_stop: true
           command_timeout: 10m
           script: |
@@ -99,6 +99,10 @@ jobs:
               -e PEPPER="$PEPPER" \
               -e AUTH_OPTIONAL=false \
               -e NODE_ENV=production \
+              -e VPN_GW_NAME="$VPN_GW_NAME" \
+              -e VPN_GW_DOMAINS="$VPN_GW_DOMAINS" \
+              -e VPN_GW_AGENT_TOKEN="$VPN_GW_AGENT_TOKEN" \
+              -e VPN_SECRET_KEY="$VPN_SECRET_KEY" \
               "$IMG"
 
             if [ -z "$HSNET" ]; then
@@ -127,6 +131,12 @@ jobs:
           # Chưa đặt secret ⇒ PEPPER rỗng ⇒ backfill tự bỏ qua (không lỗi), đặt
           # secret rồi thì lần deploy kế backfill tự chạy.
           PEPPER: ${{ secrets.PEPPER }}
+          # VPN gateway bootstrap (Phase 5): seed record 'bitel' + domain vao DB.
+          # tailnet_ip KHONG dat o day — agent tu bao qua /api/vpn/agent/status.
+          VPN_GW_NAME: bitel
+          VPN_GW_DOMAINS: jump.bitel.com.pe
+          VPN_GW_AGENT_TOKEN: ${{ secrets.VPN_GW_AGENT_TOKEN }}
+          VPN_SECRET_KEY: ${{ secrets.VPN_SECRET_KEY }}
 
       - name: Auto-seed Headscale API key (non-fatal)
         continue-on-error: true

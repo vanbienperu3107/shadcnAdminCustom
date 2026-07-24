@@ -65,6 +65,9 @@ const agentStatusSchema = z.object({
   state: z.enum(['up', 'down', 'connecting', 'error']).optional(),
   tunIp: z.string().max(64).nullish(),
   egressIp: z.string().max(64).nullish(),
+  // IP tailnet (100.x) node tự báo -> cập nhật vpn_gateways.tailnet_ip để PAC
+  // luôn trỏ đúng IP hiện tại, KHÔNG hardcode ở deploy.
+  tailnetIp: z.string().max(64).nullish(),
   lastError: z.string().max(2000).nullish(),
   agentVersion: z.string().max(64).nullish(),
 })
@@ -327,9 +330,15 @@ export async function vpnAgentPublicRoutes(app: FastifyInstance): Promise<void> 
       const parsed = agentStatusSchema.safeParse(req.body)
       if (!parsed.success)
         return reply.code(400).send({ error: parsed.error.flatten() })
+      const patch: Partial<typeof vpnGateways.$inferInsert> = {
+        ...parsed.data,
+        reportedAt: new Date(),
+      }
+      // Không ghi đè tailnet_ip bằng giá trị rỗng (giữ IP DB nếu agent chưa lấy được).
+      if (!patch.tailnetIp) delete patch.tailnetIp
       const [row] = await db
         .update(vpnGateways)
-        .set({ ...parsed.data, reportedAt: new Date() })
+        .set(patch)
         .where(eq(vpnGateways.id, gw.id))
         .returning()
       return { ok: true, configVersion: row?.configVersion ?? gw.configVersion }
