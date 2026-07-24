@@ -16,6 +16,7 @@ import {
 } from '../db/schema.js'
 import { env } from '../env.js'
 import { buildPac, type PacRuleRow } from '../lib/build-pac.js'
+import { loadVpnPacRows } from '../lib/vpn-pac.js'
 import { updateSignalCache } from '../lib/poll-cache.js'
 import {
   resolveRuntimeConfig,
@@ -215,7 +216,10 @@ export async function clientRuntimePublicRoutes(
               : eq(pacRules.scope, 'global')
           )
         )
-      const pac = buildPac(rows as unknown as PacRuleRow[])
+      // Gộp dòng PAC từ VPN gateway TRƯỚC pac_rules (priority 10 < 100) để
+      // jump.bitel.com.pe đi cổng VPN, thắng mọi rule *.bitel.com.pe chung.
+      const vpnRows = await loadVpnPacRows()
+      const pac = buildPac([...vpnRows, ...(rows as unknown as PacRuleRow[])])
       return reply
         .header('Content-Type', 'application/x-ns-proxy-autoconfig')
         .header('Cache-Control', 'no-cache, no-store, must-revalidate')
@@ -342,9 +346,10 @@ export async function clientRuntimeRoutes(app: FastifyInstance): Promise<void> {
             : eq(pacRules.scope, 'global')
         )
       )
+    const vpnRows = await loadVpnPacRows()
     return reply
       .header('Content-Type', 'text/plain; charset=utf-8')
-      .send(buildPac(rows as unknown as PacRuleRow[]))
+      .send(buildPac([...vpnRows, ...(rows as unknown as PacRuleRow[])]))
   })
 
   app.post('/api/pac-rules', async (req, reply) => {

@@ -46,6 +46,7 @@ import {
   nodeAssignmentsRoutes,
 } from './routes/node-assignments.js'
 import { telemetryPublicRoutes, telemetryRoutes } from './routes/telemetry.js'
+import { vpnAgentPublicRoutes, vpnRoutes } from './routes/vpn.js'
 
 /**
  * Trạng thái sẵn sàng của DB (xem docs/rca-2026-07-18-dashboard-outage.md gốc D).
@@ -111,6 +112,8 @@ async function main() {
   await app.register(telemetryRoutes)
   await app.register(clientUpdatePublicRoutes)
   await app.register(clientUpdateRoutes)
+  await app.register(vpnAgentPublicRoutes)
+  await app.register(vpnRoutes)
 
   // SPA tĩnh (prod)
   if (env.CLIENT_DIST && existsSync(env.CLIENT_DIST)) {

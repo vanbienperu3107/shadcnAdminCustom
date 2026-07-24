@@ -29,6 +29,10 @@ const schema = z.object({
   SEED_DERP_YAML: z.string().optional(),
   EMBEDDED_HOSTNAME: z.string().default('vpn2.hangocthanh.io.vn'),
   EMBEDDED_IPV4: z.string().default('165.22.12.169'),
+  // Khoa ma hoa mat khau OpenVPN cua VPN gateway (auth_password_enc, AES-256-GCM).
+  // Chuoi ngau nhien >=32 ky tu, tach kenh khoi DATABASE_URL. Trong = derive tu
+  // SESSION_SECRET (chay duoc nhung kem tach kenh — nen dat rieng o prod).
+  VPN_SECRET_KEY: z.string().default(''),
   CORS_ORIGIN: z.string().default(''),
   CLIENT_DIST: z.string().default(''),
   // Headscale API (machines/users). Key = headscale apikey (HEADPLANE_HS_API_KEY).
