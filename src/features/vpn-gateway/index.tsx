@@ -4,12 +4,7 @@ import { Globe, Play, Plus, RotateCw, Square, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -85,10 +80,10 @@ export function VpnGatewayPage() {
   return (
     <div className='flex flex-1 flex-col gap-4 sm:gap-6'>
       <p className='text-sm text-muted-foreground'>
-        Cổng VPN giữ phiên OpenVPN thường trực. Client trỏ PAC qua đây để vào các
-        trang chỉ mạng VPN mới tới được (vd{' '}
-        <span className='font-mono'>jump.bitel.com.pe</span>) mà không máy nào phải
-        tự chạy OpenVPN.
+        Cổng VPN giữ phiên OpenVPN thường trực. Client trỏ PAC qua đây để vào
+        các trang chỉ mạng VPN mới tới được (vd{' '}
+        <span className='font-mono'>jump.bitel.com.pe</span>) mà không máy nào
+        phải tự chạy OpenVPN.
       </p>
 
       {isError ? (
@@ -99,7 +94,8 @@ export function VpnGatewayPage() {
         <div className='text-sm text-muted-foreground'>Đang tải…</div>
       ) : gateways.length === 0 ? (
         <div className='rounded-md border p-6 text-center text-sm text-muted-foreground'>
-          Chưa có cổng VPN nào. Cổng được khai báo lúc deploy (bootstrap từ env).
+          Chưa có cổng VPN nào. Cổng được khai báo lúc deploy (bootstrap từ
+          env).
         </div>
       ) : (
         gateways.map((g) => <GatewayCard key={g.id} gw={g} />)
@@ -126,7 +122,8 @@ function GatewayCard({ gw }: { gw: VpnGateway }) {
       }
       toast.success(msg[action])
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : 'Lỗi thao tác'),
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : 'Lỗi thao tác'),
   })
 
   return (
@@ -142,7 +139,12 @@ function GatewayCard({ gw }: { gw: VpnGateway }) {
               </span>
             ) : null}
           </CardTitle>
-          <div className={cn('flex items-center gap-2 text-sm font-medium', h.text)}>
+          <div
+            className={cn(
+              'flex items-center gap-2 text-sm font-medium',
+              h.text
+            )}
+          >
             <span className={cn('size-2 rounded-full', h.dot)} />
             {h.label}
             <span className='text-xs font-normal text-muted-foreground'>
@@ -152,7 +154,11 @@ function GatewayCard({ gw }: { gw: VpnGateway }) {
         </div>
         <div className='flex shrink-0 gap-2'>
           {gw.desiredState === 'down' ? (
-            <Button size='sm' onClick={() => act.mutate('start')} disabled={act.isPending}>
+            <Button
+              size='sm'
+              onClick={() => act.mutate('start')}
+              disabled={act.isPending}
+            >
               <Play className='size-4' /> Bật
             </Button>
           ) : (
@@ -204,7 +210,11 @@ function GatewayCard({ gw }: { gw: VpnGateway }) {
           </div>
         ) : null}
 
-        <DomainsSection gatewayId={gw.id} tailnetIp={gw.tailnetIp} proxyPort={gw.proxyPort} />
+        <DomainsSection
+          gatewayId={gw.id}
+          tailnetIp={gw.tailnetIp}
+          proxyPort={gw.proxyPort}
+        />
       </CardContent>
     </Card>
   )
@@ -259,15 +269,19 @@ function DomainsSection({
     },
   })
 
-  const target = tailnetIp ? `PROXY ${tailnetIp}:${proxyPort}` : '(chờ agent báo IP)'
+  const target = tailnetIp
+    ? `PROXY ${tailnetIp}:${proxyPort}`
+    : '(chờ agent báo IP)'
 
   return (
     <div className='space-y-2'>
       <div className='flex items-center justify-between'>
-        <h4 className='text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
+        <h4 className='text-xs font-semibold tracking-wide text-muted-foreground uppercase'>
           Trang đi qua VPN
         </h4>
-        <span className='font-mono text-xs text-muted-foreground'>→ {target}</span>
+        <span className='font-mono text-xs text-muted-foreground'>
+          → {target}
+        </span>
       </div>
       <div className='rounded-md border'>
         <Table>
@@ -281,22 +295,33 @@ function DomainsSection({
           <TableBody>
             {domains.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className='text-center text-sm text-muted-foreground'>
+                <TableCell
+                  colSpan={3}
+                  className='text-center text-sm text-muted-foreground'
+                >
                   Chưa có tên miền
                 </TableCell>
               </TableRow>
             ) : (
               domains.map((d) => (
                 <TableRow key={d.id}>
-                  <TableCell className='font-mono text-sm'>{d.domain}</TableCell>
+                  <TableCell className='font-mono text-sm'>
+                    {d.domain}
+                  </TableCell>
                   <TableCell>
                     <Switch
                       checked={d.enabled}
-                      onCheckedChange={(v) => toggle.mutate({ id: d.id, enabled: v })}
+                      onCheckedChange={(v) =>
+                        toggle.mutate({ id: d.id, enabled: v })
+                      }
                     />
                   </TableCell>
                   <TableCell>
-                    <Button size='icon' variant='ghost' onClick={() => remove.mutate(d.id)}>
+                    <Button
+                      size='icon'
+                      variant='ghost'
+                      onClick={() => remove.mutate(d.id)}
+                    >
                       <Trash2 className='size-4 text-destructive' />
                     </Button>
                   </TableCell>
@@ -313,7 +338,8 @@ function DomainsSection({
           value={newDomain}
           onChange={(e) => setNewDomain(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && newDomain.trim()) add.mutate(newDomain.trim())
+            if (e.key === 'Enter' && newDomain.trim())
+              add.mutate(newDomain.trim())
           }}
         />
         <Button
