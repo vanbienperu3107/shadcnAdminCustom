@@ -1,0 +1,37 @@
+name: format-fix (temp)
+
+# Tam thoi: chay prettier --write tren branch roi commit nguoc lai, de sua tailwind
+# class ordering ma khong the chay prettier cuc bo. Se xoa sau khi dung xong.
+on:
+  push:
+    branches:
+      - feat/vpn-gateway-ui
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install -g pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format
+      - name: Commit formatted files (neu co thay doi)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "khong co thay doi format"
+          else
+            git add -A
+            git commit -m "chore: prettier --write (auto-format)"
+            git push
+          fi
