@@ -18,6 +18,7 @@ import { NodeAssignments } from '@/features/node-assignments'
 import { NodeRuntimePage } from '@/features/node-runtime'
 import { PacRulesPage } from '@/features/pac-rules'
 import { PreAuthKeys } from '@/features/preauth-keys'
+import { VpnGatewayPage } from '@/features/vpn-gateway'
 
 export type MachineGroup = 'devices' | 'routing' | 'derp' | 'config' | 'users'
 
@@ -60,6 +61,7 @@ const GROUPS: Record<MachineGroup, Leaf[]> = {
       render: () => <NodeRuntimePage />,
     },
     { key: 'pac', label: 'PAC Rule', render: () => <PacRulesPage /> },
+    { key: 'vpn-gateway', label: 'Cổng VPN', render: () => <VpnGatewayPage /> },
     {
       key: 'folder-shares',
       label: 'Chia sẻ thư mục',
