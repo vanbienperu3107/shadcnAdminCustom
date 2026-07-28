@@ -41,7 +41,8 @@ services:
       # Chi email trong emails.txt moi vao duoc. KHONG dung --email-domain=* (short-circuit).
       - --authenticated-emails-file=/etc/oauth2-proxy/emails.txt
       - --cookie-secure=true
-      - --cookie-samesite=strict
+      # lax (KHONG strict): strict chan cookie CSRF khi Google redirect ve callback (cross-site) -> 403
+      - --cookie-samesite=lax
       - --cookie-expire=8h
       - --cookie-refresh=1h
       - --cookie-domain=sql.hangocthanh.io.vn
