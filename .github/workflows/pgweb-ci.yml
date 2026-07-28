@@ -1,0 +1,54 @@
+name: pgweb CI (validate)
+
+# Validate artifact pgweb (compose + Caddyfile snippet) truoc khi merge.
+# Chay khi PR/push dung toi pgweb/** hoac cac workflow lien quan.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pgweb/**"
+      - ".github/workflows/pgweb-ci.yml"
+      - ".github/workflows/deploy-pgweb-vpn6.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "pgweb/**"
+      - ".github/workflows/pgweb-ci.yml"
+      - ".github/workflows/deploy-pgweb-vpn6.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    # Bien gia de docker compose interpolate (chi validate cu phap, khong chay that).
+    # oauth2 doc secret qua env_file (required:false) nen khong can o day.
+    env:
+      PGWEB_DERP_URL: dummy
+      PGWEB_HS_URL: dummy
+      PGWEB_AUTH_USER: dummy
+      PGWEB_AUTH_PASS: dummy
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate docker-compose.yml (cu phap)
+        run: docker compose -f pgweb/docker-compose.yml config -q
+
+      - name: Kiem tra image pin (khong :latest)
+        run: |
+          if grep -nE 'image:.*:latest' pgweb/docker-compose.yml; then
+            echo "LOI: image dung :latest — phai pin phien ban"; exit 1
+          fi
+          echo "OK: tat ca image da pin"
+
+      - name: Validate sql.caddy (Caddyfile syntax)
+        run: |
+          docker run --rm -v "$PWD/pgweb:/w" caddy:2.8-alpine \
+            caddy validate --adapter caddyfile --config /w/sql.caddy
+
+      - name: Guard — .env / emails.txt that KHONG duoc commit
+        run: |
+          if git ls-files --error-unmatch pgweb/.env pgweb/emails.txt 2>/dev/null; then
+            echo "LOI: pgweb/.env hoac pgweb/emails.txt bi commit (phai .gitignore)"; exit 1
+          fi
+          echo "OK: khong co secret file bi commit"

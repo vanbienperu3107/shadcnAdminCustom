@@ -1,0 +1,37 @@
+# Site block cho sql.hangocthanh.io.vn — append vao /home/thanh/memory-stack/Caddyfile.
+# Deploy workflow append idempotent + `caddy validate` + `caddy reload`.
+# Cert Let's Encrypt tu dong (HTTP-01 cong 80). Route: forward_auth (Google) -> /derp | /headscale.
+# Dung `route {}` de giu dung thu tu directive (khong phu thuoc auto-sort cua Caddy).
+# pgweb dung asset tuong doi (static/...) -> can trailing slash: redir /derp -> /derp/.
+sql.hangocthanh.io.vn {
+	route {
+		# /oauth2/* di thang toi oauth2-proxy (khong can dang nhap).
+		handle /oauth2/* {
+			reverse_proxy pgweb-oauth2:4180
+		}
+
+		# Moi request con lai phai qua Google login.
+		forward_auth pgweb-oauth2:4180 {
+			uri /oauth2/auth
+			copy_headers X-Auth-Request-Email
+			@error status 401
+			handle_response @error {
+				redir * /oauth2/start?rd={http.request.uri}
+			}
+		}
+
+		# Trailing slash de asset tuong doi cua pgweb resolve dung /<prefix>/static/...
+		redir /derp /derp/ 308
+		redir /headscale /headscale/ 308
+
+		handle /headscale* {
+			reverse_proxy pgweb-headscale:8081
+		}
+		handle /derp* {
+			reverse_proxy pgweb-derp:8081
+		}
+		handle / {
+			redir * /derp/ 302
+		}
+	}
+}
