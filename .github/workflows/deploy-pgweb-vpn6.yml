@@ -66,10 +66,10 @@ jobs:
             fi
             echo "  pgpw len=${#PGPW}"
 
-            echo "==> Cookie secret oauth2-proxy (giu neu da co, else sinh moi 32 byte)"
-            CK=$(openssl rand -base64 32 | tr -d '\n')
+            echo "==> Cookie secret oauth2-proxy (32 byte cho AES; giu neu da co & hop le)"
+            CK=$(openssl rand -hex 16)
             OLD=$(awk -F= '/^OAUTH2_PROXY_COOKIE_SECRET=/{print substr($0,index($0,"=")+1); exit}' .env 2>/dev/null || true)
-            if [ -n "${OLD:-}" ]; then CK="$OLD"; fi
+            case "${#OLD}" in 16|24|32) CK="$OLD" ;; esac
             echo "  cookie len=${#CK}"
 
             echo "==> Ghi .env (chmod 600) — DSN ghep tren server, mat khau khong roi repo"
