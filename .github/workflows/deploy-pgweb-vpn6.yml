@@ -53,25 +53,24 @@ jobs:
           command_timeout: 10m
           script: |
             set -eu
-            if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; else SUDO=""; fi
+            SUDO=""
+            if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi
             DIR=/opt/pgweb
             mkdir -p "$DIR"
             cd "$DIR"
 
             echo "==> Doc DERP_PG_PASSWORD tu /opt/dashboard-vn/.env (superuser derp)"
-            if [ -f /opt/dashboard-vn/.env ] && grep -q '^DERP_PG_PASSWORD=' /opt/dashboard-vn/.env; then
-              PGPW=$(grep '^DERP_PG_PASSWORD=' /opt/dashboard-vn/.env | head -1 | cut -d= -f2-)
-            else
-              echo "LOI: khong tim thay DERP_PG_PASSWORD trong /opt/dashboard-vn/.env"; exit 1
+            PGPW=$(awk -F= '/^DERP_PG_PASSWORD=/{print substr($0,index($0,"=")+1); exit}' /opt/dashboard-vn/.env 2>/dev/null || true)
+            if [ -z "${PGPW:-}" ]; then
+              echo "LOI: khong doc duoc DERP_PG_PASSWORD tu /opt/dashboard-vn/.env"; exit 1
             fi
+            echo "  pgpw len=${#PGPW}"
 
-            echo "==> Cookie secret oauth2-proxy (giu neu da co, else sinh moi 32 byte)"
-            CKVAR=OAUTH2_PROXY_COOKIE_SECRET
-            if [ -f .env ] && grep -q "^${CKVAR}=" .env; then
-              CK=$(grep "^${CKVAR}=" .env | head -1 | cut -d= -f2-)
-            else
-              CK=$(openssl rand -base64 32 | tr -d '\n')
-            fi
+            echo "==> Cookie secret oauth2-proxy (32 byte cho AES; giu neu da co & hop le)"
+            CK=$(openssl rand -hex 16)
+            OLD=$(awk -F= '/^OAUTH2_PROXY_COOKIE_SECRET=/{print substr($0,index($0,"=")+1); exit}' .env 2>/dev/null || true)
+            case "${#OLD}" in 16|24|32) CK="$OLD" ;; esac
+            echo "  cookie len=${#CK}"
 
             echo "==> Ghi .env (chmod 600) — DSN ghep tren server, mat khau khong roi repo"
             umask 077
@@ -79,7 +78,7 @@ jobs:
             w(){ printf '%s=%s\n' "$1" "$2" >> .env; }
             w OAUTH2_PROXY_CLIENT_ID "$GOOGLE_CLIENT_ID"
             w OAUTH2_PROXY_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
-            w "$CKVAR" "$CK"
+            w OAUTH2_PROXY_COOKIE_SECRET "$CK"
             w PGWEB_DERP_URL "postgres://derp:$PGPW@postgres:5432/derp?sslmode=disable"
             w PGWEB_HS_URL "postgres://derp:$PGPW@postgres:5432/headscale?sslmode=disable"
             w PGWEB_AUTH_USER "$PGWEB_BASIC_USER"
@@ -87,8 +86,8 @@ jobs:
             chmod 600 .env
 
             echo "==> Ghi emails.txt (1 email / dong; nhan phay hoac xuong dong)"
-            printf '%s' "${PGWEB_ALLOWED_EMAILS}" | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; /^$/d' > emails.txt
-            chmod 600 emails.txt
+            printf '%s' "${PGWEB_ALLOWED_EMAILS}" | tr ',' '\n' | awk '{gsub(/^[ \t\r]+|[ \t\r]+$/,""); if($0!="") print}' > emails.txt
+            chmod 644 emails.txt   # mount vao oauth2-proxy (chay uid non-root) -> phai doc duoc; email khong phai bi mat
             echo "  so email: $(wc -l < emails.txt)"
 
             echo "==> Pull + up"
@@ -99,20 +98,24 @@ jobs:
             echo "==> Tich hop site block vao Caddy (idempotent + validate + reload)"
             CADDYFILE=/home/thanh/memory-stack/Caddyfile
             CT=memory-caddy
-            if grep -q 'sql.hangocthanh.io.vn' "$CADDYFILE"; then
-              echo "  site da co (skip append)"
-            else
+            # Dung if KHONG else + bat rc bang || : drone-ssh abort neu dieu kien if...else tra non-zero.
+            HAS=$(awk '/sql\.hangocthanh\.io\.vn/{c=1} END{print c+0}' "$CADDYFILE" 2>/dev/null || echo 0)
+            if [ "${HAS:-0}" -eq 1 ]; then echo "  site da co (skip append)"; fi
+            if [ "${HAS:-0}" -ne 1 ]; then
               cp "$CADDYFILE" "$CADDYFILE.bak.$(date +%s)"
-              grep -v '^#' "$DIR/sql.caddy" >> "$CADDYFILE"
+              awk 'substr($0,1,1) != "#"' "$DIR/sql.caddy" >> "$CADDYFILE"
               echo "  da append site block"
             fi
-            if $SUDO docker exec "$CT" caddy validate --config /etc/caddy/Caddyfile; then
+            VRC=0
+            $SUDO docker exec "$CT" caddy validate --config /etc/caddy/Caddyfile || VRC=$?
+            if [ "$VRC" -eq 0 ]; then
               $SUDO docker exec "$CT" caddy reload --config /etc/caddy/Caddyfile
               echo "  caddy reload OK"
-            else
+            fi
+            if [ "$VRC" -ne 0 ]; then
               LATEST=$(ls -t "$CADDYFILE".bak.* 2>/dev/null | head -1 || true)
-              if [ -n "$LATEST" ]; then cp "$LATEST" "$CADDYFILE"; echo "  validate FAIL -> da rollback tu $LATEST"; fi
-              exit 1
+              if [ -n "${LATEST:-}" ]; then cp "$LATEST" "$CADDYFILE"; fi
+              echo "  validate FAIL -> da rollback"; exit 1
             fi
 
             echo "==> Health"
