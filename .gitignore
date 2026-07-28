@@ -14,6 +14,10 @@ dist-ssr
 
 .env
 
+# pgweb: file secret ghi tren server, KHONG commit (compose/sql.caddy thi commit)
+pgweb/.env
+pgweb/emails.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

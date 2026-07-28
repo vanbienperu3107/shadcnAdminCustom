@@ -1,0 +1,99 @@
+# Stack pgweb tren vpn6 — quan tri Postgres noi bo (derp-postgres) qua sql.hangocthanh.io.vn
+#
+# Xem docs/plan-pgweb-vpn6.md (v4). Deploy bang .github/workflows/deploy-pgweb-vpn6.yml.
+#
+# Kien truc: 3 container, compose RIENG (khong dung /opt/dashboard-vn):
+#   - pgweb-oauth2     : Google login (forward_auth cua Caddy) — chi memnet.
+#   - pgweb-derp       : pgweb khoa DB `derp`      (--prefix derp)      — memnet + dashnet.
+#   - pgweb-headscale  : pgweb khoa DB `headscale` (--prefix headscale) — memnet + dashnet.
+# Caddy (memory-caddy) route sql.hangocthanh.io.vn -> forward_auth -> /derp | /headscale.
+#
+# Bao mat 2 lop (public + superuser = rui ro cao):
+#   Lop 1 oauth2-proxy Google (allowlist email trong emails.txt).
+#   Lop 2 pgweb basic-auth (PGWEB_AUTH_USER/PASS) — phong khi lop 1 su co.
+#
+# Bien moi truong doc tu /opt/pgweb/.env (workflow ghi):
+#   PGWEB_DERP_URL / PGWEB_HS_URL  (DSN superuser `derp`, mat khau tu dashboard-vn/.env),
+#   OAUTH2_PROXY_CLIENT_ID/_CLIENT_SECRET/_COOKIE_SECRET, PGWEB_AUTH_USER/_AUTH_PASS.
+
+name: pgweb
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  pgweb-oauth2:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    container_name: pgweb-oauth2
+    restart: unless-stopped
+    mem_limit: 128m
+    <<: *logging
+    command:
+      - --http-address=0.0.0.0:4180
+      - --provider=google
+      - --reverse-proxy=true
+      - --set-xauthrequest=true
+      - --upstream=static://202
+      # Chi email trong emails.txt moi vao duoc. KHONG dung --email-domain=* (short-circuit).
+      - --authenticated-emails-file=/etc/oauth2-proxy/emails.txt
+      - --cookie-secure=true
+      - --cookie-samesite=strict
+      - --cookie-expire=8h
+      - --cookie-refresh=1h
+      - --cookie-domain=sql.hangocthanh.io.vn
+      - --whitelist-domain=sql.hangocthanh.io.vn
+      - --redirect-url=https://sql.hangocthanh.io.vn/oauth2/callback
+    # oauth2-proxy tu doc OAUTH2_PROXY_CLIENT_ID/_CLIENT_SECRET/_COOKIE_SECRET tu .env.
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./emails.txt:/etc/oauth2-proxy/emails.txt:ro
+    networks: [memnet]
+
+  pgweb-derp:
+    image: sosedoff/pgweb:0.17.0
+    container_name: pgweb-derp
+    restart: unless-stopped
+    mem_limit: 256m
+    <<: *logging
+    # --bind mac dinh localhost -> BAT BUOC 0.0.0.0 de Caddy goi qua network.
+    command:
+      - --bind=0.0.0.0
+      - --listen=8081
+      - --prefix=derp
+    environment:
+      PGWEB_DATABASE_URL: ${PGWEB_DERP_URL}
+      PGWEB_AUTH_USER: ${PGWEB_AUTH_USER}
+      PGWEB_AUTH_PASS: ${PGWEB_AUTH_PASS}
+    networks: [memnet, dashnet]
+
+  pgweb-headscale:
+    image: sosedoff/pgweb:0.17.0
+    container_name: pgweb-headscale
+    restart: unless-stopped
+    mem_limit: 256m
+    <<: *logging
+    command:
+      - --bind=0.0.0.0
+      - --listen=8081
+      - --prefix=headscale
+    environment:
+      PGWEB_DATABASE_URL: ${PGWEB_HS_URL}
+      PGWEB_AUTH_USER: ${PGWEB_AUTH_USER}
+      PGWEB_AUTH_PASS: ${PGWEB_AUTH_PASS}
+    networks: [memnet, dashnet]
+
+networks:
+  # memory-caddy o memnet -> goi duoc pgweb-* theo ten container.
+  memnet:
+    external: true
+    name: memory-stack_memnet
+  # derp-postgres o dashnet (alias `postgres`), khong expose port.
+  dashnet:
+    external: true
+    name: dashboard-vn_dashnet

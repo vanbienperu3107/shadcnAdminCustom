@@ -1,0 +1,128 @@
+name: Deploy pgweb (vpn6)
+
+# Dung pgweb quan tri Postgres noi bo (derp-postgres) tren vpn6 qua sql.hangocthanh.io.vn.
+# Xem docs/plan-pgweb-vpn6.md (v4).
+#
+#   - workflow_dispatch ONLY: vpn6 la box production (memory-stack), KHONG auto-deploy.
+#   - Copy pgweb/docker-compose.yml + pgweb/sql.caddy len /opt/pgweb (scp).
+#   - Ghi /opt/pgweb/.env + emails.txt tu Secrets/server roi `docker compose up`.
+#   - Append site block Caddy idempotent + validate + reload (rollback backup neu fail).
+#
+# 🔴 DB PASSWORD: KHONG dua len GitHub Secret. Doc DERP_PG_PASSWORD tu
+# /opt/dashboard-vn/.env (superuser `derp`, sinh 1 lan luc initdb, khong doi).
+#
+# Secrets can co (ngoai SSH_*_VPN6, GOOGLE_CLIENT_ID/SECRET da dung o deploy-dashboard-vn):
+#   - PGWEB_ALLOWED_EMAILS : danh sach email duoc phep (phay hoac xuong dong).
+#   - PGWEB_BASIC_USER     : user lop 2 (basic-auth pgweb).
+#   - PGWEB_BASIC_PASS     : mat khau lop 2.
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-pgweb-vpn6
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy artifact pgweb len vpn6
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST_VPN6 }}
+          username: ${{ secrets.SSH_USER_VPN6 || 'root' }}
+          key: ${{ secrets.SSH_KEY_VPN6 }}
+          port: ${{ secrets.SSH_PORT_VPN6 || '22' }}
+          source: "pgweb/docker-compose.yml,pgweb/sql.caddy"
+          target: /opt/pgweb
+          strip_components: 1
+
+      - name: Cau hinh .env + khoi dong pgweb + tich hop Caddy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST_VPN6 }}
+          username: ${{ secrets.SSH_USER_VPN6 || 'root' }}
+          key: ${{ secrets.SSH_KEY_VPN6 }}
+          port: ${{ secrets.SSH_PORT_VPN6 || '22' }}
+          envs: GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,PGWEB_ALLOWED_EMAILS,PGWEB_BASIC_USER,PGWEB_BASIC_PASS
+          script_stop: true
+          command_timeout: 10m
+          script: |
+            set -eu
+            if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; else SUDO=""; fi
+            DIR=/opt/pgweb
+            mkdir -p "$DIR"
+            cd "$DIR"
+
+            echo "==> Doc DERP_PG_PASSWORD tu /opt/dashboard-vn/.env (superuser derp)"
+            if [ -f /opt/dashboard-vn/.env ] && grep -q '^DERP_PG_PASSWORD=' /opt/dashboard-vn/.env; then
+              PGPW=$(grep '^DERP_PG_PASSWORD=' /opt/dashboard-vn/.env | head -1 | cut -d= -f2-)
+            else
+              echo "LOI: khong tim thay DERP_PG_PASSWORD trong /opt/dashboard-vn/.env"; exit 1
+            fi
+
+            echo "==> Cookie secret oauth2-proxy (giu neu da co, else sinh moi 32 byte)"
+            CKVAR=OAUTH2_PROXY_COOKIE_SECRET
+            if [ -f .env ] && grep -q "^${CKVAR}=" .env; then
+              CK=$(grep "^${CKVAR}=" .env | head -1 | cut -d= -f2-)
+            else
+              CK=$(openssl rand -base64 32 | tr -d '\n')
+            fi
+
+            echo "==> Ghi .env (chmod 600) — DSN ghep tren server, mat khau khong roi repo"
+            umask 077
+            : > .env
+            w(){ printf '%s=%s\n' "$1" "$2" >> .env; }
+            w OAUTH2_PROXY_CLIENT_ID "$GOOGLE_CLIENT_ID"
+            w OAUTH2_PROXY_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
+            w "$CKVAR" "$CK"
+            w PGWEB_DERP_URL "postgres://derp:$PGPW@postgres:5432/derp?sslmode=disable"
+            w PGWEB_HS_URL "postgres://derp:$PGPW@postgres:5432/headscale?sslmode=disable"
+            w PGWEB_AUTH_USER "$PGWEB_BASIC_USER"
+            w PGWEB_AUTH_PASS "$PGWEB_BASIC_PASS"
+            chmod 600 .env
+
+            echo "==> Ghi emails.txt (1 email / dong; nhan phay hoac xuong dong)"
+            printf '%s' "${PGWEB_ALLOWED_EMAILS}" | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; /^$/d' > emails.txt
+            chmod 600 emails.txt
+            echo "  so email: $(wc -l < emails.txt)"
+
+            echo "==> Pull + up"
+            $SUDO docker compose pull
+            $SUDO docker compose up -d
+            $SUDO docker compose ps
+
+            echo "==> Tich hop site block vao Caddy (idempotent + validate + reload)"
+            CADDYFILE=/home/thanh/memory-stack/Caddyfile
+            CT=memory-caddy
+            if grep -q 'sql.hangocthanh.io.vn' "$CADDYFILE"; then
+              echo "  site da co (skip append)"
+            else
+              cp "$CADDYFILE" "$CADDYFILE.bak.$(date +%s)"
+              grep -v '^#' "$DIR/sql.caddy" >> "$CADDYFILE"
+              echo "  da append site block"
+            fi
+            if $SUDO docker exec "$CT" caddy validate --config /etc/caddy/Caddyfile; then
+              $SUDO docker exec "$CT" caddy reload --config /etc/caddy/Caddyfile
+              echo "  caddy reload OK"
+            else
+              LATEST=$(ls -t "$CADDYFILE".bak.* 2>/dev/null | head -1 || true)
+              if [ -n "$LATEST" ]; then cp "$LATEST" "$CADDYFILE"; echo "  validate FAIL -> da rollback tu $LATEST"; fi
+              exit 1
+            fi
+
+            echo "==> Health"
+            sleep 4
+            $SUDO docker logs pgweb-derp 2>&1 | tail -5 || true
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' https://sql.hangocthanh.io.vn/derp/ || echo "000")
+            echo "  GET /derp/ -> $CODE (mong doi 302 -> /oauth2/start; 200 = LOI bypass auth)"
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          PGWEB_ALLOWED_EMAILS: ${{ secrets.PGWEB_ALLOWED_EMAILS }}
+          PGWEB_BASIC_USER: ${{ secrets.PGWEB_BASIC_USER }}
+          PGWEB_BASIC_PASS: ${{ secrets.PGWEB_BASIC_PASS }}
