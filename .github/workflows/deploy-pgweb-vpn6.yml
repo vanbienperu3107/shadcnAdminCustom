@@ -53,7 +53,8 @@ jobs:
           command_timeout: 10m
           script: |
             set -eu
-            if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; else SUDO=""; fi
+            SUDO=""
+            if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi
             DIR=/opt/pgweb
             mkdir -p "$DIR"
             cd "$DIR"
@@ -85,7 +86,7 @@ jobs:
             chmod 600 .env
 
             echo "==> Ghi emails.txt (1 email / dong; nhan phay hoac xuong dong)"
-            printf '%s' "${PGWEB_ALLOWED_EMAILS}" | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; /^$/d' > emails.txt
+            printf '%s' "${PGWEB_ALLOWED_EMAILS}" | tr ',' '\n' | awk '{gsub(/^[ \t\r]+|[ \t\r]+$/,""); if($0!="") print}' > emails.txt
             chmod 600 emails.txt
             echo "  so email: $(wc -l < emails.txt)"
 
@@ -97,20 +98,24 @@ jobs:
             echo "==> Tich hop site block vao Caddy (idempotent + validate + reload)"
             CADDYFILE=/home/thanh/memory-stack/Caddyfile
             CT=memory-caddy
-            if grep -q 'sql.hangocthanh.io.vn' "$CADDYFILE"; then
-              echo "  site da co (skip append)"
-            else
+            # Dung if KHONG else + bat rc bang || : drone-ssh abort neu dieu kien if...else tra non-zero.
+            HAS=$(awk '/sql\.hangocthanh\.io\.vn/{c=1} END{print c+0}' "$CADDYFILE" 2>/dev/null || echo 0)
+            if [ "${HAS:-0}" -eq 1 ]; then echo "  site da co (skip append)"; fi
+            if [ "${HAS:-0}" -ne 1 ]; then
               cp "$CADDYFILE" "$CADDYFILE.bak.$(date +%s)"
-              grep -v '^#' "$DIR/sql.caddy" >> "$CADDYFILE"
+              awk 'substr($0,1,1) != "#"' "$DIR/sql.caddy" >> "$CADDYFILE"
               echo "  da append site block"
             fi
-            if $SUDO docker exec "$CT" caddy validate --config /etc/caddy/Caddyfile; then
+            VRC=0
+            $SUDO docker exec "$CT" caddy validate --config /etc/caddy/Caddyfile || VRC=$?
+            if [ "$VRC" -eq 0 ]; then
               $SUDO docker exec "$CT" caddy reload --config /etc/caddy/Caddyfile
               echo "  caddy reload OK"
-            else
+            fi
+            if [ "$VRC" -ne 0 ]; then
               LATEST=$(ls -t "$CADDYFILE".bak.* 2>/dev/null | head -1 || true)
-              if [ -n "$LATEST" ]; then cp "$LATEST" "$CADDYFILE"; echo "  validate FAIL -> da rollback tu $LATEST"; fi
-              exit 1
+              if [ -n "${LATEST:-}" ]; then cp "$LATEST" "$CADDYFILE"; fi
+              echo "  validate FAIL -> da rollback"; exit 1
             fi
 
             echo "==> Health"
