@@ -87,7 +87,7 @@ jobs:
 
             echo "==> Ghi emails.txt (1 email / dong; nhan phay hoac xuong dong)"
             printf '%s' "${PGWEB_ALLOWED_EMAILS}" | tr ',' '\n' | awk '{gsub(/^[ \t\r]+|[ \t\r]+$/,""); if($0!="") print}' > emails.txt
-            chmod 600 emails.txt
+            chmod 644 emails.txt   # mount vao oauth2-proxy (chay uid non-root) -> phai doc duoc; email khong phai bi mat
             echo "  so email: $(wc -l < emails.txt)"
 
             echo "==> Pull + up"
