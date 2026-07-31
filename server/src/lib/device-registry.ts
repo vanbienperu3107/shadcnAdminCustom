@@ -566,3 +566,69 @@ export function resolveDeviceLiveState(opts: {
   const reporting = isDeviceOnline(telemetrySeenMs, nowMs, windowMs)
   return { online: reporting || headscaleOnline === true, reporting }
 }
+
+/** MAC về đúng dạng device_identity/device_enrollment lưu (lowercase, trim).
+ *  Thuần — dùng cho mọi phép tra MAC↔MAC giữa các bảng. */
+export function normalizeMacKey(mac: string | null | undefined): string {
+  return (mac ?? '').trim().toLowerCase()
+}
+
+/**
+ * Bản đồ MAC -> TẤT CẢ MAC của CÙNG MỘT MÁY, gom theo `salt` (serial phần cứng
+ * đã chuẩn hoá) trong device_enrollment.
+ *
+ * Vì sao cần: `primaryMAC()` phía client KHÔNG tất định. Trên một máy thật
+ * (VOTAM-PC) các reporter chốt MAC lúc daemon vừa boot rồi cache vĩnh viễn
+ * (cmd/tailscaled/reporterutil.go), trong khi device-register/runtime-poll gọi
+ * lại primaryMAC() sau khi tunnel lên và nhận MAC KHÁC. Hệ quả: telemetry ghi
+ * dưới MAC A còn dòng device_identity khoá ở MAC B ⇒ join thẳng theo MAC trượt
+ * ⇒ dashboard báo "Không báo cáo" cho một máy đang báo cáo đều đặn 3s/lần.
+ *
+ * `salt` là danh tính ỔN ĐỊNH duy nhất đang có sẵn trong DB (nó cũng chính là
+ * seed sinh machine key), nên gom theo salt cho ta đúng "các card của cùng một
+ * máy". Đây là lớp VÁ PHÍA SERVER: nó chữa hiển thị, KHÔNG chữa việc client tự
+ * chẻ đôi danh tính — cấu hình runtime/PAC/folder-share/IP pin vẫn bám MAC của
+ * device-register. Sửa gốc nằm ở client (một nguồn MAC duy nhất cho cả tiến
+ * trình) và dài hạn là khoá theo device_id (docs/plan-device-id.md).
+ *
+ * MAC không có dòng enrollment (máy chưa từng zero-touch enroll) KHÔNG xuất
+ * hiện trong index → caller giữ nguyên hành vi cũ (tra đúng MAC của nó).
+ * Thuần — unit-test.
+ */
+export function buildMacAliasIndex(
+  rows: { mac: string | null; salt: string | null }[]
+): Map<string, string[]> {
+  const bySalt = new Map<string, string[]>()
+  for (const r of rows) {
+    const mac = normalizeMacKey(r.mac)
+    const salt = (r.salt ?? '').trim()
+    if (!mac || !salt) continue
+    const list = bySalt.get(salt)
+    if (!list) {
+      bySalt.set(salt, [mac])
+    } else if (!list.includes(mac)) {
+      list.push(mac)
+    }
+  }
+  const index = new Map<string, string[]>()
+  for (const macs of bySalt.values()) {
+    for (const mac of macs) index.set(mac, macs)
+  }
+  return index
+}
+
+/**
+ * Mốc telemetry MỚI NHẤT trong một nhóm MAC cùng máy. null = cả nhóm chưa từng
+ * báo. Thuần — unit-test.
+ */
+export function latestTelemetryMs(
+  macs: string[],
+  seenMsByMac: Map<string, number>
+): number | null {
+  let best: number | null = null
+  for (const mac of macs) {
+    const seen = seenMsByMac.get(normalizeMacKey(mac))
+    if (seen != null && (best === null || seen > best)) best = seen
+  }
+  return best
+}

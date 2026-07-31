@@ -3,9 +3,12 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware.js'
 import { db } from '../db/client.js'
-import { clientHomeDerp, deviceIdentity } from '../db/schema.js'
+import { clientHomeDerp, deviceEnrollment, deviceIdentity } from '../db/schema.js'
 import {
   backfillDeviceRegistry,
+  buildMacAliasIndex,
+  latestTelemetryMs,
+  normalizeMacKey,
   normalizeNodeKey,
   resolveDeviceLiveState,
 } from '../lib/device-registry.js'
@@ -48,6 +51,28 @@ async function headscaleOnlineByNodeKey(
   }
   hsOnlineCache = { at: nowMs, byNodeKey }
   return byNodeKey
+}
+
+/**
+ * Bản đồ MAC -> mọi MAC cùng máy (gom theo salt), CACHE NGẮN.
+ *
+ * Cùng lý do cache như hsOnlineCache: /api/devices/live bị poll 1s/lần, còn
+ * device_enrollment gần như không đổi (chỉ ghi lúc enroll). 5s là quá đủ tươi.
+ * Xem buildMacAliasIndex() để biết vì sao phải gom theo salt.
+ */
+const MAC_ALIAS_CACHE_MS = 5_000
+let macAliasCache: { at: number; index: Map<string, string[]> } | null = null
+
+async function macAliasIndex(nowMs: number): Promise<Map<string, string[]>> {
+  if (macAliasCache && nowMs - macAliasCache.at < MAC_ALIAS_CACHE_MS) {
+    return macAliasCache.index
+  }
+  const rows = await db
+    .select({ mac: deviceEnrollment.mac, salt: deviceEnrollment.salt })
+    .from(deviceEnrollment)
+  const index = buildMacAliasIndex(rows)
+  macAliasCache = { at: nowMs, index }
+  return index
 }
 
 /**
@@ -113,6 +138,11 @@ export async function devicesRoutes(app: FastifyInstance): Promise<void> {
   // chốt MAC rỗng lúc khởi động nên mọi POST telemetry bị 400 -> dashboard báo
   // Offline. Giờ máy đó hiện ONLINE + cờ `reporting=false` để admin thấy đúng
   // bản chất: máy sống, telemetry hỏng.
+  //
+  // Telemetry được tra theo NHÓM MAC cùng máy (gom qua device_enrollment.salt),
+  // không phải đúng MAC của dòng: client có thể ghi telemetry dưới một MAC khác
+  // MAC mà device-register dùng (primaryMAC không tất định — ca VOTAM-PC
+  // 30/07). Xem buildMacAliasIndex() để biết chi tiết và giới hạn của lớp vá này.
   app.get('/api/devices/live', async () => {
     const devs = await db
       .select({
@@ -132,7 +162,14 @@ export async function devicesRoutes(app: FastifyInstance): Promise<void> {
     const home = await db
       .select({ mac: clientHomeDerp.mac, reportedAt: clientHomeDerp.reportedAt })
       .from(clientHomeDerp)
-    const homeMap = new Map(home.map((h) => [h.mac, h.reportedAt]))
+    const seenMsByMac = new Map(
+      home
+        .filter((h) => h.reportedAt)
+        .map((h) => [
+          normalizeMacKey(h.mac),
+          new Date(h.reportedAt as Date).getTime(),
+        ])
+    )
     const now = Date.now()
     const hsOnline = await headscaleOnlineByNodeKey(now).catch((e) => {
       app.log.warn(
@@ -141,13 +178,26 @@ export async function devicesRoutes(app: FastifyInstance): Promise<void> {
       )
       return null
     })
+    // Best-effort: hỏng thì rơi về "chỉ tra đúng MAC của dòng" (hành vi cũ).
+    const aliasIndex = await macAliasIndex(now).catch((e) => {
+      app.log.warn(
+        { err: e instanceof Error ? e.message : String(e) },
+        'devices/live: mac alias lookup failed; falling back to exact-mac join'
+      )
+      return new Map<string, string[]>()
+    })
     return devs.map((d) => {
       // Tín hiệu telemetry "thấy gần nhất": home-derp (báo ~3s/lần khi online).
       // KHÔNG fallback updatedAt cho việc tính `reporting` — updatedAt là lần
       // device-register (1 lần/khởi động daemon), nó không chứng minh telemetry
       // đang chạy; dùng nó sẽ che đúng cái lỗi ta vừa sửa.
-      const homeSeen = d.mac ? homeMap.get(d.mac) : undefined
-      const telemetrySeenMs = homeSeen ? new Date(homeSeen).getTime() : null
+      //
+      // Tra trên CẢ NHÓM MAC cùng máy (gom theo salt), không chỉ MAC của dòng:
+      // client có thể ghi telemetry dưới một MAC khác MAC mà device-register
+      // dùng — xem buildMacAliasIndex().
+      const mac = normalizeMacKey(d.mac)
+      const aliases = mac ? (aliasIndex.get(mac) ?? [mac]) : []
+      const telemetrySeenMs = latestTelemetryMs(aliases, seenMsByMac)
       const key = normalizeNodeKey(d.nodeKey)
       const headscaleOnline = hsOnline ? (hsOnline.get(key ?? '') ?? false) : null
       const { online, reporting } = resolveDeviceLiveState({
@@ -157,7 +207,8 @@ export async function devicesRoutes(app: FastifyInstance): Promise<void> {
       })
       // "Last seen" vẫn lấy tín hiệu mới nhất từng thấy (telemetry hoặc lần
       // register gần nhất) để cột này không trống với máy chưa từng báo.
-      const seen = homeSeen ?? d.updatedAt
+      const seen =
+        telemetrySeenMs != null ? new Date(telemetrySeenMs) : d.updatedAt
       return {
         id: d.id,
         mac: d.mac,

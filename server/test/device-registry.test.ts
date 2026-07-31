@@ -10,6 +10,9 @@ import {
   isCiRunnerHostname,
   resolveDeviceLiveState,
   versionChangeDirection,
+  buildMacAliasIndex,
+  latestTelemetryMs,
+  normalizeMacKey,
 } from '../src/lib/device-registry'
 
 describe('isCiRunnerHostname', () => {
@@ -278,5 +281,125 @@ describe('resolveDeviceLiveState', () => {
         nowMs: now,
       })
     ).toEqual({ online: false, reporting: false })
+  })
+})
+
+describe('normalizeMacKey', () => {
+  it('trim + lowercase', () => {
+    expect(normalizeMacKey('  0C:CD:B4:56:C8:EB ')).toBe('0c:cd:b4:56:c8:eb')
+  })
+  it('null/undefined/rỗng -> chuỗi rỗng', () => {
+    expect(normalizeMacKey(null)).toBe('')
+    expect(normalizeMacKey(undefined)).toBe('')
+    expect(normalizeMacKey('   ')).toBe('')
+  })
+})
+
+// Dữ liệu thật của VOTAM-PC (device_enrollment, prod vpn6): 4 card cùng 1 salt.
+const VOTAM_SALT = '0025_3886_01D6_59C7.'
+const ITOP_SALT = 'WD-WCC4E5PZ'
+const VOTAM_ENROLLMENTS = [
+  { mac: 'f8:cf:52:6f:84:70', salt: VOTAM_SALT },
+  { mac: 'c6:4b:23:f3:44:5f', salt: VOTAM_SALT },
+  { mac: '00:15:ff:68:75:78', salt: VOTAM_SALT },
+  { mac: '0c:cd:b4:56:c8:eb', salt: VOTAM_SALT },
+  { mac: 'dc:4a:3e:3d:54:70', salt: ITOP_SALT },
+]
+
+describe('buildMacAliasIndex', () => {
+  it('mọi MAC cùng salt trỏ về CÙNG một nhóm', () => {
+    const idx = buildMacAliasIndex(VOTAM_ENROLLMENTS)
+    const group = idx.get('00:15:ff:68:75:78')
+    expect(group).toEqual([
+      'f8:cf:52:6f:84:70',
+      'c6:4b:23:f3:44:5f',
+      '00:15:ff:68:75:78',
+      '0c:cd:b4:56:c8:eb',
+    ])
+    // Cùng nhóm ⇒ tra từ MAC nào cũng ra y hệt.
+    expect(idx.get('0c:cd:b4:56:c8:eb')).toEqual(group)
+  })
+
+  it('máy khác salt KHÔNG bị gộp chung', () => {
+    const idx = buildMacAliasIndex(VOTAM_ENROLLMENTS)
+    expect(idx.get('dc:4a:3e:3d:54:70')).toEqual(['dc:4a:3e:3d:54:70'])
+  })
+
+  it('MAC hoa/thường + khoảng trắng vẫn khớp cùng nhóm', () => {
+    const idx = buildMacAliasIndex([
+      { mac: ' 00:15:FF:68:75:78 ', salt: VOTAM_SALT },
+      { mac: '0C:CD:B4:56:C8:EB', salt: VOTAM_SALT },
+    ])
+    expect(idx.get('0c:cd:b4:56:c8:eb')).toEqual([
+      '00:15:ff:68:75:78',
+      '0c:cd:b4:56:c8:eb',
+    ])
+  })
+
+  it('MAC lặp trong cùng salt chỉ vào nhóm 1 lần', () => {
+    const idx = buildMacAliasIndex([
+      { mac: '00:15:ff:68:75:78', salt: VOTAM_SALT },
+      { mac: '00:15:FF:68:75:78', salt: VOTAM_SALT },
+    ])
+    expect(idx.get('00:15:ff:68:75:78')).toEqual(['00:15:ff:68:75:78'])
+  })
+
+  it('thiếu mac hoặc salt -> bỏ qua, không tạo nhóm rác', () => {
+    const idx = buildMacAliasIndex([
+      { mac: null, salt: VOTAM_SALT },
+      { mac: '00:15:ff:68:75:78', salt: null },
+      { mac: '', salt: '' },
+    ])
+    expect(idx.size).toBe(0)
+  })
+})
+
+describe('latestTelemetryMs', () => {
+  const now = 1_000_000_000_000
+  const fresh = now - 20_000 // 0c:cd:b4 đang báo (20s trước)
+  const old = now - 9 * 24 * 3_600_000 // 00:15:ff im từ 9 ngày
+
+  // ★ Chính là ca VOTAM-PC 30/07: device_identity khoá ở MAC CŨ 00:15:ff, còn
+  // reporter trong daemon lại ghi telemetry dưới MAC MỚI 0c:cd:b4. Join theo
+  // đúng MAC của dòng ⇒ "Không báo cáo" sai; gộp theo salt ⇒ thấy đúng là tươi.
+  it('lấy mốc mới nhất trong nhóm, kể cả khi MAC của dòng đã cũ', () => {
+    const seen = new Map([
+      ['00:15:ff:68:75:78', old],
+      ['0c:cd:b4:56:c8:eb', fresh],
+    ])
+    const idx = buildMacAliasIndex(VOTAM_ENROLLMENTS)
+    const aliases = idx.get('00:15:ff:68:75:78') as string[]
+    expect(latestTelemetryMs(aliases, seen)).toBe(fresh)
+    expect(
+      resolveDeviceLiveState({
+        telemetrySeenMs: latestTelemetryMs(aliases, seen),
+        headscaleOnline: true,
+        nowMs: now,
+      })
+    ).toEqual({ online: true, reporting: true })
+  })
+
+  it('cả nhóm im -> null (vẫn báo "không báo cáo", không che lỗi thật)', () => {
+    const seen = new Map([['00:15:ff:68:75:78', old]])
+    const idx = buildMacAliasIndex(VOTAM_ENROLLMENTS)
+    const aliases = idx.get('00:15:ff:68:75:78') as string[]
+    expect(latestTelemetryMs(aliases, seen)).toBe(old)
+    expect(
+      resolveDeviceLiveState({
+        telemetrySeenMs: latestTelemetryMs(aliases, seen),
+        headscaleOnline: true,
+        nowMs: now,
+      })
+    ).toEqual({ online: true, reporting: false })
+  })
+
+  it('chưa MAC nào từng báo -> null', () => {
+    expect(latestTelemetryMs(['aa:bb:cc:dd:ee:ff'], new Map())).toBeNull()
+    expect(latestTelemetryMs([], new Map([['x', 1]]))).toBeNull()
+  })
+
+  it('so khớp không phụ thuộc hoa/thường', () => {
+    const seen = new Map([['0c:cd:b4:56:c8:eb', fresh]])
+    expect(latestTelemetryMs(['0C:CD:B4:56:C8:EB'], seen)).toBe(fresh)
   })
 })
