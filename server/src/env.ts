@@ -41,6 +41,11 @@ const schema = z.object({
   VPN_GW_AGENT_TOKEN: z.string().default(''),
   // Domain di qua gateway tren (CSV) — seed vao vpn_domains de PAC route ngay.
   VPN_GW_DOMAINS: z.string().default(''),
+  // Dịch vụ WhatsApp Task Agent (repo riêng). Chỉ nghe loopback, không tự xác
+  // thực — dashboard proxy sang sau khi đã kiểm phiên đăng nhập.
+  // Cổng 8788 chứ không phải 8787: dashboard đã dùng 8787 (xem PORT ở trên), hai
+  // bên chạy chung máy sẽ đụng nhau.
+  WA_AGENT_URL: z.string().default('http://127.0.0.1:8788'),
   CORS_ORIGIN: z.string().default(''),
   CLIENT_DIST: z.string().default(''),
   // Headscale API (machines/users). Key = headscale apikey (HEADPLANE_HS_API_KEY).

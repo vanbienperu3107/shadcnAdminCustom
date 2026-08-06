@@ -48,6 +48,7 @@ import {
 } from './routes/node-assignments.js'
 import { telemetryPublicRoutes, telemetryRoutes } from './routes/telemetry.js'
 import { vpnAgentPublicRoutes, vpnRoutes } from './routes/vpn.js'
+import { whatsappAgentRoutes } from './routes/whatsapp-agent.js'
 
 /**
  * Trạng thái sẵn sàng của DB (xem docs/rca-2026-07-18-dashboard-outage.md gốc D).
@@ -115,6 +116,7 @@ async function main() {
   await app.register(clientUpdateRoutes)
   await app.register(vpnAgentPublicRoutes)
   await app.register(vpnRoutes)
+  await app.register(whatsappAgentRoutes)
 
   // SPA tĩnh (prod)
   if (env.CLIENT_DIST && existsSync(env.CLIENT_DIST)) {
