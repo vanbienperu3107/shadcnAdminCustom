@@ -43,7 +43,7 @@ export type Envelope<T> = {
 export class AgentError extends Error {
   constructor(
     readonly code: AgentErrorCode,
-    message: string,
+    message: string
   ) {
     super(message)
     this.name = 'AgentError'
@@ -88,12 +88,18 @@ export async function fetchEnvelope<T>(path: string): Promise<Envelope<T>> {
 export async function mutateAgent<T>(
   method: 'post' | 'patch' | 'put',
   path: string,
-  body?: unknown,
+  body?: unknown
 ): Promise<T> {
-  const { data } = await api[method]<Envelope<T>>(`${PREFIX}${path}`, body ?? {})
+  const { data } = await api[method]<Envelope<T>>(
+    `${PREFIX}${path}`,
+    body ?? {}
+  )
 
   if (data.state === 'error') {
-    throw new AgentError(data.error?.code ?? 'service_unavailable', data.error?.message ?? 'lỗi')
+    throw new AgentError(
+      data.error?.code ?? 'service_unavailable',
+      data.error?.message ?? 'lỗi'
+    )
   }
   if (data.data === null) {
     throw new AgentError('invalid_state', 'dịch vụ không trả về dữ liệu')
@@ -114,7 +120,8 @@ export const agentKeys = {
   llmUsage: ['wa-agent', 'widget', 'llm-usage'] as const,
   setupStatus: ['wa-agent', 'setup', 'status'] as const,
   groups: ['wa-agent', 'groups'] as const,
-  tasks: (filters: Record<string, unknown>) => ['wa-agent', 'tasks', filters] as const,
+  tasks: (filters: Record<string, unknown>) =>
+    ['wa-agent', 'tasks', filters] as const,
   settings: ['wa-agent', 'settings'] as const,
 }
 
@@ -131,11 +138,16 @@ export type ConnectionWidget = {
   consecutiveRelinkFailures: number
 }
 
-export const fetchConnection = () => fetchEnvelope<ConnectionWidget>('/widgets/connection')
+export const fetchConnection = () =>
+  fetchEnvelope<ConnectionWidget>('/widgets/connection')
 
 export type ApprovalQueueWidget = {
   total: number
-  byReason: { lowConfidence: number; groupBroadcast: number; selfCommitment: number }
+  byReason: {
+    lowConfidence: number
+    groupBroadcast: number
+    selfCommitment: number
+  }
   oldestQueuedAt: string | null
   /**
    * `false` khi chưa có bề mặt duyệt nào (FR-027g). Giao diện phải nói rõ nhiệm
@@ -144,7 +156,8 @@ export type ApprovalQueueWidget = {
   expiryClockRunning: boolean
 }
 
-export const fetchApprovalQueue = () => fetchEnvelope<ApprovalQueueWidget>('/widgets/approval-queue')
+export const fetchApprovalQueue = () =>
+  fetchEnvelope<ApprovalQueueWidget>('/widgets/approval-queue')
 
 export type DataGapsWidget = {
   total: number
@@ -152,7 +165,8 @@ export type DataGapsWidget = {
   gaps: { groupName: string; gapStart: string; gapEnd: string; cause: string }[]
 }
 
-export const fetchDataGaps = () => fetchEnvelope<DataGapsWidget>('/widgets/data-gaps')
+export const fetchDataGaps = () =>
+  fetchEnvelope<DataGapsWidget>('/widgets/data-gaps')
 
 export type BacklogWidget = {
   pendingMessages: number
@@ -161,11 +175,13 @@ export type BacklogWidget = {
   estimatedResumeAt: string | null
 }
 
-export const fetchBacklog = () => fetchEnvelope<BacklogWidget>('/widgets/backlog')
+export const fetchBacklog = () =>
+  fetchEnvelope<BacklogWidget>('/widgets/backlog')
 
 export type VersionWidget = { service: string; schema: string }
 
-export const fetchVersion = () => fetchEnvelope<VersionWidget>('/widgets/version')
+export const fetchVersion = () =>
+  fetchEnvelope<VersionWidget>('/widgets/version')
 
 export type LlmUsageWidget = {
   today: {
@@ -179,4 +195,5 @@ export type LlmUsageWidget = {
   capUtilization: number
 }
 
-export const fetchLlmUsage = () => fetchEnvelope<LlmUsageWidget>('/widgets/llm-usage')
+export const fetchLlmUsage = () =>
+  fetchEnvelope<LlmUsageWidget>('/widgets/llm-usage')
