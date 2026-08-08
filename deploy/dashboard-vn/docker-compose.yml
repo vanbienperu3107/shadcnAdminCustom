@@ -1,0 +1,164 @@
+# Stack dashboard DERP chay tai Viet Nam (vpn6) — app + DB CUNG MOT MAY.
+#
+# Vi sao stack RIENG, khong sua compose cua memory-stack: vpn6 la box production
+# phuc vu claude.hangocthanh.io.vn. Tach ra de `docker compose down` ben nay
+# khong bao gio dung toi Qdrant/mem0 ben kia.
+#
+# Xem docs/plan-dashboard-stack-vn.md (plan da qua 3 vong review).
+
+name: dashboard-vn
+
+services:
+  # ⚠️ CHUA CHAY o buoc 1.1 — can .env day du (secret tu GitHub) qua workflow
+  # deploy-dashboard-vn.yml. Buoc 1.1 chi `docker compose up -d postgres`.
+  derp-backend:
+    # :stable, KHONG :latest. Merge main day :latest; phat hanh la buoc bam nut
+    # rieng (workflow promote-stable.yml) doi :stable. Watchtower duoi day chi
+    # theo doi :stable.
+    image: ghcr.io/vanbienperu3107/derp-backend:stable
+    container_name: derp-backend
+    restart: unless-stopped
+    mem_limit: 384m
+    env_file: [.env]
+    labels:
+      # Watchtower cua stack nay (scope=dashboard-vn) chi dong vao container co
+      # dung scope nay. memory-watchtower KHONG co scope nen khong bao gio cham
+      # derp-backend, va watchtower nay khong bao gio cham memory-stack.
+      com.centurylinklabs.watchtower.scope: dashboard-vn
+      com.centurylinklabs.watchtower.enable: "true"
+    environment:
+      DATABASE_URL: postgres://derp:${DERP_PG_PASSWORD}@postgres:5432/derp
+      HEADSCALE_API_URL: https://vpn2.hangocthanh.io.vn
+      PUBLIC_URL: https://cms.hangocthanh.io.vn/app
+      NODE_ENV: production
+    depends_on:
+      postgres: { condition: service_healthy }
+      # Chi toi uu thu tu khoi dong. App KHONG phu thuoc dieu kien nay: theo fix
+      # RCA 2026-07-18 (goc D), index.ts:137 listen() TRUOC, initDbWithRetry()
+      # chay nen non-throwing co backoff. DB chua san sang => /api/* tra 503 kem
+      # ly do, tien trinh van song de con chan doan duoc.
+    networks: [dashnet, memnet]   # memnet: de memory-caddy goi derp-backend:8787
+    # Log KHONG gioi han la mot su co cho san: 2026-08-08 file json.log cua
+    # container nay da phinh 2.5GB, va mot lenh `docker logs` doc het file do
+    # lam nghen I/O -> derp-backend mat ket noi Postgres (CONNECT_TIMEOUT
+    # postgres:5432) ~4 phut, dashboard tra 500, headscale khong patch duoc
+    # DERPMap. 50m x 3 = tran 150MB/container.
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "3" }
+    # Healthcheck de `docker ps` noi that: truoc day container "Up" ngay ca khi
+    # /api/* dang tra 503 vi mat DB. Docker KHONG tu restart theo healthcheck —
+    # day la tin hieu quan sat, khong phai co che tu chua.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8787/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  postgres:
+    # ⚠️ PHAI 18: Neon la PostgreSQL 18.4 (do 2026-07-19). pg_dump TU CHOI dump
+    # server moi hon chinh no — client 16 bao "server version mismatch". Luu y
+    # psql 16 VAN noi duoc PG18, nen khong the dung psql de ket luan phien ban khop.
+    image: postgres:18-alpine
+    container_name: derp-postgres
+    restart: unless-stopped
+    # Ngan sach RAM: xau nhat ~800MB < tran 1g. Chi tiet o plan §5.1.
+    # mem_limit mot minh la CAI BAY chu khong phai cai phanh: Postgres khong doc
+    # duoc cgroup limit, cham tran la bi OOM-kill GIUA query -> restart-loop.
+    # Vi vay config duoi day tu chan ~800MB; mem_limit chi la luoi hung.
+    mem_limit: 1g
+    memswap_limit: 1g     # = mem_limit => cam swap: hong thi hong dut khoat
+    shm_size: 128mb       # mac dinh docker 64MB -> loi "could not resize shared memory"
+    environment:
+      POSTGRES_DB: derp
+      POSTGRES_USER: derp
+      POSTGRES_PASSWORD: ${DERP_PG_PASSWORD:?can dat DERP_PG_PASSWORD trong .env}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      # ⚠️ PG18 doi quy uoc: mount tai /var/lib/postgresql (KHONG phai .../data).
+      # Image 18 tu dat du lieu vao thu muc con theo major version, de
+      # `pg_upgrade --link` khong vuong ranh gioi mount. Mount kieu PG16 cu
+      # (.../data) khien entrypoint 18 tu choi khoi dong:
+      #   "there appears to be PostgreSQL data in /var/lib/postgresql/data
+      #    (unused mount/volume)"
+      # Xem docker-library/postgres#1259.
+      - derp_pgdata:/var/lib/postgresql
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - max_connections=25
+      - -c
+      - work_mem=4MB                       # PER-OPERATION — nang bua la giet box
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - autovacuum_max_workers=2
+      - -c
+      - max_parallel_workers_per_gather=0  # query toan point-lookup, song song vo ich
+      - -c
+      - effective_cache_size=512MB         # CHI goi y planner, KHONG cap phat
+      - -c
+      # TAT (2026-08-08): healthcheck pg_isready chay 10s/lan, moi lan sinh 4
+      # dong log connection/authentication/authorization/disconnection => rac
+      # chiem phan lon log va gop phan vao 3GB /var/lib/docker/containers.
+      # Bat lai tam thoi khi can dieu tra van de xac thuc.
+      - log_connections=off
+      - -c
+      - log_disconnections=off
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U derp -d derp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "3" }
+    networks: [dashnet]
+    # KHONG co `ports:` — chi derp-backend trong dashnet goi toi. App va DB cung
+    # mot may nen khong can expose gi ra ngoai: bo duoc han whitelist IP, mTLS,
+    # CA tu ky va rule DOCKER-USER ma phuong an "DB o may khac" doi hoi.
+
+  # Watchtower RIENG cho stack nay — tu dong pull :stable moi va restart
+  # derp-backend. Khoanh vung bang --scope: chi cham container co label
+  # com.centurylinklabs.watchtower.scope=dashboard-vn (chi derp-backend).
+  # memory-watchtower (khong scope, chi liet ke 3 container memory-stack) va
+  # watchtower nay khong bao gio giam chan nhau.
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: dashboard-watchtower
+    restart: unless-stopped
+    mem_limit: 128m
+    environment:
+      # containrrr/watchtower:latest da bo hoang, dung Docker API client 1.25 —
+      # daemon moi tu choi ("client version 1.25 is too old, min 1.40"). Ep
+      # phien ban API nhu memory-watchtower dang lam. Khong co dong nay -> crash-loop.
+      DOCKER_API_VERSION: "1.41"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Tai dung cau hinh dang nhap GHCR san co tren vpn6 (chi can quyen PULL).
+      - /home/thanh/.docker/config.json:/config.json:ro
+    labels:
+      com.centurylinklabs.watchtower.scope: dashboard-vn
+    command:
+      - --scope
+      - dashboard-vn
+      - --label-enable
+      - --cleanup            # xoa image cu sau khi update, khoi day dia 29GB
+      - --interval
+      - "300"                # 5 phut — :stable it doi, khong can 30s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    networks: [dashnet]
+
+networks:
+  dashnet:
+  memnet:
+    external: true
+    name: memory-stack_memnet
+
+volumes:
+  derp_pgdata:
