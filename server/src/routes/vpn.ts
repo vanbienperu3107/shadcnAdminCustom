@@ -8,6 +8,7 @@ import { vpnDomains, vpnGateways, type VpnGateway } from '../db/schema.js'
 import { hashPassword, verifyPassword, dummyVerify } from '../lib/password.js'
 import { decryptSecret, encryptSecret } from '../lib/vpn-crypto.js'
 import { computeGatewayHealth } from '../lib/vpn-health.js'
+import { advertiseRoutesString } from '../lib/vpn-routes.js'
 
 /** Loại bí mật trước khi trả ra API admin; phơi cờ "đã có" + health cho UI. */
 function maskGateway(g: VpnGateway) {
@@ -308,6 +309,16 @@ export async function vpnAgentPublicRoutes(app: FastifyInstance): Promise<void> 
           return reply.code(500).send({ error: 'giai ma mat khau VPN that bai — kiem tra VPN_SECRET_KEY' })
         }
       }
+      // Subnet route suy TU CHINH bang "TRANG DI QUA VPN" (vpn_domains): mục nào
+      // là IP/CIDR thì thành route để RDP/SMB đi được, mục tên miền thì chỉ vào
+      // PAC như cũ. Nhờ vậy admin bật/tắt route ngay trên dashboard, không phải
+      // sửa workflow deploy. route-agent trên gateway đọc trường này.
+      const domainRows = await db
+        .select({ domain: vpnDomains.domain, enabled: vpnDomains.enabled })
+        .from(vpnDomains)
+        .where(eq(vpnDomains.gatewayId, gw.id))
+      const advertiseRoutes = advertiseRoutesString(domainRows)
+
       return {
         name: gw.name,
         configVersion: gw.configVersion,
@@ -316,6 +327,7 @@ export async function vpnAgentPublicRoutes(app: FastifyInstance): Promise<void> 
         ovpnConfig: gw.ovpnConfig,
         authUsername: gw.authUsername,
         ovpnPass,
+        advertiseRoutes,
       }
     }
   )
