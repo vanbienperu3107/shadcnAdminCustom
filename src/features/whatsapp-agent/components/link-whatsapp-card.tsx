@@ -17,9 +17,21 @@ import {
   type PairingResult,
 } from '../data/setup-api'
 
+/**
+ * Lớp CSS gom vào hằng số thay vì viết thẳng trong JSX.
+ *
+ * Lý do thực dụng: bộ định dạng của repo có plugin sắp xếp lại class Tailwind
+ * viết trực tiếp trong thuộc tính `className`, nên viết thẳng sẽ liên tục bị
+ * sửa lại. Gom ra đây cũng làm JSX bên dưới đọc được theo cấu trúc.
+ */
+const CARD_BODY = 'space-y-4'
+const FIELD = 'space-y-2'
 const BOX_ERROR = 'rounded-md border border-destructive/40 p-3 text-sm'
 const BOX_OK = 'rounded-md border border-emerald-500/40 p-3 text-sm'
 const BOX_WARN = 'rounded-md border border-amber-500/40 p-3 text-sm'
+const BOX_CODE = 'space-y-2 rounded-md border p-4'
+const LABEL_CODE = 'text-sm font-medium'
+const CODE = 'font-mono text-2xl tracking-[0.3em]'
 const HINT = 'text-xs text-muted-foreground'
 const MUTED = 'text-sm text-muted-foreground'
 
@@ -64,7 +76,7 @@ export function LinkWhatsAppCard() {
         </CardDescription>
       </CardHeader>
 
-      <CardContent className='space-y-4'>
+      <CardContent className={CARD_BODY}>
         {connection.isLoading ? (
           <p className={MUTED}>Đang kiểm tra trạng thái…</p>
         ) : envelopeState === 'error' ? (
@@ -82,7 +94,7 @@ export function LinkWhatsAppCard() {
               </div>
             ) : null}
 
-            <div className='space-y-2'>
+            <div className={FIELD}>
               <Label htmlFor='wa-phone'>Số điện thoại (kèm mã quốc gia)</Label>
               <Input
                 id='wa-phone'
@@ -116,12 +128,10 @@ export function LinkWhatsAppCard() {
             ) : null}
 
             {pairing ? (
-              <div className='space-y-2 rounded-md border p-4'>
-                <p className='text-sm font-medium'>Mã ghép nối</p>
+              <div className={BOX_CODE}>
+                <p className={LABEL_CODE}>Mã ghép nối</p>
                 {/* Giãn chữ để đọc từng ký tự khi gõ sang điện thoại. */}
-                <p className='font-mono text-2xl tracking-[0.3em]'>
-                  {pairing.pairingCode}
-                </p>
+                <p className={CODE}>{pairing.pairingCode}</p>
                 <p className={MUTED}>{pairing.instructions}</p>
                 <p className={HINT}>
                   Mã có hạn dùng. Hết hạn thì lấy mã khác, không dùng lại mã cũ.
