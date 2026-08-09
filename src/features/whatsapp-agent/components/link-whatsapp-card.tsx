@@ -71,8 +71,8 @@ export function LinkWhatsAppCard() {
       <CardHeader>
         <CardTitle>Liên kết WhatsApp</CardTitle>
         <CardDescription>
-          Chỉ cần làm một lần. Sau khi liên kết, điện thoại tắt máy hệ thống
-          vẫn chạy — chỉ đừng gỡ liên kết trong danh sách thiết bị.
+          Chỉ cần làm một lần. Sau khi liên kết, điện thoại tắt máy hệ thống vẫn
+          chạy — chỉ đừng gỡ liên kết trong danh sách thiết bị.
         </CardDescription>
       </CardHeader>
 
