@@ -31,6 +31,25 @@ services:
       HEADSCALE_API_URL: https://vpn2.hangocthanh.io.vn
       PUBLIC_URL: https://cms.hangocthanh.io.vn/app
       NODE_ENV: production
+      # ⚠️ CỐ Ý ĐỂ RỖNG — override env_file. Xem RCA 2026-08-09 duoi day.
+      #
+      # `.env` CO khoa nay (them 27/7 09:47, xem .env.bak-dash) nhung container
+      # da khoi dong TRUOC do (27/7 02:51) nen suot 12 ngay no chay fail-open:
+      # checkSecret() tra true khi env rong (routes/telemetry.ts:12,
+      # routes/client-runtime.ts:27-33). Client trong fleet KHONG gui header
+      # X-Headscale-Secret khop.
+      #
+      # Lan recreate dau tien (2026-08-09) nap secret that -> TOAN BO endpoint
+      # client tra 401: /api/telemetry/home-derp, /api/telemetry/derp-ping,
+      # /api/client/runtime, /api/client/browse-request. Hau qua: dashboard bao
+      # "Khong bao cao", client mat runtime config + folder-share + auto-update.
+      #
+      # Day la KHOI PHUC NGUYEN TRANG, khong phai ha chuan bao mat: he thong da
+      # chay dung the nay 12 ngay. Muon bat lai secret thi phai phan phoi no toi
+      # client TRUOC (env TS_DASHBOARD_SECRET / TS_METRICS_SECRET cua launcher,
+      # xem cmd/tailscaled/foldershare.go:386, homederpreport.go:29), roi moi bo
+      # dong nay. Bat truoc khi phan phoi = lap lai dung su co nay.
+      HEADSCALE_DASHBOARD_SECRET: ""
     depends_on:
       postgres: { condition: service_healthy }
       # Chi toi uu thu tu khoi dong. App KHONG phu thuoc dieu kien nay: theo fix
