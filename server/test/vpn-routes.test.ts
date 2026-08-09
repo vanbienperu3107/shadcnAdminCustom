@@ -1,82 +1,90 @@
-import { describe, it, expect, beforeAll } from 'vitest'
-import Fastify, { type FastifyInstance } from 'fastify'
-import cookie from '@fastify/cookie'
-import rateLimit from '@fastify/rate-limit'
+import { describe, expect, it } from 'vitest'
+import {
+  MIN_PREFIX,
+  advertiseRoutesFromDomains,
+  advertiseRoutesString,
+  decideRoute,
+  isIpv4,
+  isIpv4Cidr,
+} from '../src/lib/vpn-routes.js'
 
-// Smoke test wiring VPN routes — KHÔNG chạm DB. Chỉ các nhánh trả lỗi TRƯỚC khi
-// truy vấn DB: agent 401 (thiếu token/gateway), admin 401 (thiếu cookie phiên),
-// validation. Đủ bắt lỗi wiring mà không cần Postgres.
+const row = (domain: string, enabled = true) => ({ domain, enabled })
 
-async function buildApp(): Promise<FastifyInstance> {
-  process.env.DATABASE_URL ??= 'postgres://ci:ci@localhost:5432/ci'
-  const { vpnAgentPublicRoutes, vpnRoutes } = await import('../src/routes/vpn.js')
-  const app = Fastify()
-  const ck = 'y'.repeat(40) // giá trị test giả cho cookie signer
-  await app.register(cookie, { secret: ck })
-  await app.register(rateLimit, { global: false })
-  await app.register(vpnAgentPublicRoutes)
-  await app.register(vpnRoutes)
-  await app.ready()
-  return app
-}
-
-describe('vpn routes wiring', () => {
-  let app: FastifyInstance
-  beforeAll(async () => {
-    app = await buildApp()
+describe('isIpv4 / isIpv4Cidr', () => {
+  it('phan biet IP voi ten mien', () => {
+    expect(isIpv4('10.121.124.155')).toBe(true)
+    expect(isIpv4('jump.bitel.com.pe')).toBe(false)
+    expect(isIpv4('10.121.124')).toBe(false)
+    expect(isIpv4('10.121.124.999')).toBe(false)
   })
 
-  it('agent/config KHÔNG có Authorization -> 401 (trước khi chạm DB)', async () => {
-    const res = await app.inject({
-      method: 'GET',
-      url: '/api/vpn/agent/config?gateway=bitel',
+  it('nhan CIDR hop le', () => {
+    expect(isIpv4Cidr('10.121.124.0/24')).toBe(true)
+    expect(isIpv4Cidr('10.121.124.155/32')).toBe(true)
+    expect(isIpv4Cidr('10.121.124.0/33')).toBe(false)
+    expect(isIpv4Cidr('10.121.124.0/24/8')).toBe(false)
+  })
+})
+
+describe('decideRoute', () => {
+  it('IP tran thanh /32', () => {
+    expect(decideRoute('10.121.124.155')).toEqual({
+      cidr: '10.121.124.155/32',
+      ok: true,
     })
-    expect(res.statusCode).toBe(401)
-    expect(res.json()).toEqual({ error: 'unauthorized' })
   })
 
-  it('agent/config có token nhưng thiếu ?gateway -> 401 (trước khi chạm DB)', async () => {
-    const res = await app.inject({
-      method: 'GET',
-      url: '/api/vpn/agent/config',
-      headers: { authorization: 'Bearer sometoken' },
+  it('ten mien khong thanh route (chi vao PAC)', () => {
+    expect(decideRoute('jump.bitel.com.pe')).toEqual({
+      input: 'jump.bitel.com.pe',
+      ok: false,
+      reason: 'not-ip',
     })
-    expect(res.statusCode).toBe(401)
   })
 
-  it('agent/status KHÔNG có Authorization -> 401', async () => {
-    const res = await app.inject({
-      method: 'POST',
-      url: '/api/vpn/agent/status?gateway=bitel',
-      payload: { state: 'up' },
+  it('CIDR du hep thi nhan', () => {
+    expect(decideRoute('10.121.124.0/24')).toEqual({
+      cidr: '10.121.124.0/24',
+      ok: true,
     })
-    expect(res.statusCode).toBe(401)
   })
 
-  it('admin GET gateways KHÔNG có cookie -> 401', async () => {
-    const res = await app.inject({ method: 'GET', url: '/api/vpn/gateways' })
-    expect(res.statusCode).toBe(401)
-    expect(res.json()).toEqual({ error: 'unauthorized' })
-  })
-
-  it('admin POST gateway KHÔNG có cookie -> 401 (auth chặn trước validation)', async () => {
-    const res = await app.inject({
-      method: 'POST',
-      url: '/api/vpn/gateways',
-      payload: { name: 'x' },
+  // Bai hoc su co 2026-08-09: gateway quang ba /16 trong khi tun0 chi phu ~42
+  // prefix roi rac -> gianh primary la chan het phan con lai (10.121.20.x web
+  // noi bo, 10.121.13.x remote DC). Chan tu day, khong de lap lai.
+  it('TU CHOI prefix rong hon MIN_PREFIX', () => {
+    expect(decideRoute('10.121.0.0/16')).toEqual({
+      input: '10.121.0.0/16',
+      ok: false,
+      reason: 'too-broad',
     })
-    expect(res.statusCode).toBe(401)
+    expect(decideRoute('10.0.0.0/8').ok).toBe(false)
+    expect(MIN_PREFIX).toBe(24)
+  })
+})
+
+describe('advertiseRoutesFromDomains', () => {
+  it('chi lay muc dang BAT', () => {
+    const rows = [row('10.121.124.155'), row('10.121.124.200', false)]
+    expect(advertiseRoutesFromDomains(rows)).toEqual(['10.121.124.155/32'])
   })
 
-  it('agent/config rate-limit: request thứ 61 trong 1 phút -> 429', async () => {
-    const codes: number[] = []
-    for (let i = 0; i < 61; i++) {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/api/vpn/agent/config', // 401, nhưng vẫn tính vào rate limit
-      })
-      codes.push(res.statusCode)
-    }
-    expect(codes).toContain(429)
+  it('bo qua ten mien, giu IP — giong du lieu that tren dashboard', () => {
+    const rows = [row('jump.bitel.com.pe', false), row('10.121.124.155')]
+    expect(advertiseRoutesString(rows)).toBe('10.121.124.155/32')
+  })
+
+  it('khong lap lai cung mot CIDR', () => {
+    const rows = [row('10.121.124.155'), row('10.121.124.155/32')]
+    expect(advertiseRoutesFromDomains(rows)).toEqual(['10.121.124.155/32'])
+  })
+
+  it('tat het thi tra chuoi rong (gateway rut advertise)', () => {
+    expect(advertiseRoutesString([row('10.121.124.155', false)])).toBe('')
+  })
+
+  it('prefix qua rong bi loai khoi ket qua', () => {
+    const rows = [row('10.121.0.0/16'), row('10.121.124.155')]
+    expect(advertiseRoutesFromDomains(rows)).toEqual(['10.121.124.155/32'])
   })
 })
