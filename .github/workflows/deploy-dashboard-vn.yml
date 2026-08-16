@@ -29,6 +29,28 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ⚠️ BUOC NAY TUNG BI THIEU — mot cai bay that, khong phai gia thiet:
+      # workflow chi ghi .env roi `compose up` voi FILE COMPOSE CO SAN TREN MAY.
+      # Nghia la moi thay doi docker-compose.yml merge vao repo KHONG BAO GIO toi
+      # vpn6, ma workflow van bao SUCCESS. Do duoc 2026-08-16: PR them
+      # `ports: 100.64.0.7:5432` + `max_connections=35` da merge, deploy xanh,
+      # nhung file tren may van la ban 09-08 va container khong he co PortBindings.
+      # Tu nay compose + script don rac duoc DONG BO tu repo o moi lan deploy.
+      - name: Dong bo compose + script tu repo len vpn6
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST_VPN6 }}
+          username: ${{ secrets.SSH_USER_VPN6 || 'root' }}
+          key: ${{ secrets.SSH_KEY_VPN6 }}
+          port: ${{ secrets.SSH_PORT_VPN6 || '22' }}
+          source: "deploy/dashboard-vn/docker-compose.yml,deploy/dashboard-vn/retention-cleanup.sh,deploy/dashboard-vn/retention-cleanup.service,deploy/dashboard-vn/retention-cleanup.timer"
+          target: /opt/dashboard-vn
+          strip_components: 2
+          overwrite: true
+
       - name: Cau hinh .env + khoi dong stack tren vpn6
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -69,6 +91,13 @@ jobs:
             AUTH_OPTIONAL=false
             ENVEOF
             chmod 600 .env
+
+            echo "==> Cai job don rac DB (giu 7 ngay) — timer chay 03:30 hang ngay"
+            chmod 755 retention-cleanup.sh
+            $SUDO cp retention-cleanup.service retention-cleanup.timer /etc/systemd/system/
+            $SUDO systemctl daemon-reload
+            $SUDO systemctl enable --now retention-cleanup.timer
+            $SUDO systemctl list-timers retention-cleanup.timer --no-pager | head -3
 
             echo "==> Pull image :stable + up (compose lo postgres/derp-backend/watchtower)"
             $SUDO docker compose pull

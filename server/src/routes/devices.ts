@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware.js'
 import { db } from '../db/client.js'
@@ -125,10 +125,17 @@ export async function devicesRoutes(app: FastifyInstance): Promise<void> {
         clientVersion: deviceIdentity.clientVersion,
         clientBuild: deviceIdentity.clientBuild,
         clientVariant: deviceIdentity.clientVariant,
+        deviceType: deviceIdentity.deviceType,
         updatedAt: deviceIdentity.updatedAt,
       })
       .from(deviceIdentity)
-      .where(eq(deviceIdentity.deviceType, 'client'))
+      // Truoc 2026-08-16 loc cung deviceType = 'client', vi node ha tang DERP chi
+      // la mot ban ghi tro (khong chay client mod, khong co telemetry) nen hien
+      // ra chi lam nhieu. Nay vpn4/vpn6 chay CHINH client mod tren host: chung co
+      // version, home-DERP, latency nhu moi may khac — loc bo chung khien admin
+      // khong thay 2 node vua chuyen doi o man hinh Thiet bi (quan sat that).
+      // Tra ca hai loai kem `deviceType` de UI tu phan biet/loc.
+      .where(inArray(deviceIdentity.deviceType, ['client', 'derp_infra']))
     const home = await db
       .select({ mac: clientHomeDerp.mac, reportedAt: clientHomeDerp.reportedAt })
       .from(clientHomeDerp)
@@ -168,6 +175,9 @@ export async function devicesRoutes(app: FastifyInstance): Promise<void> {
         version: d.clientVersion,
         build: d.clientBuild,
         variant: d.clientVariant,
+        // 'client' | 'derp_infra' — UI dung de gan nhan/loc; node ha tang van
+        // hien o day vi chung cung chay client mod (co version + telemetry).
+        deviceType: d.deviceType,
         lastSeen: seen ? new Date(seen).toISOString() : null,
         online,
         reporting,

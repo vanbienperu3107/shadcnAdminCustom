@@ -1,0 +1,11 @@
+[Unit]
+Description=Don rac DB dashboard (giu 7 ngay)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment=RETENTION_DAYS=7
+ExecStart=/opt/dashboard-vn/retention-cleanup.sh
+StandardOutput=append:/var/log/derp-retention.log
+StandardError=append:/var/log/derp-retention.log

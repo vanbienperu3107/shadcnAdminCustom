@@ -1,0 +1,12 @@
+[Unit]
+Description=Don rac DB dashboard (giu 7 ngay) — hang ngay
+
+[Timer]
+# 03:30 — sau job backup-db (03:00) de neu co xoa nham thi ban dump day du cua
+# ngay hom do da nam san trong /opt/backups.
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
