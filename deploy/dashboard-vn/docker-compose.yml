@@ -57,6 +57,11 @@ services:
       # chay nen non-throwing co backoff. DB chua san sang => /api/* tra 503 kem
       # ly do, tien trinh van song de con chan doan duoc.
     networks: [dashnet, memnet]   # memnet: de memory-caddy goi derp-backend:8787
+    # API noi bo cho node tailnet (vd chan doan /healthz, /derpmap.json tu may
+    # khac trong tailnet) — CHI tren IP tailnet cua vpn6, khong bao gio 0.0.0.0.
+    # Duong cong khai van la https://cms.hangocthanh.io.vn qua Caddy nhu cu.
+    ports:
+      - "100.64.0.7:8787:8787"
     # Log KHONG gioi han la mot su co cho san: 2026-08-08 file json.log cua
     # container nay da phinh 2.5GB, va mot lenh `docker logs` doc het file do
     # lam nghen I/O -> derp-backend mat ket noi Postgres (CONNECT_TIMEOUT
@@ -108,7 +113,13 @@ services:
       - -c
       - shared_buffers=256MB
       - -c
-      - max_connections=25
+      # 25 -> 35: thanh vien tailnet noi truc tiep qua 100.64.0.7:5432 (moi login
+      # role co CONNECTION LIMIT 2). Da do: stack noi bo dung 12 ket noi, va
+      # superuser_reserved_connections=3, nen 25 chi con ~10 slot — het ngay khi
+      # vai nguoi mo GUI client. Tran an toan voi mem_limit=1g la ~40 (256MB
+      # shared_buffers + 2x64MB autovacuum + ~12MB/backend, memswap_limit=1g nen
+      # KHONG co swap de dem): 35 nam duoi tran do.
+      - max_connections=35
       - -c
       - work_mem=4MB                       # PER-OPERATION — nang bua la giet box
       - -c
@@ -136,9 +147,24 @@ services:
       driver: json-file
       options: { max-size: "50m", max-file: "3" }
     networks: [dashnet]
-    # KHONG co `ports:` — chi derp-backend trong dashnet goi toi. App va DB cung
-    # mot may nen khong can expose gi ra ngoai: bo duoc han whitelist IP, mTLS,
-    # CA tu ky va rule DOCKER-USER ma phuong an "DB o may khac" doi hoi.
+    # Publish DUY NHAT tren IP tailnet cua vpn6 (node "vpn6" chay native tren host
+    # tu 2026-08-15) de thanh vien tailnet psql truc tiep. Xem
+    # docs/plan-linux-node-vpn6-vpn4.md (repo 03.Taile).
+    #
+    # ⚠️ TUYET DOI KHONG doi thanh "5432:5432" hay "0.0.0.0:5432:5432": cong do
+    # duoc DNAT o PREROUTING, DI TRUOC chain ufw, nen ufw KHONG chan duoc —
+    # Postgres se lo thang ra Internet. Bien gioi that o day la IP bind.
+    #
+    # Lop bao ve kem theo (da lam tren may): pg_hba THEM dong
+    #   host all derp,headscale 100.64.0.0/10 reject
+    #   host all all            100.64.0.0/10 scram-sha-256
+    # (dong "host all all all" cu GIU NGUYEN — derp-backend 172.21.0.4 va
+    # headscale 172.21.0.5 noi qua do; thay no = khoa chet control plane).
+    #
+    # Host phai co net.ipv4.ip_nonlocal_bind=1: luc boot, docker khoi dong truoc
+    # khi tailscale0 kip mang IP, khong co sysctl nay thi container crash-loop.
+    ports:
+      - 100.64.0.7:5432:5432
 
   # Watchtower RIENG cho stack nay — tu dong pull :stable moi va restart
   # derp-backend. Khoanh vung bang --scope: chi cham container co label
