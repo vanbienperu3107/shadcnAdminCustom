@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, isNotNull, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware.js'
 import { db } from '../db/client.js'
@@ -129,13 +129,24 @@ export async function devicesRoutes(app: FastifyInstance): Promise<void> {
         updatedAt: deviceIdentity.updatedAt,
       })
       .from(deviceIdentity)
-      // Truoc 2026-08-16 loc cung deviceType = 'client', vi node ha tang DERP chi
-      // la mot ban ghi tro (khong chay client mod, khong co telemetry) nen hien
-      // ra chi lam nhieu. Nay vpn4/vpn6 chay CHINH client mod tren host: chung co
-      // version, home-DERP, latency nhu moi may khac — loc bo chung khien admin
-      // khong thay 2 node vua chuyen doi o man hinh Thiet bi (quan sat that).
-      // Tra ca hai loai kem `deviceType` de UI tu phan biet/loc.
-      .where(inArray(deviceIdentity.deviceType, ['client', 'derp_infra']))
+      .where(
+        and(
+          // Tab "Nguoi dung" CHI hien may cua nguoi dung. Node ha tang DERP
+          // (vpn4-vn-1 / vpn6-vn-1) da co tab "Ha tang DERP" rieng — tung thu bo
+          // loc nay de 2 node native hien ra, ket qua la chung hien o CA HAI tab.
+          // Cai can sua luc do la DU LIEU (client mod chua bao cao), khong phai bo loc.
+          eq(deviceIdentity.deviceType, 'client'),
+          // Bo dong VO DANH: khong mac, khong node_key thi khong dinh danh duoc
+          // may nao ca. Chung sinh ra khi client dang ky lai ma chua kip gui MAC,
+          // moi lan mot dong -> quan sat that: 5 dong "VOTAM-PC" offline trung
+          // nhau lam nhieu ca danh sach. Job retention se xoa han chung sau 7 ngay;
+          // day chi la lop an o UI de danh sach sach ngay lap tuc.
+          or(
+            isNotNull(deviceIdentity.mac),
+            isNotNull(deviceIdentity.nodeKey)
+          )
+        )
+      )
     const home = await db
       .select({ mac: clientHomeDerp.mac, reportedAt: clientHomeDerp.reportedAt })
       .from(clientHomeDerp)
