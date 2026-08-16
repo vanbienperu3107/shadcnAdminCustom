@@ -1,0 +1,5 @@
+# Script chay tren Linux: BAT BUOC LF. Checkout tren Windows ma thanh CRLF thi
+# bash tren server bao "bad interpreter: /usr/bin/env bash^M" va job im lang khong chay.
+*.sh text eol=lf
+*.service text eol=lf
+*.timer text eol=lf
