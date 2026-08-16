@@ -45,7 +45,7 @@ folder_browse|requested_at < ${CUTOFF}
 device_key_audit|at < ${CUTOFF}
 node_reload_requests|requested_at < ${CUTOFF}
 node_update_requests|requested_at < ${CUTOFF}
-device_enrollment|coalesce(last_enroll_at, created_at) < ${CUTOFF}
+device_enrollment|coalesce(last_enroll_at, created_at) < ${CUTOFF} AND mac NOT IN (select mac from device_identity where mac is not null)
 device_identity|device_type = 'client' AND node_key IS NULL AND mac IS NULL AND updated_at < ${CUTOFF}
 RULES
 )
@@ -53,7 +53,12 @@ RULES
 #   may online se ghi lai trong vai giay -> xoa la vo hai.
 # folder_browse, node_*_requests: hang doi yeu cau, xu ly xong thi thanh rac.
 # device_key_audit: nhat ky, giu 7 ngay theo yeu cau.
-# device_enrollment: xem nguyen tac (2). May con dung -> last_enroll_at moi -> giu.
+# device_enrollment: xem nguyen tac (2), CONG THEM dieu kien "MAC khong con trong
+#   device_identity". Vi sao: dot chay thu dau tien dinh xoa 5 dong, trong do co
+#   Admin-PC (2c:0d:a7:bd:a0:06) — may that, chi dang tat 8 ngay. Xoa la lan sau
+#   no phai duoc duyet lai bang tay. Voi dieu kien nay chi con 4 dong rac (MAC cu
+#   cua VOTAM-PC do card ao doi MAC), va may nao con ban ghi thiet bi thi khong
+#   bao gio mat quyen auto-join.
 # device_identity: CHI dong vo danh (khong mac, khong node_key) — dung nghia
 #   "chua tung register". Dong co mac/node_key la thiet bi that, khong dung toi.
 
