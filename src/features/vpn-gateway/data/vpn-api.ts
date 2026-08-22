@@ -19,6 +19,7 @@ export type VpnGateway = {
   id: number
   name: string
   nodeHostname: string | null
+  authUsername: string | null
   tailnetIp: string | null
   proxyPort: number
   desiredState: 'up' | 'down'
@@ -59,6 +60,14 @@ export async function gatewayAction(
   const { data } = await api.post<VpnGateway>(`/vpn/gateways/${id}/action`, {
     action,
   })
+  return data
+}
+
+export async function updateGateway(
+  id: number,
+  body: Partial<{ authUsername: string; ovpnPass: string }>
+): Promise<VpnGateway> {
+  const { data } = await api.put<VpnGateway>(`/vpn/gateways/${id}`, body)
   return data
 }
 

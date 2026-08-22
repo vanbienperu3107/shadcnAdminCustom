@@ -22,6 +22,7 @@ import {
   listDomains,
   listGateways,
   updateDomain,
+  updateGateway,
   vpnKeys,
   type VpnGateway,
   type VpnHealthStatus,
@@ -210,6 +211,8 @@ function GatewayCard({ gw }: { gw: VpnGateway }) {
           </div>
         ) : null}
 
+        <CredentialSection gw={gw} />
+
         <DomainsSection
           gatewayId={gw.id}
           tailnetIp={gw.tailnetIp}
@@ -217,6 +220,67 @@ function GatewayCard({ gw }: { gw: VpnGateway }) {
         />
       </CardContent>
     </Card>
+  )
+}
+
+function CredentialSection({ gw }: { gw: VpnGateway }) {
+  const qc = useQueryClient()
+  const [username, setUsername] = useState(gw.authUsername ?? '')
+  const [password, setPassword] = useState('')
+
+  const save = useMutation({
+    mutationFn: () =>
+      updateGateway(gw.id, {
+        authUsername: username,
+        ...(password ? { ovpnPass: password } : {}),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: vpnKeys.gateways })
+      setPassword('')
+      toast.success('Đã lưu thông tin đăng nhập VPN')
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Lỗi lưu'),
+  })
+
+  return (
+    <div className='space-y-2'>
+      <div className='flex items-center justify-between'>
+        <h4 className='text-xs font-semibold tracking-wide text-muted-foreground uppercase'>
+          Thông tin đăng nhập VPN Bitel
+        </h4>
+        {gw.hasPass ? (
+          <span className='text-xs text-emerald-600 dark:text-emerald-400'>
+            Đã đặt mật khẩu
+          </span>
+        ) : (
+          <span className='text-xs text-muted-foreground'>
+            Chưa đặt mật khẩu
+          </span>
+        )}
+      </div>
+      <div className='flex flex-wrap gap-2'>
+        <Input
+          className='max-w-48'
+          placeholder='Username'
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+        <Input
+          className='max-w-48'
+          type='password'
+          placeholder='Password mới (để trống nếu không đổi)'
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <Button
+          size='sm'
+          onClick={() => save.mutate()}
+          disabled={save.isPending || !username.trim()}
+        >
+          Lưu
+        </Button>
+      </div>
+    </div>
   )
 }
 
