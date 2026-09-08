@@ -23,7 +23,10 @@ jobs:
           node-version: 20
 
       - name: Install pnpm
-        run: npm install -g pnpm@10
+        # Ghim dung ban pnpm cua Dockerfile (pnpm 9): pnpm 10/11 chan postinstall
+        # esbuild/@clerk -> ERR_PNPM_IGNORED_BUILDS. Cung ban voi Dockerfile de CI
+        # va image build hanh xu giong nhau.
+        run: npm install -g pnpm@9.15.9
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
