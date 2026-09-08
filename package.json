@@ -93,5 +93,11 @@
     "vite": "^8.0.8",
     "vitest": "^4.1.4",
     "vitest-browser-react": "^2.2.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@clerk/shared",
+      "esbuild"
+    ]
   }
 }

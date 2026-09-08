@@ -1,0 +1,6 @@
+# pnpm >= 10 doc danh sach dependency duoc phep chay build script tu day
+# (pnpm 11 KHONG con doc truong "pnpm" trong package.json va bao loi
+# ERR_PNPM_IGNORED_BUILDS lam CI do, 2026-09-08).
+onlyBuiltDependencies:
+  - '@clerk/shared'
+  - esbuild

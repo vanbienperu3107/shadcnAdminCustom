@@ -72,9 +72,21 @@ export type DerpMapJson = {
  *   → bảo đảm strict priority: node priority cao hơn luôn thắng bất kể latency thực
  *   → trong cùng priority: latency thực là tiebreaker (score bằng nhau)
  */
+/**
+ * Trần cho RegionScore. netcheck của client nhân latency (ns, int64) với score:
+ * score 1e30 × 374ms tràn int64 thành số ÂM → region bị phạt nặng nhất lại
+ * thắng vòng chọn "latency nhỏ nhất" và thành home (ca thật votam 2026-09-07:
+ * chọn vpn6 374ms thay vì vpn4 59ms). Với trần 1e8, latency tối đa netcheck đo
+ * được (~5s = 5e9ns) nhân lên vẫn chỉ 5e17 < 9.2e18, không tràn. Trần vẫn lớn
+ * hơn ngưỡng derpForcedPenaltyScore (1e6) của tailscale_mod nên client vẫn
+ * nhận ra region "bị phạt". Client bản chuẩn (không vá) cũng được bảo vệ vì
+ * đây là dữ liệu server gửi xuống.
+ */
+export const MAX_REGION_SCORE = 1e8
+
 export function scoreFromPriority(priority: number): number {
   const p = Math.max(1, Math.min(1000, Math.round(priority || 100)))
-  const score = Math.pow(10, (p - 100) / 3)
+  const score = Math.min(MAX_REGION_SCORE, Math.pow(10, (p - 100) / 3))
   return Math.round(score * 1e6) / 1e6
 }
 
