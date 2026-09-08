@@ -3,6 +3,8 @@ import {
   buildDerpMap,
   buildPerNodeDerpMap,
   scoreFromPriority,
+  MAX_REGION_SCORE,
+  NON_ASSIGNED_PENALTY,
   type DerpServerRow,
 } from '../src/lib/build-derpmap'
 
@@ -117,5 +119,42 @@ describe('buildPerNodeDerpMap (union model)', () => {
     expect(JSON.stringify(buildPerNodeDerpMap([a, b], []))).toBe(
       JSON.stringify(buildDerpMap([a, b])),
     )
+  })
+})
+
+describe('RegionScore không được làm tràn int64 latency của netcheck', () => {
+  // netcheck: time.Duration(float64(latency_ns) * score). int64 max ≈ 9.22e18.
+  const INT64_MAX = 9.223372036854776e18
+  const MAX_LATENCY_NS = 5e9 // netcheck timeout ~5s
+
+  it('scoreFromPriority bị chặn trần MAX_REGION_SCORE', () => {
+    expect(scoreFromPriority(190)).toBe(MAX_REGION_SCORE)
+    expect(scoreFromPriority(1000)).toBe(MAX_REGION_SCORE)
+    expect(scoreFromPriority(100)).toBe(1)
+    expect(scoreFromPriority(88)).toBeCloseTo(0.0001, 6)
+  })
+
+  it('ca thật 2026-09-07: region không gán (priority 90 + PENALTY) không tràn và vẫn thua region gán', () => {
+    const servers = [
+      row({ regionId: 1001, code: 'vpn4-lima', nodeName: 'vpn4-vn-1', priority: 99 }),
+      row({ regionId: 1003, code: 'vpn6-vn', nodeName: 'vpn6-vn-1', priority: 90 }),
+    ]
+    const map = buildPerNodeDerpMap(servers, [1001])
+    const s1001 = map.HomeParams!.RegionScore['1001']
+    const s1003 = map.HomeParams!.RegionScore['1003']
+    expect(s1003).toBe(MAX_REGION_SCORE)
+    expect(s1003).toBeGreaterThan(1e6) // vẫn > derpForcedPenaltyScore của client mod
+    // 374ms vpn6 × score phải KHÔNG tràn, và phải lớn hơn 59ms vpn4 × score
+    const eff1003 = 374e6 * s1003
+    const eff1001 = 59e6 * s1001
+    expect(eff1003).toBeLessThan(INT64_MAX)
+    expect(eff1003).toBeGreaterThan(eff1001)
+  })
+
+  it('mọi priority hợp lệ × latency tối đa đều < int64 max', () => {
+    for (let p = 1; p <= 1000; p++) {
+      expect(scoreFromPriority(p) * MAX_LATENCY_NS).toBeLessThan(INT64_MAX)
+    }
+    expect(NON_ASSIGNED_PENALTY).toBe(100)
   })
 })
