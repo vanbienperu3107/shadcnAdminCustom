@@ -31,6 +31,11 @@ services:
       HEADSCALE_API_URL: https://vpn2.hangocthanh.io.vn
       PUBLIC_URL: https://cms.hangocthanh.io.vn/app
       NODE_ENV: production
+      # SSO nut "Status": cookie phien dung chung subdomain de status.* (Beszel,
+      # Caddy forward_auth -> /api/auth/forward) nhan duoc. Doi domain = moi
+      # nguoi dang nhap lai 1 lan. Rollback: xoa 2 dong nay.
+      COOKIE_DOMAIN: .hangocthanh.io.vn
+      BESZEL_SSO_EMAIL: admin@hangocthanh.io.vn
       # ⚠️ CỐ Ý ĐỂ RỖNG — override env_file. Xem RCA 2026-08-09 duoi day.
       #
       # `.env` CO khoa nay (them 27/7 09:47, xem .env.bak-dash) nhung container

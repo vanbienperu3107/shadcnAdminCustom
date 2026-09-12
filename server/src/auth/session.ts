@@ -3,7 +3,7 @@ import { and, eq, gt, sql } from 'drizzle-orm'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { db } from '../db/client.js'
 import { sessions, users } from '../db/schema.js'
-import { isProd } from '../env.js'
+import { env, isProd } from '../env.js'
 import type { GoogleProfile, GoogleTokens } from './google.js'
 
 export const SESSION_COOKIE = 'derp_session'
@@ -33,6 +33,7 @@ function setSessionCookie(
     secure: isProd,
     sameSite: 'lax',
     maxAge: Math.floor(maxAgeMs / 1000),
+    ...(env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {}),
   })
 }
 
@@ -200,4 +201,8 @@ export async function destroySession(req: FastifyRequest, reply: FastifyReply): 
   const sid = req.cookies?.[SESSION_COOKIE]
   if (sid) await db.delete(sessions).where(eq(sessions.id, sid))
   reply.clearCookie(SESSION_COOKIE, { path: '/' })
+  // Xóa cả bản theo domain (cookie host-only cũ và cookie domain có thể cùng tồn tại).
+  if (env.COOKIE_DOMAIN) {
+    reply.clearCookie(SESSION_COOKIE, { path: '/', domain: env.COOKIE_DOMAIN })
+  }
 }
