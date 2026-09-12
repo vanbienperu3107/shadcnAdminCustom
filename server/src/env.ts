@@ -78,6 +78,12 @@ const schema = z.object({
   CLIENT_RELEASE_REPO: z.string().default('vanbienperu3107/tailscale_mod'),
   // 'true' = bỏ qua đăng nhập (CHỈ dev/local để xem UI khi chưa cấu hình Google).
   AUTH_OPTIONAL: z.string().default('false'),
+  // Domain cho cookie phiên, vd ".hangocthanh.io.vn" để status.* nhận được cookie
+  // (Caddy forward_auth của Beszel gọi /api/auth/forward). Trống = host-only.
+  COOKIE_DOMAIN: z.string().default(''),
+  // Email user Beszel có sẵn mà /api/auth/forward trả về cho Caddy. Beszel KHÔNG
+  // tự tạo user từ trusted header nên phải là user đã tồn tại. Trống = tắt SSO.
+  BESZEL_SSO_EMAIL: z.string().default(''),
   // Bootstrap tài khoản admin nội bộ (username/password) lúc khởi động. Để trống
   // = không tạo. Idempotent: chỉ tạo nếu username chưa tồn tại (không ghi đè
   // mật khẩu/2FA đã đổi). Sau khi tạo xong nên xóa 2 biến này khỏi môi trường.

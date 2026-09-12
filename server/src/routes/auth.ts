@@ -191,6 +191,18 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     return user
   })
 
+  // ----- SSO cho status.hangocthanh.io.vn (Caddy forward_auth -> Beszel) -----
+  // Phiên CMS hợp lệ -> 200 + X-Auth-Email (Caddy chép sang Beszel, Beszel tin
+  // header TRUSTED_AUTH_HEADER). KHÔNG áp dụng AUTH_OPTIONAL: đây là cổng vào
+  // hệ thống khác, dev mode không được mở cửa.
+  app.get('/api/auth/forward', async (req, reply) => {
+    if (!env.BESZEL_SSO_EMAIL) return reply.code(404).send({ error: 'sso_disabled' })
+    const user = await getSessionUser(req)
+    if (!user) return reply.code(401).send({ error: 'unauthorized' })
+    reply.header('X-Auth-Email', env.BESZEL_SSO_EMAIL)
+    return { ok: true }
+  })
+
   // ----- Đăng xuất -----
   app.post('/api/auth/logout', async (req, reply) => {
     await destroySession(req, reply)
