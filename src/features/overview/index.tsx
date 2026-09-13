@@ -32,6 +32,7 @@ import {
   homeDerpKeys,
   listHomeDerp,
 } from '@/features/home-derp/data/home-derp-api'
+import { newestHomeRegionByHost } from '@/features/home-derp/data/home-region'
 
 type StatTo = '/overview' | '/machines' | '/tailnet-access'
 
@@ -410,13 +411,9 @@ function ClientDevicesTable() {
     }
   }
 
-  // Map hostname/tên (lowercase) -> home DERP region code từ telemetry.
-  const homeRegionByHost = new Map<string, string>()
-  for (const r of homeDerp.data ?? []) {
-    if (r.homeRegionCode && r.hostname) {
-      homeRegionByHost.set(r.hostname.toLowerCase().trim(), r.homeRegionCode)
-    }
-  }
+  // Map hostname/tên (lowercase) -> home DERP region code từ telemetry, lấy dòng
+  // MỚI NHẤT mỗi host (xem newestHomeRegionByHost — bản cũ để dòng cũ nhất thắng).
+  const homeRegionByHost = newestHomeRegionByHost(homeDerp.data ?? [])
   // Node headscale có thể khớp theo givenName hoặc name (hostname gốc).
   const homeRegionOf = (n: (typeof realNodes)[number]): string =>
     homeRegionByHost.get((n.givenName || '').toLowerCase().trim()) ??
