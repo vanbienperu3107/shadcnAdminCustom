@@ -118,6 +118,42 @@ export type VersionChangeInfo = {
   direction: 'initial' | 'upgrade' | 'downgrade'
 }
 
+/** Transaction tối thiểu mà rekeyDerpTables cần (drizzle tx thoả kiểu này;
+ *  test truyền bản giả để kiểm thứ tự lệnh). */
+type RekeyTx = {
+  select: (...a: any[]) => any
+  delete: (...a: any[]) => any
+  update: (...a: any[]) => any
+}
+
+/** Re-point 3 bảng DERP keyed node_key từ oldKey sang newKey (máy đổi nodekey).
+ *
+ *  Lỗi cũ (2026-09-12, VOTAM-PC): UPDATE thẳng `SET node_key=newKey` nổ
+ *  `duplicate key value violates unique constraint "derp_node_health_pkey"` khi
+ *  newKey ĐÃ có dòng — vd sweep sức khoẻ nền tạo derp_node_health cho key mới
+ *  trước khi device-register kịp chạy. Kết quả device-register 502 mãi.
+ *
+ *  Quy tắc: bảng nào oldKey CÓ dòng thì cấu hình của máy nằm ở oldKey → xoá dòng
+ *  của newKey (nếu có) rồi mới dời. oldKey KHÔNG có dòng thì để nguyên newKey —
+ *  không xoá cấu hình duy nhất đang có. */
+export async function rekeyDerpTables(
+  tx: RekeyTx,
+  oldKey: string,
+  newKey: string
+): Promise<void> {
+  const tables = [
+    [derpNodeAssignments, derpNodeAssignments.nodeKey],
+    [derpNodeOptions, derpNodeOptions.nodeKey],
+    [derpNodeHealth, derpNodeHealth.nodeKey],
+  ] as const
+  for (const [table, col] of tables) {
+    const oldRows = await tx.select().from(table).where(eq(col, oldKey))
+    if (!oldRows || oldRows.length === 0) continue
+    await tx.delete(table).where(eq(col, newKey))
+    await tx.update(table).set({ nodeKey: newKey }).where(eq(col, oldKey))
+  }
+}
+
 export async function upsertClientDevice(opts: {
   mac: string
   hostname: string
@@ -198,20 +234,7 @@ export async function upsertClientDevice(opts: {
       // keyed node_key từ CŨ sang MỚI, giữ home-DERP/exclusive/health của máy
       // (plan IP-pin consistency §10 H4). Trong cùng tx.
       if (shouldRekeyDerp(byMac.nodeKey, nodeKey)) {
-        const oldKey = byMac.nodeKey as string
-        const newKey = nodeKey as string
-        await tx
-          .update(derpNodeAssignments)
-          .set({ nodeKey: newKey })
-          .where(eq(derpNodeAssignments.nodeKey, oldKey))
-        await tx
-          .update(derpNodeOptions)
-          .set({ nodeKey: newKey })
-          .where(eq(derpNodeOptions.nodeKey, oldKey))
-        await tx
-          .update(derpNodeHealth)
-          .set({ nodeKey: newKey })
-          .where(eq(derpNodeHealth.nodeKey, oldKey))
+        await rekeyDerpTables(tx, byMac.nodeKey as string, nodeKey as string)
       }
       if (clientBuild != null && clientBuild !== byMac.clientBuild) {
         versionChange = {
