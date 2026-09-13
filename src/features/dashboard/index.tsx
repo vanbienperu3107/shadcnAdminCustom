@@ -1,4 +1,3 @@
-import { Activity } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -36,15 +35,6 @@ export function Dashboard() {
         <div className='mb-2 flex items-center justify-between space-y-2'>
           <h1 className='text-2xl font-bold tracking-tight'>Dashboard</h1>
           <div className='flex items-center space-x-2'>
-            <Button variant='outline' asChild>
-              <a
-                href='https://status.hangocthanh.io.vn'
-                target='_blank'
-                rel='noopener noreferrer'
-              >
-                <Activity /> Status
-              </a>
-            </Button>
             <Button>Download</Button>
           </div>
         </div>
