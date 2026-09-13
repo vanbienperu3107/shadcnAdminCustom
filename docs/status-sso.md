@@ -18,6 +18,20 @@ Trình duyệt ──(cookie derp_session, domain .hangocthanh.io.vn)──> sta
 - Beszel **không tự tạo user** từ trusted header ⇒ `BESZEL_SSO_EMAIL` phải là user
   đã có trong Beszel (mặc định `admin@hangocthanh.io.vn`, do `beszel/bootstrap.py` tạo).
 
+## Trang Monitor (sidebar Machines → Monitor)
+
+Giao diện riêng của CMS (thẻ tổng quan + bảng máy chủ), KHÔNG nhúng Beszel.
+
+- Frontend `src/features/monitor/` gọi `GET /api/monitor/systems` mỗi 30s.
+- Backend `server/src/routes/monitor.ts` (cần phiên CMS) → `server/src/lib/beszel.ts`
+  đăng nhập superuser Beszel qua `http://beszel:8090` (mạng docker memnet, không qua
+  Caddy), cache token, 401 thì đăng nhập lại 1 lần.
+- Env: `BESZEL_EMAIL` (compose), `BESZEL_PASSWORD` (GitHub Secret → `.env`),
+  `BESZEL_URL` (mặc định `http://beszel:8090`). Thiếu mật khẩu ⇒ 503
+  `monitor_not_configured`; Beszel lỗi ⇒ 502 `beszel_unreachable` kèm lý do.
+- **Đổi mật khẩu superuser Beszel thì phải cập nhật secret `BESZEL_PASSWORD` rồi
+  chạy lại `deploy-dashboard-vn`**, nếu không trang Monitor báo lỗi.
+
 ## Cấu hình
 
 | Nơi | Biến / file |

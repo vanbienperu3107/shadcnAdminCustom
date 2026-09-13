@@ -42,6 +42,7 @@ import {
 import { forceRouteRoutes } from './routes/force-routes.js'
 import { headscalePublicRoutes, headscaleRoutes } from './routes/headscale.js'
 import { healthRoutes } from './routes/health.js'
+import { monitorRoutes } from './routes/monitor.js'
 import {
   nodeAssignmentsPublicRoutes,
   nodeAssignmentsRoutes,
@@ -117,6 +118,7 @@ async function main() {
   await app.register(vpnAgentPublicRoutes)
   await app.register(vpnRoutes)
   await app.register(whatsappAgentRoutes)
+  await app.register(monitorRoutes)
 
   // SPA tĩnh (prod)
   if (env.CLIENT_DIST && existsSync(env.CLIENT_DIST)) {
