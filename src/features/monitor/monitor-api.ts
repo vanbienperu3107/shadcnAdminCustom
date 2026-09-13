@@ -19,7 +19,9 @@ export const monitorKeys = {
 }
 
 export async function fetchMonitorSystems(): Promise<MonitorSystem[]> {
-  const { data } = await api.get<{ systems: MonitorSystem[] }>('/monitor/systems')
+  const { data } = await api.get<{ systems: MonitorSystem[] }>(
+    '/monitor/systems'
+  )
   return data.systems
 }
 
@@ -44,7 +46,10 @@ export function formatRate(bps: number | null): string {
   return `${(bps / 1024 / 1024).toFixed(1)} MB/s`
 }
 
-export function minutesAgo(iso: string | null, now = Date.now()): number | null {
+export function minutesAgo(
+  iso: string | null,
+  now = Date.now()
+): number | null {
   if (!iso) return null
   const t = Date.parse(iso.replace(' ', 'T'))
   if (Number.isNaN(t)) return null

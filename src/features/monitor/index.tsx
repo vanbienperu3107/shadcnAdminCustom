@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { Cpu, ExternalLink, HardDrive, Loader2, MemoryStick, Server } from 'lucide-react'
+import {
+  Cpu,
+  ExternalLink,
+  HardDrive,
+  Loader2,
+  MemoryStick,
+  Server,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,11 +42,16 @@ const BAR_COLOR = {
 function Meter({ value }: { value: number | null }) {
   return (
     <span className='flex items-center gap-2.5 font-mono text-[13px] tabular-nums'>
-      <span className='w-12 text-end'>{value == null ? '—' : `${value.toFixed(1)}%`}</span>
+      <span className='w-12 text-end'>
+        {value == null ? '—' : `${value.toFixed(1)}%`}
+      </span>
       <span className='h-1.5 w-20 overflow-hidden rounded-full bg-muted'>
         {value != null && (
           <span
-            className={cn('block h-full rounded-full', BAR_COLOR[levelOf(value)])}
+            className={cn(
+              'block h-full rounded-full',
+              BAR_COLOR[levelOf(value)]
+            )}
             style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
           />
         )}
@@ -87,7 +99,14 @@ function Stat({
         <Icon className='size-7 shrink-0 text-muted-foreground' />
         <div className='ms-auto text-end'>
           <div className='text-xs text-muted-foreground'>{label}</div>
-          <div className={cn('text-3xl font-bold tracking-tight tabular-nums', color)}>{value}</div>
+          <div
+            className={cn(
+              'text-3xl font-bold tracking-tight tabular-nums',
+              color
+            )}
+          >
+            {value}
+          </div>
           <div className='text-xs text-muted-foreground'>{sub}</div>
         </div>
       </CardContent>
@@ -101,7 +120,8 @@ function avg(xs: number[]): number | null {
 
 function maxBy(list: MonitorSystem[], key: 'cpu' | 'mem' | 'disk') {
   return list.reduce<MonitorSystem | null>(
-    (best, s) => (s[key] != null && (best == null || s[key]! > best[key]!) ? s : best),
+    (best, s) =>
+      s[key] != null && (best == null || s[key]! > best[key]!) ? s : best,
     null
   )
 }
@@ -188,10 +208,22 @@ function SystemsTable({ systems }: { systems: MonitorSystem[] }) {
                 <TableCell className={cn(stale && 'opacity-55')}>
                   <Meter value={s.disk} />
                 </TableCell>
-                <TableCell className={cn('font-mono text-[13px] tabular-nums', stale && 'opacity-55')}>
-                  {!stale && s.load ? s.load.map((x) => x.toFixed(2)).join(' · ') : '—'}
+                <TableCell
+                  className={cn(
+                    'font-mono text-[13px] tabular-nums',
+                    stale && 'opacity-55'
+                  )}
+                >
+                  {!stale && s.load
+                    ? s.load.map((x) => x.toFixed(2)).join(' · ')
+                    : '—'}
                 </TableCell>
-                <TableCell className={cn('font-mono text-[13px] tabular-nums', stale && 'opacity-55')}>
+                <TableCell
+                  className={cn(
+                    'font-mono text-[13px] tabular-nums',
+                    stale && 'opacity-55'
+                  )}
+                >
                   {stale ? '—' : formatRate(s.netBps)}
                 </TableCell>
                 <TableCell className={cn(stale && 'text-muted-foreground')}>
@@ -248,8 +280,8 @@ export function MonitorPage() {
           <CardContent className='p-5 text-sm'>
             <p className='font-medium'>Không lấy được số liệu từ Beszel.</p>
             <p className='text-muted-foreground'>
-              Máy chủ Beszel có thể đang khởi động lại. Trang tự thử lại sau 30 giây, hoặc
-              mở thẳng Beszel bằng nút ở góc phải.
+              Máy chủ Beszel có thể đang khởi động lại. Trang tự thử lại sau 30
+              giây, hoặc mở thẳng Beszel bằng nút ở góc phải.
             </p>
           </CardContent>
         </Card>
@@ -260,10 +292,16 @@ export function MonitorPage() {
       <section>
         <div className='flex items-center gap-2.5'>
           <h3 className='text-lg font-semibold'>
-            Máy chủ <span className='font-medium text-muted-foreground'>({systems.length})</span>
+            Máy chủ{' '}
+            <span className='font-medium text-muted-foreground'>
+              ({systems.length})
+            </span>
           </h3>
           {q.isFetching ? (
-            <Loader2 className='size-3.5 animate-spin text-muted-foreground' aria-label='Đang cập nhật' />
+            <Loader2
+              className='size-3.5 animate-spin text-muted-foreground'
+              aria-label='Đang cập nhật'
+            />
           ) : (
             q.isSuccess && (
               <span className='inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400'>
@@ -273,10 +311,14 @@ export function MonitorPage() {
           )}
         </div>
         <p className='mt-1 mb-3 text-sm text-muted-foreground'>
-          Bấm vào một máy để mở Beszel. Thanh %: dưới 70 xanh, 70–90 vàng, trên 90 đỏ.
-          Máy mất kết nối hiện mờ, là số cuối cùng Beszel nhận được.
+          Bấm vào một máy để mở Beszel. Thanh %: dưới 70 xanh, 70–90 vàng, trên
+          90 đỏ. Máy mất kết nối hiện mờ, là số cuối cùng Beszel nhận được.
         </p>
-        {q.isPending ? <Skeleton className='h-40 rounded-xl' /> : <SystemsTable systems={systems} />}
+        {q.isPending ? (
+          <Skeleton className='h-40 rounded-xl' />
+        ) : (
+          <SystemsTable systems={systems} />
+        )}
       </section>
     </Main>
   )
