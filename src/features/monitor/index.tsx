@@ -29,9 +29,9 @@ import {
   levelOf,
   minutesAgo,
   monitorKeys,
+  STATUS_URL,
+  systemUrl,
 } from './monitor-api'
-
-const STATUS_URL = 'https://status.hangocthanh.io.vn'
 
 const BAR_COLOR = {
   ok: 'bg-emerald-500',
@@ -193,7 +193,9 @@ function SystemsTable({ systems }: { systems: MonitorSystem[] }) {
               <TableRow
                 key={s.id}
                 className='cursor-pointer'
-                onClick={() => window.open(STATUS_URL, '_blank', 'noopener')}
+                onClick={() =>
+                  window.open(systemUrl(s.id), '_blank', 'noopener')
+                }
               >
                 <TableCell className='font-semibold'>{s.name}</TableCell>
                 <TableCell>
@@ -311,8 +313,9 @@ export function MonitorPage() {
           )}
         </div>
         <p className='mt-1 mb-3 text-sm text-muted-foreground'>
-          Bấm vào một máy để mở Beszel. Thanh %: dưới 70 xanh, 70–90 vàng, trên
-          90 đỏ. Máy mất kết nối hiện mờ, là số cuối cùng Beszel nhận được.
+          Bấm vào một máy để mở chi tiết máy đó trong Beszel. Thanh %: dưới 70
+          xanh, 70–90 vàng, trên 90 đỏ. Máy mất kết nối hiện mờ, là số cuối cùng
+          Beszel nhận được.
         </p>
         {q.isPending ? (
           <Skeleton className='h-40 rounded-xl' />
