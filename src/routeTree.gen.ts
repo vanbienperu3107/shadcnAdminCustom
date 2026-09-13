@@ -55,6 +55,7 @@ import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
 import { Route as AuthenticatedMachinesThietBiRouteImport } from './routes/_authenticated/machines/thiet-bi'
+import { Route as AuthenticatedMachinesMonitorRouteImport } from './routes/_authenticated/machines/monitor'
 import { Route as AuthenticatedMachinesNguoiDungRouteImport } from './routes/_authenticated/machines/nguoi-dung'
 import { Route as AuthenticatedMachinesDinhTuyenRouteImport } from './routes/_authenticated/machines/dinh-tuyen'
 import { Route as AuthenticatedMachinesDerpRouteImport } from './routes/_authenticated/machines/derp'
@@ -312,6 +313,12 @@ const AuthenticatedMachinesThietBiRoute =
     path: '/machines/thiet-bi',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMachinesMonitorRoute =
+  AuthenticatedMachinesMonitorRouteImport.update({
+    id: '/machines/monitor',
+    path: '/machines/monitor',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMachinesNguoiDungRoute =
   AuthenticatedMachinesNguoiDungRouteImport.update({
     id: '/machines/nguoi-dung',
@@ -360,6 +367,7 @@ export interface FileRoutesByFullPath {
   '/machines/cau-hinh': typeof AuthenticatedMachinesCauHinhRoute
   '/machines/derp': typeof AuthenticatedMachinesDerpRoute
   '/machines/dinh-tuyen': typeof AuthenticatedMachinesDinhTuyenRoute
+  '/machines/monitor': typeof AuthenticatedMachinesMonitorRoute
   '/machines/nguoi-dung': typeof AuthenticatedMachinesNguoiDungRoute
   '/machines/thiet-bi': typeof AuthenticatedMachinesThietBiRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
@@ -409,6 +417,7 @@ export interface FileRoutesByTo {
   '/machines/cau-hinh': typeof AuthenticatedMachinesCauHinhRoute
   '/machines/derp': typeof AuthenticatedMachinesDerpRoute
   '/machines/dinh-tuyen': typeof AuthenticatedMachinesDinhTuyenRoute
+  '/machines/monitor': typeof AuthenticatedMachinesMonitorRoute
   '/machines/nguoi-dung': typeof AuthenticatedMachinesNguoiDungRoute
   '/machines/thiet-bi': typeof AuthenticatedMachinesThietBiRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
@@ -463,6 +472,7 @@ export interface FileRoutesById {
   '/_authenticated/machines/cau-hinh': typeof AuthenticatedMachinesCauHinhRoute
   '/_authenticated/machines/derp': typeof AuthenticatedMachinesDerpRoute
   '/_authenticated/machines/dinh-tuyen': typeof AuthenticatedMachinesDinhTuyenRoute
+  '/_authenticated/machines/monitor': typeof AuthenticatedMachinesMonitorRoute
   '/_authenticated/machines/nguoi-dung': typeof AuthenticatedMachinesNguoiDungRoute
   '/_authenticated/machines/thiet-bi': typeof AuthenticatedMachinesThietBiRoute
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
@@ -515,6 +525,7 @@ export interface FileRouteTypes {
     | '/machines/cau-hinh'
     | '/machines/derp'
     | '/machines/dinh-tuyen'
+    | '/machines/monitor'
     | '/machines/nguoi-dung'
     | '/machines/thiet-bi'
     | '/settings/account'
@@ -564,6 +575,7 @@ export interface FileRouteTypes {
     | '/machines/cau-hinh'
     | '/machines/derp'
     | '/machines/dinh-tuyen'
+    | '/machines/monitor'
     | '/machines/nguoi-dung'
     | '/machines/thiet-bi'
     | '/settings/account'
@@ -617,6 +629,7 @@ export interface FileRouteTypes {
     | '/_authenticated/machines/cau-hinh'
     | '/_authenticated/machines/derp'
     | '/_authenticated/machines/dinh-tuyen'
+    | '/_authenticated/machines/monitor'
     | '/_authenticated/machines/nguoi-dung'
     | '/_authenticated/machines/thiet-bi'
     | '/_authenticated/settings/account'
@@ -989,6 +1002,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMachinesThietBiRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/machines/monitor': {
+      id: '/_authenticated/machines/monitor'
+      path: '/machines/monitor'
+      fullPath: '/machines/monitor'
+      preLoaderRoute: typeof AuthenticatedMachinesMonitorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/machines/nguoi-dung': {
       id: '/_authenticated/machines/nguoi-dung'
       path: '/machines/nguoi-dung'
@@ -1061,6 +1081,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMachinesCauHinhRoute: typeof AuthenticatedMachinesCauHinhRoute
   AuthenticatedMachinesDerpRoute: typeof AuthenticatedMachinesDerpRoute
   AuthenticatedMachinesDinhTuyenRoute: typeof AuthenticatedMachinesDinhTuyenRoute
+  AuthenticatedMachinesMonitorRoute: typeof AuthenticatedMachinesMonitorRoute
   AuthenticatedMachinesNguoiDungRoute: typeof AuthenticatedMachinesNguoiDungRoute
   AuthenticatedMachinesThietBiRoute: typeof AuthenticatedMachinesThietBiRoute
   AuthenticatedAclIndexRoute: typeof AuthenticatedAclIndexRoute
@@ -1092,6 +1113,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMachinesCauHinhRoute: AuthenticatedMachinesCauHinhRoute,
   AuthenticatedMachinesDerpRoute: AuthenticatedMachinesDerpRoute,
   AuthenticatedMachinesDinhTuyenRoute: AuthenticatedMachinesDinhTuyenRoute,
+  AuthenticatedMachinesMonitorRoute: AuthenticatedMachinesMonitorRoute,
   AuthenticatedMachinesNguoiDungRoute: AuthenticatedMachinesNguoiDungRoute,
   AuthenticatedMachinesThietBiRoute: AuthenticatedMachinesThietBiRoute,
   AuthenticatedAclIndexRoute: AuthenticatedAclIndexRoute,
