@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Activity, Loader2, Network, Radio, Server, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -592,11 +593,23 @@ export function Overview() {
   // chờ đồng bộ cả 6 query như trước).
   return (
     <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
-      <div>
-        <h2 className='text-2xl font-bold tracking-tight'>Overview</h2>
-        <p className='text-muted-foreground'>
-          Tổng quan Headscale tailnet &amp; DERP. Tự làm mới 30s.
-        </p>
+      <div className='flex flex-wrap items-start justify-between gap-2'>
+        <div>
+          <h2 className='text-2xl font-bold tracking-tight'>Overview</h2>
+          <p className='text-muted-foreground'>
+            Tổng quan Headscale tailnet &amp; DERP. Tự làm mới 30s.
+          </p>
+        </div>
+        {/* SSO sang Beszel: Caddy forward_auth kiểm phiên CMS (docs/status-sso.md) */}
+        <Button variant='outline' asChild>
+          <a
+            href='https://status.hangocthanh.io.vn'
+            target='_blank'
+            rel='noopener noreferrer'
+          >
+            <Activity /> Status
+          </a>
+        </Button>
       </div>
 
       {/* Stats */}

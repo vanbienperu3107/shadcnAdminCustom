@@ -1,4 +1,5 @@
 import {
+  Activity,
   LayoutDashboard,
   MonitorSmartphone,
   Network,
@@ -43,6 +44,7 @@ export const sidebarData: SidebarData = {
               url: '/machines/thiet-bi',
               icon: MonitorSmartphone,
             },
+            { title: 'Monitor', url: '/machines/monitor', icon: Activity },
             { title: 'Định tuyến', url: '/machines/dinh-tuyen', icon: Route },
             { title: 'DERP', url: '/machines/derp', icon: Radio },
             {

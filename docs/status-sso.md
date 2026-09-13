@@ -12,7 +12,7 @@ Trình duyệt ──(cookie derp_session, domain .hangocthanh.io.vn)──> sta
     3. reverse_proxy beszel:8090             # Beszel tin TRUSTED_AUTH_HEADER=X-Auth-Email
 ```
 
-- Nút nằm ở trang Dashboard (`src/features/dashboard/index.tsx`), mở tab mới.
+- Nút nằm góc phải tiêu đề trang **Overview** (`src/features/overview/index.tsx`), mở tab mới.
 - `/api/auth/forward` (`server/src/routes/auth.ts`) chỉ trả 200 cho phiên đầy đủ
   (không pending 2FA, chưa hết hạn). KHÔNG theo `AUTH_OPTIONAL`.
 - Beszel **không tự tạo user** từ trusted header ⇒ `BESZEL_SSO_EMAIL` phải là user
