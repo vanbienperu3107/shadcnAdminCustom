@@ -84,6 +84,11 @@ const schema = z.object({
   // Email user Beszel có sẵn mà /api/auth/forward trả về cho Caddy. Beszel KHÔNG
   // tự tạo user từ trusted header nên phải là user đã tồn tại. Trống = tắt SSO.
   BESZEL_SSO_EMAIL: z.string().default(''),
+  // Trang Monitor đọc API Beszel bằng superuser qua mạng docker memnet.
+  // Trống EMAIL/PASSWORD = /api/monitor/systems trả 503 monitor_not_configured.
+  BESZEL_URL: z.string().default('http://beszel:8090'),
+  BESZEL_EMAIL: z.string().default(''),
+  BESZEL_PASSWORD: z.string().default(''),
   // Bootstrap tài khoản admin nội bộ (username/password) lúc khởi động. Để trống
   // = không tạo. Idempotent: chỉ tạo nếu username chưa tồn tại (không ghi đè
   // mật khẩu/2FA đã đổi). Sau khi tạo xong nên xóa 2 biến này khỏi môi trường.

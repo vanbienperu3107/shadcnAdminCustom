@@ -58,7 +58,7 @@ jobs:
           username: ${{ secrets.SSH_USER_VPN6 || 'root' }}
           key: ${{ secrets.SSH_KEY_VPN6 }}
           port: ${{ secrets.SSH_PORT_VPN6 || '22' }}
-          envs: DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,HEADSCALE_API_KEY,HEADSCALE_DASHBOARD_SECRET,PEPPER,GH_PAT
+          envs: DERP_SESSION_SECRET,DERP_ALLOWED_EMAILS,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,HEADSCALE_API_KEY,HEADSCALE_DASHBOARD_SECRET,PEPPER,GH_PAT,BESZEL_PASSWORD
           script_stop: true
           command_timeout: 10m
           script: |
@@ -88,6 +88,7 @@ jobs:
             HEADSCALE_DASHBOARD_SECRET=${HEADSCALE_DASHBOARD_SECRET}
             PEPPER=${PEPPER}
             GITHUB_TOKEN=${GH_PAT}
+            BESZEL_PASSWORD=${BESZEL_PASSWORD}
             AUTH_OPTIONAL=false
             ENVEOF
             chmod 600 .env
@@ -128,3 +129,5 @@ jobs:
           HEADSCALE_DASHBOARD_SECRET: ${{ secrets.HEADSCALE_DASHBOARD_SECRET }}
           PEPPER: ${{ secrets.PEPPER }}
           GH_PAT: ${{ secrets.GH_PAT }}
+          # Superuser Beszel cho trang Monitor (= password trong /root/beszel-admin.txt vpn6).
+          BESZEL_PASSWORD: ${{ secrets.BESZEL_PASSWORD }}
