@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { formatRate, formatUptime, levelOf, minutesAgo } from './monitor-api'
+import {
+  formatRate,
+  formatUptime,
+  levelOf,
+  minutesAgo,
+  systemUrl,
+} from './monitor-api'
+
+describe('systemUrl (link chi tiết máy trong Beszel)', () => {
+  it('dùng id record, dạng /system/<id>', () => {
+    expect(systemUrl('6z33opow942p26n')).toBe(
+      'https://status.hangocthanh.io.vn/system/6z33opow942p26n'
+    )
+  })
+  it('mã hóa ký tự đặc biệt, không để lọt sang path khác', () => {
+    expect(systemUrl('a/b?c')).toBe(
+      'https://status.hangocthanh.io.vn/system/a%2Fb%3Fc'
+    )
+  })
+})
 
 describe('levelOf (ngưỡng màu thanh %)', () => {
   it('dưới 70 xanh, 70–90 vàng, trên 90 đỏ', () => {

@@ -14,6 +14,13 @@ export type MonitorSystem = {
   updated: string | null
 }
 
+export const STATUS_URL = 'https://status.hangocthanh.io.vn'
+
+/** Trang chi tiết 1 máy trong Beszel: /system/<id record systems>. */
+export function systemUrl(id: string): string {
+  return `${STATUS_URL}/system/${encodeURIComponent(id)}`
+}
+
 export const monitorKeys = {
   systems: ['monitor', 'systems'] as const,
 }
