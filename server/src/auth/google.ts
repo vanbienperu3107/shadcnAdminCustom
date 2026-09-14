@@ -35,19 +35,36 @@ export function buildAuthUrl(state: string): string {
   return `${AUTH_ENDPOINT}?${params.toString()}`
 }
 
-/** Đổi authorization code lấy token (server-to-server, dùng client secret qua TLS). */
+const EXCHANGE_ATTEMPTS = 2
+const EXCHANGE_RETRY_DELAY_MS = 500
+
+/**
+ * Đổi authorization code lấy token (server-to-server, dùng client secret qua TLS).
+ * Thử lại 1 lần khi lỗi mạng (fetch ném TypeError, chưa tới được Google) — code
+ * chưa bị tiêu nên gửi lại an toàn. Lỗi HTTP từ Google thì không thử lại.
+ */
 export async function exchangeCode(code: string): Promise<GoogleTokens> {
-  const res = await fetch(TOKEN_ENDPOINT, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      code,
-      client_id: env.GOOGLE_CLIENT_ID,
-      client_secret: env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: REDIRECT_URI,
-      grant_type: 'authorization_code',
-    }),
-  })
+  const body = new URLSearchParams({
+    code,
+    client_id: env.GOOGLE_CLIENT_ID,
+    client_secret: env.GOOGLE_CLIENT_SECRET,
+    redirect_uri: REDIRECT_URI,
+    grant_type: 'authorization_code',
+  }).toString()
+  let res: Response
+  for (let attempt = 1; ; attempt++) {
+    try {
+      res = await fetch(TOKEN_ENDPOINT, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body,
+      })
+      break
+    } catch (err) {
+      if (!(err instanceof TypeError) || attempt >= EXCHANGE_ATTEMPTS) throw err
+      await new Promise((r) => setTimeout(r, EXCHANGE_RETRY_DELAY_MS))
+    }
+  }
   if (!res.ok) {
     const text = await res.text()
     throw new Error(`Google token exchange failed (${res.status}): ${text}`)

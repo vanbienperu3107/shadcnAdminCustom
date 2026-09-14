@@ -1,3 +1,5 @@
+// Phải import đầu tiên: đặt mặc định mạng trước khi có kết nối đi ra nào.
+import './lib/net-defaults.js'
 import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
