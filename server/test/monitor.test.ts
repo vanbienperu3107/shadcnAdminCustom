@@ -135,6 +135,59 @@ describe('GET /api/monitor/systems', () => {
       expect(fetchSpy.mock.calls[3][1].headers).toEqual({ Authorization: 'NEW' })
     })
 
+    // Sự cố 2026-09-14: deploy-beszel `superuser upsert` đổi tokenKey -> token
+    // cache hỏng, PocketBase coi như khách -> 200 + items rỗng (không 401).
+    it('token cache hỏng trả 200 rỗng -> đăng nhập lại 1 lần, ra đủ máy', async () => {
+      const fetchSpy = vi
+        .fn()
+        .mockResolvedValueOnce(json(200, { token: 'OLD' }))
+        .mockResolvedValueOnce(json(200, { items: [RECORD] }))
+        .mockResolvedValueOnce(json(200, { items: [] }))
+        .mockResolvedValueOnce(json(200, { token: 'NEW' }))
+        .mockResolvedValueOnce(json(200, { items: [RECORD] }))
+      vi.stubGlobal('fetch', fetchSpy)
+      const app = await buildApp({ BESZEL_EMAIL: 'a@b.c', BESZEL_PASSWORD: 'pw' })
+      const first = await app.inject({ method: 'GET', url: '/api/monitor/systems' })
+      expect(first.json().systems).toHaveLength(1)
+      const res = await app.inject({ method: 'GET', url: '/api/monitor/systems' })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().systems[0]).toMatchObject({ name: 'vpn6' })
+      expect(fetchSpy).toHaveBeenCalledTimes(5)
+      expect(fetchSpy.mock.calls[2][1].headers).toEqual({ Authorization: 'OLD' })
+      expect(fetchSpy.mock.calls[3][0]).toContain('/_superusers/auth-with-password')
+      expect(fetchSpy.mock.calls[4][1].headers).toEqual({ Authorization: 'NEW' })
+    })
+
+    it('vừa đăng nhập mà rỗng thật -> không đăng nhập lại', async () => {
+      const fetchSpy = vi
+        .fn()
+        .mockResolvedValueOnce(json(200, { token: 'T1' }))
+        .mockResolvedValueOnce(json(200, { items: [] }))
+      vi.stubGlobal('fetch', fetchSpy)
+      const app = await buildApp({ BESZEL_EMAIL: 'a@b.c', BESZEL_PASSWORD: 'pw' })
+      const res = await app.inject({ method: 'GET', url: '/api/monitor/systems' })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().systems).toEqual([])
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+    })
+
+    it('token cache rỗng, đăng nhập lại vẫn rỗng -> trả rỗng, chỉ thử 1 lần', async () => {
+      const fetchSpy = vi
+        .fn()
+        .mockResolvedValueOnce(json(200, { token: 'T1' }))
+        .mockResolvedValueOnce(json(200, { items: [RECORD] }))
+        .mockResolvedValueOnce(json(200, { items: [] }))
+        .mockResolvedValueOnce(json(200, { token: 'T2' }))
+        .mockResolvedValueOnce(json(200, { items: [] }))
+      vi.stubGlobal('fetch', fetchSpy)
+      const app = await buildApp({ BESZEL_EMAIL: 'a@b.c', BESZEL_PASSWORD: 'pw' })
+      await app.inject({ method: 'GET', url: '/api/monitor/systems' })
+      const res = await app.inject({ method: 'GET', url: '/api/monitor/systems' })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().systems).toEqual([])
+      expect(fetchSpy).toHaveBeenCalledTimes(5)
+    })
+
     it('sai mật khẩu Beszel -> 502 beszel_unreachable kèm lý do', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(json(400, {})))
       const app = await buildApp({ BESZEL_EMAIL: 'a@b.c', BESZEL_PASSWORD: 'wrong' })

@@ -106,14 +106,30 @@ async function getRecords(tok: string): Promise<Response> {
   })
 }
 
-export async function fetchSystems(): Promise<MonitorSystem[]> {
-  let res = await getRecords(token ?? (await login()))
-  if (res.status === 401 || res.status === 403) {
-    res = await getRecords(await login())
-  }
+async function readItems(res: Response): Promise<BeszelRecord[]> {
   if (!res.ok) throw new Error(`beszel systems HTTP ${res.status}`)
   const body = (await res.json()) as { items?: BeszelRecord[] }
-  return (body.items ?? []).map(mapSystem)
+  return body.items ?? []
+}
+
+/**
+ * Token hỏng (vd. `superuser upsert` khi deploy-beszel đổi tokenKey) KHÔNG ra
+ * 401: PocketBase coi như khách, listRule của `systems` lọc hết -> 200 + rỗng.
+ * Sự cố 2026-09-14: Monitor hiện 0/0. Nên token cache mà ra rỗng thì đăng nhập
+ * lại đúng 1 lần rồi đọc lại.
+ */
+export async function fetchSystems(): Promise<MonitorSystem[]> {
+  const cached = token
+  let res = await getRecords(cached ?? (await login()))
+  if (res.status === 401 || res.status === 403) {
+    res = await getRecords(await login())
+    return (await readItems(res)).map(mapSystem)
+  }
+  let items = await readItems(res)
+  if (cached && items.length === 0) {
+    items = await readItems(await getRecords(await login()))
+  }
+  return items.map(mapSystem)
 }
 
 /** Chỉ dùng trong test. */
